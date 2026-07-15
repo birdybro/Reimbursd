@@ -5,6 +5,7 @@ import {
   formatMinorUnits,
   getCurrencyFractionDigits,
   isSupportedCurrencyCode,
+  minorUnitsToDecimal,
   parseDecimalToMinorUnits,
 } from './money.js';
 
@@ -31,6 +32,12 @@ describe('money', () => {
     expect(formatMinorUnits(1234, 'USD', 'en-US')).toBe('$12.34');
     expect(formatMinorUnits(450, 'JPY', 'ja-JP')).toBe('￥450');
     expect(() => formatMinorUnits(12.5, 'USD')).toThrow(TypeError);
+  });
+
+  it('formats editable decimal values without currency symbols', () => {
+    expect(minorUnitsToDecimal(1_234, 'USD')).toBe('12.34');
+    expect(minorUnitsToDecimal(450, 'JPY')).toBe('450');
+    expect(minorUnitsToDecimal(-5, 'EUR')).toBe('-0.05');
   });
 
   it('recognizes the intentionally supported ISO 4217 codes', () => {

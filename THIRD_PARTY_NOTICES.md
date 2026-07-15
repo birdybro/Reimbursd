@@ -13,7 +13,9 @@ The initial application icon and splash bitmap assets are from `expo-template-bl
 copyright Expo and contributors, under the 0BSD license. Its complete notice is preserved at
 `apps/mobile/assets/LICENSE.expo-template`.
 
-No third-party source code or receipt fixtures are vendored in the repository at Milestone 0.
+No third-party source code or receipt fixtures are vendored in the repository. Expo SQLite,
+`expo-crypto`, Jest Expo, and React Native Testing Library are installed through the locked npm
+dependency graph under their published permissive licenses.
 
 ## Development license data
 

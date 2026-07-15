@@ -8,9 +8,10 @@ AI provider.
 
 ## Current status
 
-The project is in Milestone 0. The repository contains the Expo mobile foundation and independent
-TypeScript domain utilities. Receipt persistence and the complete manual-expense workflow are the
-next milestone; the project does not yet claim production readiness.
+Milestone 1 provides the first local manual-expense workflow. The Expo application can create,
+view, edit, search, filter, and delete expenses in a versioned local SQLite database without an
+account or network service. The project does not yet import receipt files, export data, or claim
+production readiness.
 
 ## Requirements
 
@@ -25,8 +26,9 @@ npm install
 npm run dev:mobile
 ```
 
-Use the Expo terminal interface to open an Android emulator, iOS simulator, or browser. No account,
-environment variable, hosted service, or paid provider is required.
+Use the Expo terminal interface to open an Android emulator, iOS simulator, or browser. Manual
+expenses persist in the platform's local application storage. No account, environment variable,
+hosted service, or paid provider is required.
 
 ## Quality gate
 
@@ -34,8 +36,9 @@ environment variable, hosted service, or paid provider is required.
 npm run verify
 ```
 
-This checks formatting, linting, strict TypeScript, tests, dependency licenses, known high-severity
-dependency vulnerabilities, and production builds.
+This checks formatting, linting, strict TypeScript, domain and SQLite tests, React Native UI
+interactions, dependency licenses, known high-severity dependency vulnerabilities, Expo
+configuration, and production builds.
 
 See [development documentation](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md), and
 [privacy commitments](PRIVACY.md) for current details.

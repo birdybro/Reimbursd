@@ -4,10 +4,14 @@ Reimbursd is designed to keep its core mobile experience local and usable withou
 
 ## Current implementation
 
-The Milestone 0 application does not collect receipt data, request location, use analytics,
-display advertising, or transmit data to a Reimbursd service. It has no account system and no
-external AI integration. The repository does not yet implement receipt persistence, exports,
-backups, synchronization, or hosted processing.
+Manual expense fields are stored in a local SQLite database. On mobile, the database is inside the
+application sandbox. On web, it is stored for the current browser origin and profile. The database
+is not application-layer encrypted, and backup and restore are not implemented yet.
+
+The application does not request location, use analytics, display advertising, transmit expense
+data to a Reimbursd service, or require an account. It has no external AI, synchronization, hosted
+processing, receipt-file ingestion, or telemetry integration. Deleting an expense retains a local
+tombstone for future synchronization semantics; there is not yet a delete-all workflow.
 
 ## Product commitments
 

@@ -1,5 +1,5 @@
 {
-  "name": "@reimbursd/domain",
+  "name": "@reimbursd/database",
   "version": "0.1.0",
   "private": true,
   "license": "GPL-3.0-only",
@@ -17,5 +17,8 @@
     "build": "tsc --project tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run src"
+  },
+  "dependencies": {
+    "@reimbursd/domain": "*"
   }
 }

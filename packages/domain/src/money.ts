@@ -71,3 +71,25 @@ export function formatMinorUnits(
     style: 'currency',
   }).format(minorUnits / scale);
 }
+
+export function minorUnitsToDecimal(
+  minorUnits: number,
+  currencyCode: SupportedCurrencyCode,
+): string {
+  if (!Number.isSafeInteger(minorUnits)) {
+    throw new TypeError('Minor units must be a safe integer.');
+  }
+
+  const fractionDigits = getCurrencyFractionDigits(currencyCode);
+
+  if (fractionDigits === 0) {
+    return minorUnits.toString();
+  }
+
+  const sign = minorUnits < 0 ? '-' : '';
+  const absoluteMinorUnits = Math.abs(minorUnits);
+  const scale = 10 ** fractionDigits;
+  const whole = Math.floor(absoluteMinorUnits / scale);
+  const fraction = (absoluteMinorUnits % scale).toString().padStart(fractionDigits, '0');
+  return `${sign}${whole}.${fraction}`;
+}

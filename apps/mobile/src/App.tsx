@@ -1,109 +1,136 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { Info, LockKeyhole, ReceiptText, ShieldCheck, X } from 'lucide-react-native';
-import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-const colors = {
-  background: '#f4f7f5',
-  border: '#cbd5cf',
-  coral: '#c94e38',
-  green: '#176b4d',
-  ink: '#17221d',
-  muted: '#5d6963',
-  paper: '#ffffff',
-  softGreen: '#dce9e1',
-} as const;
+import type { ReceiptRepository } from '@reimbursd/database';
+import type { Receipt } from '@reimbursd/domain';
+
+import { AppHeader } from './components/AppHeader';
+import { LegalModal } from './components/LegalModal';
+import { StatusPanel } from './components/StatusPanel';
+import { ExpenseDetailScreen } from './features/expenses/ExpenseDetailScreen';
+import { ExpenseFormScreen } from './features/expenses/ExpenseFormScreen';
+import { ExpenseListScreen } from './features/expenses/ExpenseListScreen';
+import type { ExpenseFormSubmission } from './features/expenses/expense-form';
+import { getLocalReceiptRepository } from './storage/expo-sqlite';
+import { colors } from './theme';
+
+type Route =
+  | { readonly name: 'list' }
+  | { readonly name: 'detail'; readonly receipt: Receipt }
+  | { readonly name: 'new' }
+  | { readonly name: 'edit'; readonly receipt: Receipt };
+
+type RepositoryState =
+  | { readonly status: 'loading' }
+  | { readonly status: 'ready'; readonly repository: ReceiptRepository }
+  | { readonly status: 'error' };
 
 function AppContent() {
+  const [initializationKey, setInitializationKey] = useState(0);
   const [legalVisible, setLegalVisible] = useState(false);
+  const [repositoryState, setRepositoryState] = useState<RepositoryState>({ status: 'loading' });
+  const [route, setRoute] = useState<Route>({ name: 'list' });
+
+  useEffect(() => {
+    let active = true;
+
+    getLocalReceiptRepository()
+      .then((repository) => {
+        if (active) {
+          setRepositoryState({ repository, status: 'ready' });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setRepositoryState({ status: 'error' });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [initializationKey]);
+
+  const goBack = () => {
+    setRoute((current) => {
+      if (current.name === 'edit') {
+        return { name: 'detail', receipt: current.receipt };
+      }
+      return { name: 'list' };
+    });
+  };
+
+  const submit = async (submission: ExpenseFormSubmission) => {
+    if (repositoryState.status !== 'ready') {
+      throw new Error('Local repository is unavailable.');
+    }
+
+    const receipt =
+      submission.kind === 'create'
+        ? await repositoryState.repository.create(submission.receipt)
+        : await repositoryState.repository.update(submission.input);
+    setRoute({ name: 'detail', receipt });
+  };
+
+  const screenTitle =
+    route.name === 'new'
+      ? 'New expense'
+      : route.name === 'edit'
+        ? 'Edit expense'
+        : route.name === 'detail'
+          ? 'Expense details'
+          : undefined;
+  const showBack = route.name !== 'list';
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <StatusBar style="dark" />
-      <View style={styles.header}>
-        <View>
-          <Text accessibilityRole="header" style={styles.brand}>
-            Reimbursd
-          </Text>
-          <Text style={styles.tagline}>Scan it. Verify it. Own your data.</Text>
-        </View>
-        <Pressable
-          accessibilityLabel="Open legal information"
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={() => setLegalVisible(true)}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-        >
-          <Info color={colors.ink} size={22} strokeWidth={2} />
-        </Pressable>
+      <AppHeader
+        onBack={showBack ? goBack : undefined}
+        onOpenLegal={() => setLegalVisible(true)}
+        title={screenTitle}
+      />
+
+      <View style={styles.main}>
+        {repositoryState.status === 'loading' ? (
+          <View accessibilityLabel="Opening local expense database" style={styles.loading}>
+            <ActivityIndicator color={colors.green} size="large" />
+          </View>
+        ) : repositoryState.status === 'error' ? (
+          <StatusPanel
+            actionLabel="Try again"
+            message="The local database could not be opened. No data was sent anywhere."
+            onAction={() => {
+              setRepositoryState({ status: 'loading' });
+              setInitializationKey((value) => value + 1);
+            }}
+            title="Local storage is unavailable"
+          />
+        ) : route.name === 'list' ? (
+          <ExpenseListScreen
+            onCreate={() => setRoute({ name: 'new' })}
+            onOpen={(receipt) => setRoute({ name: 'detail', receipt })}
+            repository={repositoryState.repository}
+          />
+        ) : route.name === 'detail' ? (
+          <ExpenseDetailScreen
+            onDeleted={() => setRoute({ name: 'list' })}
+            onEdit={() => setRoute({ name: 'edit', receipt: route.receipt })}
+            receipt={route.receipt}
+            repository={repositoryState.repository}
+          />
+        ) : (
+          <ExpenseFormScreen
+            onSubmit={submit}
+            receipt={route.name === 'edit' ? route.receipt : undefined}
+          />
+        )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View accessibilityLabel="Local mode, no account required" style={styles.localBand}>
-          <ShieldCheck color={colors.green} size={24} strokeWidth={2} />
-          <View style={styles.localBandCopy}>
-            <Text style={styles.localTitle}>Local mode</Text>
-            <Text style={styles.localDetail}>No account required</Text>
-          </View>
-          <LockKeyhole color={colors.coral} size={20} strokeWidth={2} />
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text accessibilityRole="header" style={styles.heading}>
-            Expenses
-          </Text>
-          <Text style={styles.count}>0 records</Text>
-        </View>
-
-        <View style={styles.emptyState}>
-          <View style={styles.receiptMark}>
-            <ReceiptText color={colors.green} size={48} strokeWidth={1.8} />
-          </View>
-          <Text accessibilityRole="header" style={styles.emptyTitle}>
-            No expenses yet
-          </Text>
-          <Text style={styles.emptyCopy}>Your locally saved expenses will appear here.</Text>
-        </View>
-      </ScrollView>
-
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setLegalVisible(false)}
-        transparent
-        visible={legalVisible}
-      >
-        <View style={styles.modalBackdrop}>
-          <View accessibilityViewIsModal style={styles.modalPanel}>
-            <View style={styles.modalHeader}>
-              <Text accessibilityRole="header" style={styles.modalTitle}>
-                About Reimbursd
-              </Text>
-              <Pressable
-                accessibilityLabel="Close legal information"
-                accessibilityRole="button"
-                hitSlop={8}
-                onPress={() => setLegalVisible(false)}
-                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-              >
-                <X color={colors.ink} size={22} strokeWidth={2} />
-              </Pressable>
-            </View>
-            <Text style={styles.legalProduct}>Reimbursd 0.1.0</Text>
-            <Text style={styles.legalCopy}>
-              Free software licensed under GPL-3.0-only. Source and license information are included
-              with the project repository.
-            </Text>
-            <View style={styles.divider} />
-            <Text style={styles.legalLabel}>Current data behavior</Text>
-            <Text style={styles.legalCopy}>
-              This foundation build has no account, analytics, location access, external AI, or
-              receipt storage.
-            </Text>
-          </View>
-        </View>
-      </Modal>
+      <LegalModal onClose={() => setLegalVisible(false)} visible={legalVisible} />
     </SafeAreaView>
   );
 }
@@ -117,160 +144,16 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  brand: {
-    color: colors.ink,
-    fontSize: 25,
-    fontWeight: '700',
-  },
-  content: {
-    flexGrow: 1,
-    paddingBottom: 32,
-    paddingHorizontal: 20,
-  },
-  count: {
-    color: colors.muted,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  divider: {
-    backgroundColor: colors.border,
-    height: StyleSheet.hairlineWidth,
-    marginVertical: 20,
-  },
-  emptyCopy: {
-    color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 7,
-    textAlign: 'center',
-  },
-  emptyState: {
+  loading: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    minHeight: 360,
-    paddingHorizontal: 24,
   },
-  emptyTitle: {
-    color: colors.ink,
-    fontSize: 20,
-    fontWeight: '700',
-    marginTop: 18,
-  },
-  header: {
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  heading: {
-    color: colors.ink,
-    fontSize: 21,
-    fontWeight: '700',
-  },
-  iconButton: {
-    alignItems: 'center',
-    borderRadius: 6,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  legalCopy: {
-    color: colors.muted,
-    fontSize: 15,
-    lineHeight: 23,
-  },
-  legalLabel: {
-    color: colors.ink,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  legalProduct: {
-    color: colors.green,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  localBand: {
-    alignItems: 'center',
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    minHeight: 68,
-    paddingHorizontal: 4,
-  },
-  localBandCopy: {
+  main: {
     flex: 1,
-    marginLeft: 12,
-  },
-  localDetail: {
-    color: colors.muted,
-    fontSize: 13,
-    marginTop: 2,
-  },
-  localTitle: {
-    color: colors.ink,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  modalBackdrop: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(23, 34, 29, 0.42)',
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  modalPanel: {
-    backgroundColor: colors.paper,
-    borderRadius: 8,
-    boxShadow: '0 10px 24px rgba(23, 34, 29, 0.18)',
-    elevation: 8,
-    maxWidth: 480,
-    padding: 22,
-    width: '100%',
-  },
-  modalTitle: {
-    color: colors.ink,
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  pressed: {
-    opacity: 0.56,
-  },
-  receiptMark: {
-    alignItems: 'center',
-    backgroundColor: colors.softGreen,
-    borderRadius: 8,
-    height: 88,
-    justifyContent: 'center',
-    width: 88,
   },
   safeArea: {
     backgroundColor: colors.background,
     flex: 1,
-  },
-  sectionHeader: {
-    alignItems: 'baseline',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 28,
-  },
-  tagline: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 3,
   },
 });

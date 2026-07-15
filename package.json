@@ -24,12 +24,14 @@
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
+    "test:ui": "npm run test:ui --workspace @reimbursd/mobile",
     "test:watch": "vitest",
     "audit": "npm audit --audit-level=high",
     "licenses": "license-checker-rseidelsohn --excludePrivatePackages --summary --onlyAllow \"0BSD;Apache-2.0;BlueOak-1.0.0;BSD-2-Clause;BSD-3-Clause;CC-BY-3.0;CC-BY-4.0;CC0-1.0;ISC;MIT;MIT-0;MPL-2.0;Python-2.0;Unlicense;Unicode-3.0\"",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run licenses && npm run audit && npm run doctor && npm run build"
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run test:ui && npm run licenses && npm run audit && npm run doctor && npm run build"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.0.0",
     "cross-env": "^10.0.0",
     "eslint": "^9.18.0",
