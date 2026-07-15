@@ -23,6 +23,11 @@ locally and reject an already imported original before writing. Write the file b
 metadata persistence fails, remove the new file and surface both errors if cleanup also fails.
 Never overwrite an existing storage reference.
 
+For deletion, commit the receipt tombstone before removing attachment bytes. Record successful file
+removal in `storage_deleted_at`; query and retry pending rows at application startup and through a
+visible user action. Treat file deletion as idempotent so interruption between storage and SQLite
+updates is recoverable without restoring the deleted expense.
+
 Model originals and derivatives separately. A derivative must point to an original on the same
 receipt and cannot replace the original. Camera, image-picker, and PDF-picker provenance is stored
 on the original metadata row.
@@ -33,5 +38,5 @@ Core ingestion behavior is deterministic and testable without Expo. The browser 
 same domain and SQLite metadata contract while retaining platform-private bytes. Cross-store writes
 need explicit compensation and cannot claim full atomicity. Current format support is limited to
 JPEG, PNG, and unencrypted PDFs; other formats fail with a recoverable error. Storage is isolated by
-the platform but is not application-layer encrypted. Generated preview creation and attachment
-deletion retry remain follow-up work.
+the platform but is not application-layer encrypted. Generated preview creation remains follow-up
+work, as do delete-all and secure deletion guarantees.

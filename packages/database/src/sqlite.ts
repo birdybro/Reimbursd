@@ -114,6 +114,15 @@ const migrations: readonly Migration[] = [
     `,
     version: 3,
   },
+  {
+    name: 'receipt_document_storage_deletion',
+    sql: `
+      ALTER TABLE receipt_documents ADD COLUMN storage_deleted_at TEXT;
+      CREATE INDEX receipt_documents_storage_deletion_idx
+        ON receipt_documents(storage_deleted_at, receipt_id);
+    `,
+    version: 4,
+  },
 ];
 
 export const schemaVersion = migrations.at(-1)?.version ?? 0;

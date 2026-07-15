@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
+import type { ReceiptDeletionCoordinator } from '@reimbursd/attachments';
 import {
   ReceiptConflictError,
   type ReceiptDocumentRepository,
@@ -26,6 +27,7 @@ jest.mock('lucide-react-native', () => {
     Filter: MockIcon,
     Pencil: MockIcon,
     Plus: MockIcon,
+    RefreshCw: MockIcon,
     ReceiptText: MockIcon,
     Save: MockIcon,
     Search: MockIcon,
@@ -48,6 +50,24 @@ const receipt = createManualReceipt({
   totalMinor: 1_334,
 });
 
+const receiptDocument: ReceiptDocument = {
+  byteSize: 4_096,
+  createdAt: '2026-07-15T01:00:00.000Z',
+  heightPixels: null,
+  id: '44444444-4444-4444-8444-444444444444',
+  isOriginal: true,
+  mimeType: 'application/pdf',
+  originalFilename: 'synthetic-receipt.pdf',
+  pageCount: 3,
+  parentDocumentId: null,
+  receiptId: receipt.id,
+  sha256: 'd'.repeat(64),
+  sourceType: 'pdf_import',
+  storageDeletedAt: null,
+  storageReference: `receipt-documents/${receipt.id}/originals/44444444-4444-4444-8444-444444444444.pdf`,
+  widthPixels: null,
+};
+
 function createRepository(): jest.Mocked<ReceiptRepository> {
   return {
     create: jest.fn(),
@@ -64,6 +84,20 @@ function createDocumentRepository(): jest.Mocked<ReceiptDocumentRepository> {
     findOriginalByHash: jest.fn(),
     getById: jest.fn(),
     listByReceiptId: jest.fn().mockResolvedValue([]),
+    listPendingStorageDeletion: jest.fn().mockResolvedValue([]),
+    markStorageDeleted: jest.fn(),
+  };
+}
+
+function createDeletionCoordinator(): jest.Mocked<
+  Pick<ReceiptDeletionCoordinator, 'cleanupDocuments' | 'deleteReceipt'>
+> {
+  return {
+    cleanupDocuments: jest.fn().mockResolvedValue([]),
+    deleteReceipt: jest.fn().mockResolvedValue({
+      attachmentCleanupFailures: [],
+      receipt: { ...receipt, deletedAt: '2026-07-15T00:00:00.000Z', version: 2 },
+    }),
   };
 }
 
@@ -77,6 +111,7 @@ describe('manual expense screens', () => {
     const onImportPdf = jest.fn();
     const screen = await render(
       <ExpenseListScreen
+        cleanupIssue={null}
         importError={null}
         importing={false}
         onCapture={onCapture}
@@ -84,7 +119,9 @@ describe('manual expense screens', () => {
         onImportImage={onImportImage}
         onImportPdf={onImportPdf}
         onOpen={onOpen}
+        onRetryCleanup={jest.fn()}
         repository={repository}
+        retryingCleanup={false}
       />,
     );
 
@@ -130,6 +167,28 @@ describe('manual expense screens', () => {
     });
   });
 
+  test('exposes retry when local receipt file deletion is pending', async () => {
+    const onRetryCleanup = jest.fn();
+    const screen = await render(
+      <ExpenseListScreen
+        cleanupIssue="1 local receipt file still needs deletion."
+        importError={null}
+        importing={false}
+        onCapture={jest.fn()}
+        onCreate={jest.fn()}
+        onImportImage={jest.fn()}
+        onImportPdf={jest.fn()}
+        onOpen={jest.fn()}
+        onRetryCleanup={onRetryCleanup}
+        repository={createRepository()}
+        retryingCleanup={false}
+      />,
+    );
+
+    await fireEvent.press(screen.getByLabelText('Retry receipt file deletion'));
+    expect(onRetryCleanup).toHaveBeenCalledTimes(1);
+  });
+
   test('keeps invalid entries visible with a recoverable message', async () => {
     const onSubmit = jest.fn();
     const screen = await render(<ExpenseFormScreen onSubmit={onSubmit} receipt={undefined} />);
@@ -148,57 +207,82 @@ describe('manual expense screens', () => {
 
   test('requires confirmation before deleting an expense', async () => {
     const onDeleted = jest.fn();
-    const repository = createRepository();
-    repository.delete.mockResolvedValue({
-      ...receipt,
-      deletedAt: '2026-07-15T00:00:00.000Z',
-      version: 2,
-    });
+    const deletionCoordinator = createDeletionCoordinator();
     const screen = await render(
       <ExpenseDetailScreen
+        deletionCoordinator={deletionCoordinator}
         documentRepository={createDocumentRepository()}
+        onCleanupNeeded={jest.fn()}
         onDeleted={onDeleted}
         onEdit={jest.fn()}
+        onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
         receipt={receipt}
-        repository={repository}
       />,
     );
 
     await fireEvent.press(screen.getByLabelText('Delete expense'));
     expect(screen.getByText('Delete expense?')).toBeTruthy();
-    expect(repository.delete).not.toHaveBeenCalled();
+    expect(deletionCoordinator.deleteReceipt).not.toHaveBeenCalled();
 
     await fireEvent.press(screen.getByLabelText('Confirm expense deletion'));
     await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
-    expect(repository.delete).toHaveBeenCalledWith(receipt.id, receipt.version, expect.any(String));
+    expect(deletionCoordinator.deleteReceipt).toHaveBeenCalledWith(
+      receipt.id,
+      receipt.version,
+      expect.any(String),
+    );
+  });
+
+  test('keeps a failed attachment cleanup recoverable after the expense is removed', async () => {
+    const onCleanupNeeded = jest.fn();
+    const onDeleted = jest.fn();
+    const deletionCoordinator = createDeletionCoordinator();
+    deletionCoordinator.deleteReceipt.mockResolvedValueOnce({
+      attachmentCleanupFailures: [
+        { document: receiptDocument, error: new Error('Synthetic storage failure.') },
+      ],
+      receipt: { ...receipt, deletedAt: '2026-07-15T00:00:00.000Z', version: 2 },
+    });
+    const screen = await render(
+      <ExpenseDetailScreen
+        deletionCoordinator={deletionCoordinator}
+        documentRepository={createDocumentRepository()}
+        onCleanupNeeded={onCleanupNeeded}
+        onDeleted={onDeleted}
+        onEdit={jest.fn()}
+        onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
+        receipt={receipt}
+      />,
+    );
+
+    await fireEvent.press(screen.getByLabelText('Delete expense'));
+    await fireEvent.press(screen.getByLabelText('Confirm expense deletion'));
+
+    expect(
+      await screen.findByText(
+        'The expense record was removed, but 1 local receipt file still needs deletion. Retry now or from the expense list.',
+      ),
+    ).toBeTruthy();
+    expect(onCleanupNeeded).toHaveBeenCalledTimes(1);
+    expect(onDeleted).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByLabelText('Retry receipt file deletion'));
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
+    expect(deletionCoordinator.cleanupDocuments).toHaveBeenCalledWith([receiptDocument]);
   });
 
   test('shows original receipt provenance and file integrity metadata', async () => {
-    const document: ReceiptDocument = {
-      byteSize: 4_096,
-      createdAt: '2026-07-15T01:00:00.000Z',
-      heightPixels: null,
-      id: '44444444-4444-4444-8444-444444444444',
-      isOriginal: true,
-      mimeType: 'application/pdf',
-      originalFilename: 'synthetic-receipt.pdf',
-      pageCount: 3,
-      parentDocumentId: null,
-      receiptId: receipt.id,
-      sha256: 'd'.repeat(64),
-      sourceType: 'pdf_import',
-      storageReference: `receipt-documents/${receipt.id}/originals/44444444-4444-4444-8444-444444444444.pdf`,
-      widthPixels: null,
-    };
     const documentRepository = createDocumentRepository();
-    documentRepository.listByReceiptId.mockResolvedValue([document]);
+    documentRepository.listByReceiptId.mockResolvedValue([receiptDocument]);
     const screen = await render(
       <ExpenseDetailScreen
+        deletionCoordinator={createDeletionCoordinator()}
         documentRepository={documentRepository}
+        onCleanupNeeded={jest.fn()}
         onDeleted={jest.fn()}
         onEdit={jest.fn()}
+        onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
         receipt={receipt}
-        repository={createRepository()}
       />,
     );
 

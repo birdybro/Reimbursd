@@ -20,6 +20,7 @@ const validDocument: ReceiptDocument = {
   receiptId: 'b1c535d8-7295-46ac-aa11-c09ea335e8f4',
   sha256: 'd'.repeat(64),
   sourceType: 'image_import',
+  storageDeletedAt: null,
   storageReference: 'receipts/b1c535d8/originals/0ad845cb.jpg',
   widthPixels: 1_800,
 };

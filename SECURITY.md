@@ -13,7 +13,7 @@ private contact channel without including sensitive details.
 
 ## Current scope
 
-Milestone 0 contains a client scaffold and domain utilities. Authentication, remote APIs,
-attachment handling, encryption, and synchronization are not implemented and must not be treated
-as security controls. See [the security model](docs/security/SECURITY_MODEL.md) for an explicit
-implemented/planned inventory.
+Milestone 2 contains a local-only Expo client, SQLite repositories, validated receipt ingestion,
+and private platform attachment storage. Authentication, remote APIs, encryption, secure deletion,
+and synchronization are not implemented and must not be treated as security controls. See
+[the security model](docs/security/SECURITY_MODEL.md) for an explicit implemented/planned inventory.

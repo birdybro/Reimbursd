@@ -32,6 +32,7 @@ export interface ReceiptDocument {
   readonly receiptId: string;
   readonly sha256: string;
   readonly sourceType: ReceiptDocumentSourceType;
+  readonly storageDeletedAt: string | null;
   readonly storageReference: string;
   readonly widthPixels: number | null;
 }
@@ -149,6 +150,17 @@ export function validateReceiptDocument(
     issues.push({
       field: 'createdAt',
       message: 'Creation time must be valid ISO 8601 with a timezone offset.',
+    });
+  }
+
+  if (
+    document.storageDeletedAt !== null &&
+    (!offsetDateTimePattern.test(document.storageDeletedAt) ||
+      Number.isNaN(Date.parse(document.storageDeletedAt)))
+  ) {
+    issues.push({
+      field: 'storageDeletedAt',
+      message: 'Storage deletion time must be valid ISO 8601 with a timezone offset.',
     });
   }
 

@@ -11,29 +11,38 @@ import {
 } from 'react-native';
 import { useEffect, useState } from 'react';
 
-import type { ReceiptDocumentRepository, ReceiptRepository } from '@reimbursd/database';
+import type { AttachmentCleanupFailure, ReceiptDeletionCoordinator } from '@reimbursd/attachments';
+import type { ReceiptDocumentRepository } from '@reimbursd/database';
 import { formatMinorUnits, type Receipt, type ReceiptDocument } from '@reimbursd/domain';
 
 import { colors } from '../../theme';
 import { formatPurchaseDate } from './display';
 
 interface ExpenseDetailScreenProps {
+  readonly deletionCoordinator: Pick<
+    ReceiptDeletionCoordinator,
+    'cleanupDocuments' | 'deleteReceipt'
+  >;
   readonly documentRepository: ReceiptDocumentRepository;
+  readonly onCleanupNeeded: () => void;
   readonly onDeleted: () => void;
   readonly onEdit: () => void;
+  readonly onRefreshCleanup: () => Promise<void>;
   readonly receipt: Receipt;
-  readonly repository: ReceiptRepository;
 }
 
 export function ExpenseDetailScreen({
+  deletionCoordinator,
   documentRepository,
+  onCleanupNeeded,
   onDeleted,
   onEdit,
+  onRefreshCleanup,
   receipt,
-  repository,
 }: ExpenseDetailScreenProps) {
   const [confirmationVisible, setConfirmationVisible] = useState(false);
-  const [deleteError, setDeleteError] = useState(false);
+  const [cleanupFailures, setCleanupFailures] = useState<readonly AttachmentCleanupFailure[]>([]);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [documents, setDocuments] = useState<readonly ReceiptDocument[]>([]);
   const [documentsError, setDocumentsError] = useState(false);
@@ -67,14 +76,43 @@ export function ExpenseDetailScreen({
 
   const deleteReceipt = async () => {
     setDeleting(true);
-    setDeleteError(false);
+    setDeleteError(null);
+
     try {
-      await repository.delete(receipt.id, receipt.version, new Date().toISOString());
+      const result =
+        cleanupFailures.length === 0
+          ? await deletionCoordinator.deleteReceipt(
+              receipt.id,
+              receipt.version,
+              new Date().toISOString(),
+            )
+          : {
+              attachmentCleanupFailures: await deletionCoordinator.cleanupDocuments(
+                cleanupFailures.map(({ document }) => document),
+              ),
+              receipt,
+            };
       setConfirmationVisible(false);
-      onDeleted();
+
+      if (result.attachmentCleanupFailures.length === 0) {
+        await onRefreshCleanup();
+        onDeleted();
+        return;
+      }
+
+      setCleanupFailures(result.attachmentCleanupFailures);
+      onCleanupNeeded();
+      setDeleteError(
+        `The expense record was removed, but ${result.attachmentCleanupFailures.length} local receipt ${result.attachmentCleanupFailures.length === 1 ? 'file still needs' : 'files still need'} deletion. Retry now or from the expense list.`,
+      );
     } catch {
       setConfirmationVisible(false);
-      setDeleteError(true);
+      setDeleteError(
+        cleanupFailures.length === 0
+          ? 'The expense could not be deleted. Reload it and try again.'
+          : 'Receipt file deletion failed again. The app will keep retrying without restoring the expense.',
+      );
+    } finally {
       setDeleting(false);
     }
   };
@@ -153,32 +191,48 @@ export function ExpenseDetailScreen({
         </View>
       )}
 
-      {deleteError ? (
+      {deleteError === null ? null : (
         <Text accessibilityLiveRegion="assertive" style={styles.deleteError}>
-          The expense could not be deleted. Reload it and try again.
+          {deleteError}
         </Text>
-      ) : null}
+      )}
 
       <View style={styles.actions}>
+        {cleanupFailures.length === 0 ? (
+          <Pressable
+            accessibilityLabel="Edit expense"
+            accessibilityRole="button"
+            onPress={onEdit}
+            style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
+          >
+            <Pencil color={colors.paper} size={19} strokeWidth={2.3} />
+            <Text style={styles.editText}>Edit</Text>
+          </Pressable>
+        ) : null}
         <Pressable
-          accessibilityLabel="Edit expense"
-          accessibilityRole="button"
-          onPress={onEdit}
-          style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
-        >
-          <Pencil color={colors.paper} size={19} strokeWidth={2.3} />
-          <Text style={styles.editText}>Edit</Text>
-        </Pressable>
-        <Pressable
-          accessibilityLabel="Delete expense"
+          accessibilityLabel={
+            cleanupFailures.length === 0 ? 'Delete expense' : 'Retry receipt file deletion'
+          }
           accessibilityRole="button"
           accessibilityState={{ disabled: deleting }}
           disabled={deleting}
-          onPress={() => setConfirmationVisible(true)}
+          onPress={() => {
+            if (cleanupFailures.length === 0) {
+              setConfirmationVisible(true);
+            } else {
+              void deleteReceipt();
+            }
+          }}
           style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
         >
           <Trash2 color={colors.danger} size={19} strokeWidth={2.3} />
-          <Text style={styles.deleteText}>{deleting ? 'Deleting...' : 'Delete'}</Text>
+          <Text style={styles.deleteText}>
+            {deleting
+              ? 'Deleting...'
+              : cleanupFailures.length === 0
+                ? 'Delete'
+                : 'Retry file deletion'}
+          </Text>
         </Pressable>
       </View>
 
@@ -194,7 +248,7 @@ export function ExpenseDetailScreen({
               Delete expense?
             </Text>
             <Text style={styles.modalCopy}>
-              This removes the expense from your active local records.
+              This removes the expense from active records and deletes its local receipt files.
             </Text>
             <View style={styles.modalActions}>
               <Pressable

@@ -15,9 +15,11 @@ synchronization, hosted processing, or telemetry integration. Camera and photo-l
 are requested only after the corresponding local import action. PDF selection does not request
 camera, photo, or location access.
 
-Deleting an expense currently retains a local tombstone for future synchronization semantics.
-Attachment cleanup on individual expense deletion and a delete-all workflow are not yet complete,
-so this development build must not claim complete deletion.
+Deleting an expense retains a metadata tombstone for future synchronization semantics, then removes
+its local receipt bytes. If byte removal fails or the application closes between these operations,
+the durable document state is retried at startup and can be retried from the expense list. A
+delete-all workflow and secure deletion guarantees are not implemented, so this development build
+must not claim complete data deletion or forensic erasure.
 
 ## Product commitments
 

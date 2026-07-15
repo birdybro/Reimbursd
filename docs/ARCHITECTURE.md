@@ -32,6 +32,10 @@ only immutable document metadata and opaque storage references. Original and der
 are distinct and derivatives must reference an original belonging to the same receipt. No receipt
 bytes or metadata are transmitted over a network.
 
+Receipt deletion first commits the SQLite tombstone, then removes each referenced file and records
+`storage_deleted_at`. Pending rows are retried on startup and through the UI. File deletion is
+idempotent so an interruption after byte removal but before the metadata update remains recoverable.
+
 ## Intended growth
 
 Future work may add `apps/web`, `apps/api`, `apps/worker`, and focused packages for schemas,

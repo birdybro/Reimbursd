@@ -5,6 +5,7 @@ import {
   FileText,
   Filter,
   Plus,
+  RefreshCw,
   ReceiptText,
   Search,
   ShieldCheck,
@@ -29,6 +30,7 @@ import { colors } from '../../theme';
 import { formatPurchaseDate } from './display';
 
 interface ExpenseListScreenProps {
+  readonly cleanupIssue: string | null;
   readonly importError: string | null;
   readonly importing: boolean;
   readonly onCapture: () => void;
@@ -36,10 +38,13 @@ interface ExpenseListScreenProps {
   readonly onImportImage: () => void;
   readonly onImportPdf: () => void;
   readonly onOpen: (receipt: Receipt) => void;
+  readonly onRetryCleanup: () => void;
   readonly repository: ReceiptRepository;
+  readonly retryingCleanup: boolean;
 }
 
 export function ExpenseListScreen({
+  cleanupIssue,
   importError,
   importing,
   onCapture,
@@ -47,7 +52,9 @@ export function ExpenseListScreen({
   onImportImage,
   onImportPdf,
   onOpen,
+  onRetryCleanup,
   repository,
+  retryingCleanup,
 }: ExpenseListScreenProps) {
   const [currencyCode, setCurrencyCode] = useState<SupportedCurrencyCode | null>(null);
   const [error, setError] = useState(false);
@@ -90,6 +97,25 @@ export function ExpenseListScreen({
         <Text style={styles.localText}>Local mode</Text>
         <Text style={styles.localDetail}>No account required</Text>
       </View>
+
+      {cleanupIssue === null ? null : (
+        <View accessibilityLiveRegion="assertive" style={styles.cleanupBand}>
+          <Text style={styles.cleanupText}>{cleanupIssue}</Text>
+          <Pressable
+            accessibilityLabel="Retry receipt file deletion"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: retryingCleanup }}
+            disabled={retryingCleanup}
+            onPress={onRetryCleanup}
+            style={({ pressed }) => [styles.cleanupAction, pressed && styles.pressed]}
+          >
+            <RefreshCw color={colors.danger} size={17} strokeWidth={2.3} />
+            <Text style={styles.cleanupActionText}>
+              {retryingCleanup ? 'Retrying...' : 'Retry'}
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       <View style={styles.toolbar}>
         <View style={styles.searchBox}>
@@ -326,6 +352,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 220,
     padding: 24,
+  },
+  cleanupAction: {
+    alignItems: 'center',
+    borderColor: colors.danger,
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    minHeight: 40,
+    minWidth: 90,
+    paddingHorizontal: 10,
+  },
+  cleanupActionText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  cleanupBand: {
+    alignItems: 'center',
+    backgroundColor: colors.dangerSoft,
+    borderBottomColor: colors.danger,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  cleanupText: {
+    color: colors.danger,
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
   },
   count: {
     color: colors.muted,

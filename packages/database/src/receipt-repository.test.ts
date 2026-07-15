@@ -17,6 +17,7 @@ import {
   ReceiptDocumentDuplicateError,
   ReceiptDocumentParentNotFoundError,
   ReceiptDocumentReceiptNotFoundError,
+  ReceiptDocumentReceiptNotDeletedError,
   SqliteReceiptDocumentRepository,
 } from './receipt-document-repository.js';
 import {
@@ -45,7 +46,12 @@ describe('SQLite receipt repository', () => {
     const versions = await connection.getAll<{ version: number }>(
       'SELECT version FROM schema_migrations;',
     );
-    expect(versions).toEqual([{ version: 1 }, { version: 2 }, { version: schemaVersion }]);
+    expect(versions).toEqual([
+      { version: 1 },
+      { version: 2 },
+      { version: 3 },
+      { version: schemaVersion },
+    ]);
     connection.close();
   });
 
@@ -276,6 +282,31 @@ describe('SQLite receipt document repository', () => {
     );
     connection.close();
   });
+
+  it('tracks pending physical deletion for documents on tombstoned receipts', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipts = new SqliteReceiptRepository(connection);
+    const documents = new SqliteReceiptDocumentRepository(connection);
+    const receipt = await receipts.create(makeReceipt());
+    const document = await documents.create(makeDocument(receipt.id));
+    const deletedAt = '2026-07-15T02:00:00.000Z';
+
+    await expect(documents.markStorageDeleted(document.id, deletedAt)).rejects.toBeInstanceOf(
+      ReceiptDocumentReceiptNotDeletedError,
+    );
+    await receipts.delete(receipt.id, receipt.version, deletedAt);
+    await expect(documents.listPendingStorageDeletion()).resolves.toEqual([document]);
+
+    const deletedDocument = await documents.markStorageDeleted(document.id, deletedAt);
+
+    expect(deletedDocument.storageDeletedAt).toBe(deletedAt);
+    await expect(documents.markStorageDeleted(document.id, deletedAt)).resolves.toEqual(
+      deletedDocument,
+    );
+    await expect(documents.listPendingStorageDeletion()).resolves.toEqual([]);
+    connection.close();
+  });
 });
 
 class NodeSqliteConnection implements SqliteConnection {
@@ -392,6 +423,7 @@ function makeDocument(
     receiptId,
     sha256: 'd'.repeat(64),
     sourceType: 'image_import',
+    storageDeletedAt: null,
     storageReference: `receipts/${receiptId}/originals/${id}.jpg`,
     widthPixels: 1_800,
     ...overrides,

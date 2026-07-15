@@ -44,7 +44,7 @@
 - [x] Add camera, image selection, and PDF import workflows.
 - [ ] Generate previews/thumbnails; separate original/derivative schema and UI labels are complete.
 - [ ] Add native/web storage-adapter coverage; core, SQLite, coordinator, and UI tests are complete.
-- [ ] Remove attachment bytes when a receipt is deleted and provide cleanup retry behavior.
+- [x] Remove attachment bytes when a receipt is deleted and provide cleanup retry behavior.
 
 ### Acceptance criteria for the current slice
 

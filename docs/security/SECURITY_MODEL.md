@@ -17,6 +17,8 @@
 - Original receipt files are written once to private platform or origin storage; SQLite retains
   metadata and opaque references rather than file BLOBs.
 - SHA-256 is calculated locally for integrity metadata and duplicate detection.
+- Receipt tombstones are committed before file removal. Durable deletion markers, idempotent storage
+  operations, startup recovery, and visible retry prevent interrupted cleanup from being forgotten.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -32,7 +34,7 @@
 
 ## Planned controls
 
-- Attachment derivative generation, attachment cleanup retry, and complete data deletion.
+- Attachment derivative generation and complete data deletion.
 - Secure platform key storage and authenticated encrypted backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
 - Cross-user isolation, backup restoration, provider-contract, and synchronization-conflict tests.

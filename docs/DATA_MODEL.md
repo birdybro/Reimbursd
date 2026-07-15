@@ -9,7 +9,8 @@ floating-point values are not accepted at the persistence boundary.
 ## Local SQLite schema
 
 Migration `1` creates `schema_migrations`, `merchants`, and `receipts`. Migration `2` creates
-`receipt_documents`, and migration `3` adds explicit document capture/import provenance.
+`receipt_documents`, migration `3` adds explicit document capture/import provenance, and migration
+`4` adds durable attachment-deletion state.
 
 `merchants` stores a stable UUID, display and normalized names, optional website and phone columns,
 and creation/update timestamps. The normalized name is unique so repeated manual entries can reuse
@@ -38,7 +39,7 @@ optimistic conflicts, and deletion behavior.
 ```text
 id, receipt_id, parent_document_id, storage_reference, original_filename,
 mime_type, byte_size, sha256, page_count, width_pixels, height_pixels,
-is_original, created_at, source_type
+is_original, created_at, source_type, storage_deleted_at
 ```
 
 The table contains no file BLOBs. Original documents are insert-only through the repository,
@@ -48,6 +49,11 @@ positive page count and do not treat a whole document as having one image dimens
 must reference an original on the same receipt and has a distinct metadata row. Source type records
 camera capture, image import, PDF import, or derivative generation.
 
+When its receipt is tombstoned, a document with a null `storage_deleted_at` is pending physical file
+cleanup. The timestamp is set only after the storage adapter reports successful, idempotent removal.
+Document metadata remains attached to the receipt tombstone for integrity and future synchronization
+semantics; active receipt queries do not expose it.
+
 Later schemas will add locations, field evidence, processing history, categories, tags, optional
-line items, and attachment deletion state without weakening the local-only workflow. The current
-nullable category and location references are reserved fields, not complete features.
+line items, and delete-all tracking without weakening the local-only workflow. The current nullable
+category and location references are reserved fields, not complete features.

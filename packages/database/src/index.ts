@@ -16,8 +16,10 @@ export {
 } from './receipt-repository.js';
 export {
   ReceiptDocumentDuplicateError,
+  ReceiptDocumentNotFoundError,
   ReceiptDocumentParentNotFoundError,
   ReceiptDocumentReceiptNotFoundError,
+  ReceiptDocumentReceiptNotDeletedError,
   SqliteReceiptDocumentRepository,
   type ReceiptDocumentRepository,
 } from './receipt-document-repository.js';

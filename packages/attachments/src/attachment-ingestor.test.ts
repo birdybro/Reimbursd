@@ -51,6 +51,7 @@ describe('original attachment ingestion', () => {
       receiptId,
       sha256,
       sourceType: 'image_import',
+      storageDeletedAt: null,
       storageReference: `receipt-documents/${receiptId}/originals/${documentId}.jpg`,
       widthPixels: 1_800,
     });
@@ -233,6 +234,20 @@ class MemoryDocumentRepository implements ReceiptDocumentRepository {
   async listByReceiptId(candidateReceiptId: string): Promise<readonly ReceiptDocument[]> {
     return this.created.filter((document) => document.receiptId === candidateReceiptId);
   }
+
+  async listPendingStorageDeletion(): Promise<readonly ReceiptDocument[]> {
+    return [];
+  }
+
+  async markStorageDeleted(id: string, storageDeletedAt: string): Promise<ReceiptDocument> {
+    const document = await this.getById(id);
+
+    if (document === null) {
+      throw new Error('Receipt document not found.');
+    }
+
+    return { ...document, storageDeletedAt };
+  }
 }
 
 function makeDocument(overrides: Partial<ReceiptDocument> = {}): ReceiptDocument {
@@ -249,6 +264,7 @@ function makeDocument(overrides: Partial<ReceiptDocument> = {}): ReceiptDocument
     receiptId,
     sha256,
     sourceType: 'image_import',
+    storageDeletedAt: null,
     storageReference: `receipt-documents/${receiptId}/originals/${documentId}.jpg`,
     widthPixels: 1_800,
     ...overrides,

@@ -4,7 +4,11 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-import { AttachmentIngestor, PdfLibAttachmentInspector } from '@reimbursd/attachments';
+import {
+  AttachmentIngestor,
+  PdfLibAttachmentInspector,
+  ReceiptDeletionCoordinator,
+} from '@reimbursd/attachments';
 import type { Receipt } from '@reimbursd/domain';
 
 import { AppHeader } from './components/AppHeader';
@@ -39,6 +43,7 @@ type RepositoryState =
   | { readonly status: 'loading' }
   | {
       readonly capture: ReceiptCaptureCoordinator;
+      readonly deletion: ReceiptDeletionCoordinator;
       readonly repositories: LocalRepositories;
       readonly status: 'ready';
     }
@@ -49,6 +54,8 @@ function AppContent() {
   const [legalVisible, setLegalVisible] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [cleanupIssue, setCleanupIssue] = useState<string | null>(null);
+  const [retryingCleanup, setRetryingCleanup] = useState(false);
   const [repositoryState, setRepositoryState] = useState<RepositoryState>({ status: 'loading' });
   const [route, setRoute] = useState<Route>({ name: 'list' });
 
@@ -56,18 +63,31 @@ function AppContent() {
     let active = true;
 
     getLocalRepositories()
-      .then((repositories) => {
+      .then(async (repositories) => {
         if (active) {
+          const storage = new LocalAttachmentStorage();
           const capture = new ReceiptCaptureCoordinator({
             ingestor: new AttachmentIngestor({
               documents: repositories.documents,
               hasher: new ExpoAttachmentHasher(),
               inspector: new PdfLibAttachmentInspector(),
-              storage: new LocalAttachmentStorage(),
+              storage,
             }),
             receipts: repositories.receipts,
           });
-          setRepositoryState({ capture, repositories, status: 'ready' });
+          const deletion = new ReceiptDeletionCoordinator({
+            documents: repositories.documents,
+            receipts: repositories.receipts,
+            storage,
+          });
+          const cleanupFailures = await deletion.cleanupPending().catch(() => null);
+
+          if (!active) {
+            return;
+          }
+
+          setCleanupIssue(getCleanupIssue(cleanupFailures));
+          setRepositoryState({ capture, deletion, repositories, status: 'ready' });
         }
       })
       .catch(() => {
@@ -132,6 +152,25 @@ function AppContent() {
     }
   };
 
+  const retryPendingCleanup = async (): Promise<void> => {
+    if (repositoryState.status !== 'ready' || retryingCleanup) {
+      return;
+    }
+
+    setRetryingCleanup(true);
+
+    try {
+      const failures = await repositoryState.deletion.cleanupPending();
+      setCleanupIssue(getCleanupIssue(failures));
+    } catch {
+      setCleanupIssue(
+        'Receipt file deletion could not be checked. Retry before clearing site data.',
+      );
+    } finally {
+      setRetryingCleanup(false);
+    }
+  };
+
   const screenTitle =
     route.name === 'new'
       ? 'New expense'
@@ -168,6 +207,7 @@ function AppContent() {
           />
         ) : route.name === 'list' ? (
           <ExpenseListScreen
+            cleanupIssue={cleanupIssue}
             importError={importError}
             importing={importing}
             onCapture={() => importReceipt(selectCameraReceipt)}
@@ -175,15 +215,23 @@ function AppContent() {
             onImportImage={() => importReceipt(selectImageReceipt)}
             onImportPdf={() => importReceipt(selectPdfReceipt)}
             onOpen={(receipt) => setRoute({ name: 'detail', receipt })}
+            onRetryCleanup={retryPendingCleanup}
             repository={repositoryState.repositories.receipts}
+            retryingCleanup={retryingCleanup}
           />
         ) : route.name === 'detail' ? (
           <ExpenseDetailScreen
-            onDeleted={() => setRoute({ name: 'list' })}
-            onEdit={() => setRoute({ name: 'edit', receipt: route.receipt })}
-            receipt={route.receipt}
+            deletionCoordinator={repositoryState.deletion}
             documentRepository={repositoryState.repositories.documents}
-            repository={repositoryState.repositories.receipts}
+            onDeleted={() => setRoute({ name: 'list' })}
+            onCleanupNeeded={() =>
+              setCleanupIssue(
+                'An expense was removed, but at least one local receipt file still needs deletion.',
+              )
+            }
+            onEdit={() => setRoute({ name: 'edit', receipt: route.receipt })}
+            onRefreshCleanup={retryPendingCleanup}
+            receipt={route.receipt}
           />
         ) : (
           <ExpenseFormScreen
@@ -196,6 +244,18 @@ function AppContent() {
       <LegalModal onClose={() => setLegalVisible(false)} visible={legalVisible} />
     </SafeAreaView>
   );
+}
+
+function getCleanupIssue(failures: readonly unknown[] | null): string | null {
+  if (failures === null) {
+    return 'Receipt file deletion could not be checked. Retry before clearing site data.';
+  }
+
+  if (failures.length === 0) {
+    return null;
+  }
+
+  return `${failures.length} local receipt ${failures.length === 1 ? 'file still needs' : 'files still need'} deletion.`;
 }
 
 export default function App() {

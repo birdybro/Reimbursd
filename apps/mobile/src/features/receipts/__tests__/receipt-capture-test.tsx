@@ -62,6 +62,7 @@ describe('receipt capture coordinator', () => {
         receiptId: input.receiptId,
         sha256: 'd'.repeat(64),
         sourceType: input.sourceType,
+        storageDeletedAt: null,
         storageReference: 'receipt-documents/reference.png',
         widthPixels: 10,
       }),

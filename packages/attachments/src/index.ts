@@ -15,3 +15,8 @@ export {
   type AttachmentInspection,
   type AttachmentInspector,
 } from './content-inspector.js';
+export {
+  ReceiptDeletionCoordinator,
+  type AttachmentCleanupFailure,
+  type ReceiptDeletionResult,
+} from './receipt-deletion.js';

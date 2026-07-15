@@ -122,6 +122,7 @@ export class AttachmentIngestor {
       receiptId: input.receiptId,
       sha256,
       sourceType: input.sourceType,
+      storageDeletedAt: null,
       storageReference,
       widthPixels: inspection.widthPixels,
     };
