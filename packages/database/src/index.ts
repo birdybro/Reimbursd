@@ -23,3 +23,13 @@ export {
   SqliteReceiptDocumentRepository,
   type ReceiptDocumentRepository,
 } from './receipt-document-repository.js';
+export {
+  ProcessingHistoryConflictError,
+  ProcessingHistoryNotFoundError,
+  ProcessingReceiptNotFoundError,
+  SqliteFieldEvidenceRepository,
+  SqliteProcessingHistoryRepository,
+  type CompleteProcessingHistoryInput,
+  type FieldEvidenceRepository,
+  type ProcessingHistoryRepository,
+} from './processing-repository.js';

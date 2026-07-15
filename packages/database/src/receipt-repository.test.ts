@@ -50,6 +50,7 @@ describe('SQLite receipt repository', () => {
       { version: 1 },
       { version: 2 },
       { version: 3 },
+      { version: 4 },
       { version: schemaVersion },
     ]);
     connection.close();

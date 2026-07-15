@@ -68,9 +68,9 @@
 
 ## Milestone 3: OCR, extraction, and review
 
-- [ ] Define field-evidence and processing-history domain models.
-- [ ] Add versioned local persistence for evidence and processing history.
-- [ ] Define the OCR provider contract and deterministic test provider.
+- [x] Define field-evidence and processing-history domain models.
+- [x] Add versioned local persistence for evidence and processing history.
+- [x] Define the OCR provider contract and deterministic test provider.
 - [ ] Add an offline-capable local provider where the platform supports it.
 - [ ] Parse receipt text into candidate merchant, date, subtotal, tax, tip, and total fields.
 - [ ] Add review UI with confidence and local/remote provenance.

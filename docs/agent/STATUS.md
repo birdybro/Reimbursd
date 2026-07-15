@@ -1,15 +1,16 @@
 # Agent Status
 
 - Current milestone: Milestone 3 - OCR, extraction, and review
-- Current task: Define field evidence, processing history, and the OCR provider boundary.
-- Last completed task: Milestone 2 local receipt file ingestion.
+- Current task: Select and integrate an offline OCR provider where the platform supports it.
+- Last completed task: Validated processing provenance models, SQLite persistence, and deterministic
+  OCR provider boundary.
 - Commands executed: dependency installation; targeted Prettier, ESLint, TypeScript, Vitest, Jest,
   package builds, Expo web export, live runtime checks, and the complete `npm run verify`; Expo web
   runtime on port 8081.
-- Test and build status: `npm run verify` passes. Fifty-nine Vitest tests and seventeen React
-  Native/Jest interaction and coordinator tests pass. Strict type checking, linting, formatting,
-  license checks, the high-severity audit threshold, Expo Doctor 20/20, all workspace builds, the
-  production Expo web export, and the live Firefox/SQLite worker runtime pass.
+- Test and build status: `npm run verify` passes. Seventy-six Vitest tests and seventeen React
+  Native/Jest interaction, coordinator, and storage-adapter tests pass. Strict type checking,
+  linting, formatting, license checks, the high-severity audit threshold, Expo Doctor 20/20, all
+  workspace builds, the production Expo web export, and the live Firefox/SQLite worker runtime pass.
 - Current assumptions: npm workspaces, Expo SDK 57, the framework-free domain package, and the
   portable SQLite repository boundary remain appropriate. Attachment bytes live in private platform
   or origin storage, with only validated metadata and storage references in SQLite.
@@ -20,5 +21,5 @@
   advisories; there are no high or critical advisories, and npm's suggested fix is an invalid
   downgrade to Expo SDK 46.
 - Current blockers: None.
-- Next task: Add validated field-evidence and processing-history domain models, then define a
-  deterministic OCR provider contract around them.
+- Next task: Evaluate maintained offline OCR adapters against Expo SDK 57, privacy, licensing, and
+  bounded-output requirements; keep deterministic parsing as an independent next layer.

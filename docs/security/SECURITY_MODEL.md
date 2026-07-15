@@ -21,6 +21,10 @@
   separate derivatives; preview failure does not remove the validated original.
 - Receipt tombstones are committed before file removal. Durable deletion markers, idempotent storage
   operations, startup recovery, and visible retry prevent interrupted cleanup from being forgotten.
+- OCR provider input is cloned, and provider output crosses an `unknown` boundary with byte, page,
+  block, text, confidence, and normalized-coordinate validation before typed use.
+- Processing failures persist bounded codes rather than raw errors, filenames, OCR text, merchant
+  names, totals, or other receipt contents.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -38,6 +42,8 @@
 
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available, and
   complete data deletion.
+- A production offline OCR adapter, deterministic parsing, evidence review UI, and source-region
+  highlighting.
 - Secure platform key storage and authenticated encrypted backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
 - Cross-user isolation, backup restoration, provider-contract, and synchronization-conflict tests.

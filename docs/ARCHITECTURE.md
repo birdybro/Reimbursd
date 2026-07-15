@@ -9,6 +9,7 @@ apps/mobile       Expo and React Native client
 packages/attachments File inspection and attachment-ingestion coordination
 packages/domain   Framework-independent business rules
 packages/database SQLite ports, migrations, and local repositories
+packages/ocr      Validated OCR provider contract and deterministic test provider
 ```
 
 The domain package cannot depend on React, React Native, HTTP frameworks, database drivers, cloud
@@ -42,6 +43,14 @@ Receipt deletion first commits the SQLite tombstone, then removes each reference
 `storage_deleted_at`. Pending rows are retried on startup and through the UI. File deletion is
 idempotent so an interruption after byte removal but before the metadata update remains recoverable.
 
+Milestone 3 processing provenance remains framework-independent. Field evidence uses normalized
+page coordinates and explicit source, processor, confidence, acceptance, and correction metadata.
+Processing history stores lifecycle state and bounded failure codes rather than receipt-bearing
+error messages. OCR implementations return `unknown` through a provider port; the OCR package
+clones preserved input bytes and schema-validates bounded pages, blocks, text, confidence, and boxes
+before returning typed output. The deterministic provider is test infrastructure, not production
+OCR.
+
 ## Intended growth
 
 Future work may add `apps/web`, `apps/api`, `apps/worker`, and focused packages for schemas,
@@ -50,4 +59,5 @@ not required for local mobile use.
 
 See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0002](architecture/adr/0002-local-sqlite-repository.md), and
-[ADR-0003](architecture/adr/0003-local-attachment-storage.md) for accepted decisions.
+[ADR-0003](architecture/adr/0003-local-attachment-storage.md), and
+[ADR-0004](architecture/adr/0004-processing-provenance-and-ocr-boundary.md) for accepted decisions.

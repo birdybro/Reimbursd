@@ -10,7 +10,8 @@ floating-point values are not accepted at the persistence boundary.
 
 Migration `1` creates `schema_migrations`, `merchants`, and `receipts`. Migration `2` creates
 `receipt_documents`, migration `3` adds explicit document capture/import provenance, and migration
-`4` adds durable attachment-deletion state.
+`4` adds durable attachment-deletion state. Migration `5` adds field evidence and processing
+history.
 
 `merchants` stores a stable UUID, display and normalized names, optional website and phone columns,
 and creation/update timestamps. The normalized name is unique so repeated manual entries can reuse
@@ -58,6 +59,17 @@ cleanup. The timestamp is set only after the storage adapter reports successful,
 Document metadata remains attached to the receipt tombstone for integrity and future synchronization
 semantics; active receipt queries do not expose it.
 
-Later schemas will add locations, field evidence, processing history, categories, tags, optional
-line items, and delete-all tracking without weakening the local-only workflow. The current nullable
-category and location references are reserved fields, not complete features.
+`field_evidence` stores candidate and reviewed values with source type, processor identity/version,
+confidence, optional page number and normalized page rectangle, processing time, and acceptance or
+correction time. Bounding-box coordinates are constrained to the inclusive 0-to-1 page space so
+they remain independent of display size. Repository precedence ranks user corrections, manual
+values, and accepted suggestions above unreviewed automated output.
+
+`processing_history` stores processor/provider identity, local or remote execution, optional model
+version, start/completion time, lifecycle status, affected fields, and review status. Failures store
+a bounded machine code, not raw provider errors or receipt text. A running row can transition to a
+completed state exactly once.
+
+Later schemas will add locations, categories, tags, optional line items, and delete-all tracking
+without weakening the local-only workflow. The current nullable category and location references
+are reserved fields, not complete features.

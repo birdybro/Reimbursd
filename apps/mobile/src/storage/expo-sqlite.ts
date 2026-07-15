@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import {
   migrateDatabase,
+  SqliteFieldEvidenceRepository,
+  SqliteProcessingHistoryRepository,
   SqliteReceiptDocumentRepository,
   SqliteReceiptRepository,
+  type FieldEvidenceRepository,
+  type ProcessingHistoryRepository,
   type ReceiptDocumentRepository,
   type ReceiptRepository,
   type SqliteConnection,
@@ -15,6 +19,8 @@ const databaseName = 'reimbursd.db';
 
 export interface LocalRepositories {
   readonly documents: ReceiptDocumentRepository;
+  readonly evidence: FieldEvidenceRepository;
+  readonly processingHistory: ProcessingHistoryRepository;
   readonly receipts: ReceiptRepository;
 }
 
@@ -39,6 +45,8 @@ async function initializeRepositories(): Promise<LocalRepositories> {
   await migrateDatabase(connection);
   return {
     documents: new SqliteReceiptDocumentRepository(connection),
+    evidence: new SqliteFieldEvidenceRepository(connection),
+    processingHistory: new SqliteProcessingHistoryRepository(connection),
     receipts: new SqliteReceiptRepository(connection),
   };
 }

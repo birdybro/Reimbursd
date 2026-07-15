@@ -16,6 +16,10 @@ receipt bytes with durable retry after interruption. JPEG and PNG imports receiv
 local previews. OCR, PDF page previews, delete-all, export, and backup are not complete, and the
 project does not claim production readiness.
 
+Milestone 3 foundations now include durable field evidence and processing history plus a validated
+OCR provider contract and deterministic test provider. This is not production OCR and does not send
+receipt contents anywhere.
+
 ## Requirements
 
 - Node.js 22 or newer

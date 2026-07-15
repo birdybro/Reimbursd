@@ -15,6 +15,8 @@ local device sandbox, file decoders, and web browser origin/profile are applicat
 - Malformed input or search text violating database integrity or altering SQL behavior.
 - Concurrent or stale edits silently overwriting a user's corrected values.
 - Malformed or oversized images and PDFs exhausting memory or bypassing declared file types.
+- Malicious OCR-provider output returning oversized text, invalid coordinates, or unexpected shapes.
+- Raw OCR or provider errors leaking receipt contents into logs or durable failure records.
 - Interrupted database/file operations orphaning receipt bytes or forgetting required cleanup.
 - Local device, browser-profile, or site-data loss removing unbacked-up expenses.
 - Another process or user with access to an unlocked device or browser profile reading local data.
@@ -31,6 +33,8 @@ local device sandbox, file decoders, and web browser origin/profile are applicat
 - Signature checks, content decoding, and configurable byte, page, dimension, and pixel-count limits.
 - Immutable original storage, SHA-256 duplicate detection, compensating failed writes, and durable,
   idempotent attachment-deletion retry.
+- Defensive OCR input copies, schema-validated and bounded provider output, normalized boxes, and
+  redacted processing failure codes.
 - Honest UI and documentation that local storage is not an encrypted backup.
 - Documentation that distinguishes implemented and planned controls.
 

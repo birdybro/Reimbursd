@@ -12,13 +12,15 @@ worker successfully.
 ## Active direction
 
 Use npm workspaces, strict TypeScript, Expo SDK 57, and framework-independent domain/database
-packages. Milestone 3 is active. The next work is validated field evidence, processing history, and
-an OCR provider boundary with deterministic local tests. Preserve imported originals exactly and do
-not add hosted processing, synchronization, or generative AI.
+packages. Milestone 3 is active. The next work is an offline OCR implementation where the platform
+supports it. The domain and SQLite layers already persist bounded field evidence and processing
+history, and `packages/ocr` validates untrusted provider output with a deterministic test provider.
+Preserve imported originals exactly and do not add hosted processing, synchronization, or
+generative AI.
 
 ## Resume steps
 
 1. Read `AGENTS.md`, `docs/agent/STATUS.md`, and `docs/agent/TASKS.md`.
 2. Inspect `git status --short` and preserve uncommitted work.
-3. Finish the highest-priority unchecked Milestone 2 task.
-4. Run `npm run verify` before committing a logical slice or marking Milestone 2 complete.
+3. Finish the highest-priority unchecked Milestone 3 task.
+4. Run `npm run verify` before committing a logical slice or marking a milestone complete.

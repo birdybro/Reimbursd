@@ -1,0 +1,24 @@
+{
+  "name": "@reimbursd/ocr",
+  "version": "0.1.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "test": "vitest run --root ../.. packages/ocr/src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@reimbursd/domain": "*"
+  }
+}

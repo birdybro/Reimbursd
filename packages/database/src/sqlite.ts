@@ -123,6 +123,73 @@ const migrations: readonly Migration[] = [
     `,
     version: 4,
   },
+  {
+    name: 'local_processing_provenance',
+    sql: `
+      CREATE TABLE field_evidence (
+        id TEXT PRIMARY KEY NOT NULL,
+        receipt_id TEXT NOT NULL REFERENCES receipts(id),
+        field_name TEXT NOT NULL CHECK (field_name IN (
+          'merchant_name', 'purchased_at', 'currency_code', 'subtotal_minor',
+          'tax_minor', 'tip_minor', 'discount_minor', 'total_minor'
+        )),
+        extracted_value TEXT NOT NULL CHECK (length(extracted_value) BETWEEN 1 AND 4096),
+        normalized_value TEXT NOT NULL CHECK (length(normalized_value) BETWEEN 1 AND 4096),
+        source_type TEXT NOT NULL CHECK (source_type IN (
+          'manual', 'local_ocr', 'deterministic_parser', 'hosted_ocr', 'hosted_ai',
+          'imported_structured_data', 'user_correction'
+        )),
+        processor_name TEXT NOT NULL CHECK (length(processor_name) BETWEEN 1 AND 128),
+        processor_version TEXT NOT NULL CHECK (length(processor_version) BETWEEN 1 AND 128),
+        confidence REAL NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+        page_number INTEGER CHECK (page_number > 0),
+        bounding_box_x REAL,
+        bounding_box_y REAL,
+        bounding_box_width REAL,
+        bounding_box_height REAL,
+        processed_at TEXT NOT NULL,
+        accepted_at TEXT,
+        corrected_at TEXT,
+        CHECK (
+          (bounding_box_x IS NULL AND bounding_box_y IS NULL
+            AND bounding_box_width IS NULL AND bounding_box_height IS NULL)
+          OR
+          (page_number IS NOT NULL
+            AND bounding_box_x >= 0 AND bounding_box_y >= 0
+            AND bounding_box_width > 0 AND bounding_box_height > 0
+            AND bounding_box_x + bounding_box_width <= 1
+            AND bounding_box_y + bounding_box_height <= 1)
+        )
+      );
+
+      CREATE INDEX field_evidence_receipt_field_idx
+        ON field_evidence(receipt_id, field_name, processed_at DESC, id);
+
+      CREATE TABLE processing_history (
+        id TEXT PRIMARY KEY NOT NULL,
+        receipt_id TEXT NOT NULL REFERENCES receipts(id),
+        processor_name TEXT NOT NULL CHECK (length(processor_name) BETWEEN 1 AND 128),
+        processor_version TEXT NOT NULL CHECK (length(processor_version) BETWEEN 1 AND 128),
+        execution_location TEXT NOT NULL CHECK (execution_location IN ('local', 'remote')),
+        provider_name TEXT NOT NULL CHECK (length(provider_name) BETWEEN 1 AND 128),
+        model_version TEXT CHECK (length(model_version) BETWEEN 1 AND 128),
+        started_at TEXT NOT NULL,
+        completed_at TEXT,
+        status TEXT NOT NULL CHECK (status IN ('running', 'succeeded', 'failed', 'cancelled')),
+        failure_code TEXT CHECK (length(failure_code) BETWEEN 1 AND 128),
+        affected_fields_json TEXT NOT NULL CHECK (length(affected_fields_json) BETWEEN 2 AND 1024),
+        review_status TEXT NOT NULL CHECK (
+          review_status IN ('not_applicable', 'pending', 'accepted', 'corrected')
+        ),
+        CHECK ((status = 'running') = (completed_at IS NULL)),
+        CHECK ((status = 'failed') = (failure_code IS NOT NULL))
+      );
+
+      CREATE INDEX processing_history_receipt_started_idx
+        ON processing_history(receipt_id, started_at DESC, id);
+    `,
+    version: 5,
+  },
 ];
 
 export const schemaVersion = migrations.at(-1)?.version ?? 0;
