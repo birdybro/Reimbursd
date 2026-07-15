@@ -6,8 +6,9 @@ Reimbursd is designed to keep its core mobile experience local and usable withou
 
 Expense fields and receipt-file metadata are stored in local SQLite. Original JPEG, PNG, and PDF
 bytes are stored separately in private application documents on mobile or origin-private browser
-file storage on web. Originals are hashed and copied without modification. These stores are not
-application-layer encrypted, and backup and restore are not implemented yet.
+file storage on web. Originals are hashed and copied without modification. JPEG and PNG previews
+are resized and encoded locally as separate derivatives in the same private storage boundary.
+These stores are not application-layer encrypted, and backup and restore are not implemented yet.
 
 The application does not request location, use analytics, display advertising, transmit expense
 or receipt data to a Reimbursd service, or require an account. It has no external AI,

@@ -21,18 +21,32 @@ import type { SelectedReceiptFile } from './receipt-pickers';
 
 export interface ImportedReceipt {
   readonly document: ReceiptDocument;
+  readonly preview: ReceiptDocument | null;
+  readonly previewFailed: boolean;
   readonly receipt: Receipt;
+}
+
+export interface ReceiptPreviewCreator {
+  create(input: {
+    readonly createdAt: string;
+    readonly documentId: string;
+    readonly original: ReceiptDocument;
+    readonly sourceUri: string;
+  }): Promise<ReceiptDocument>;
 }
 
 export class ReceiptCaptureCoordinator {
   readonly #ingestor: Pick<AttachmentIngestor, 'ingestOriginal'>;
+  readonly #previewer: ReceiptPreviewCreator;
   readonly #receipts: ReceiptRepository;
 
   constructor(dependencies: {
     readonly ingestor: Pick<AttachmentIngestor, 'ingestOriginal'>;
+    readonly previewer: ReceiptPreviewCreator;
     readonly receipts: ReceiptRepository;
   }) {
     this.#ingestor = dependencies.ingestor;
+    this.#previewer = dependencies.previewer;
     this.#receipts = dependencies.receipts;
   }
 
@@ -44,8 +58,10 @@ export class ReceiptCaptureCoordinator {
     const receipt = createPendingReceipt(capturedAt);
     await this.#receipts.create(receipt);
 
+    let document: ReceiptDocument;
+
     try {
-      const document = await this.#ingestor.ingestOriginal({
+      document = await this.#ingestor.ingestOriginal({
         bytes,
         createdAt: capturedAt.toISOString(),
         documentId: randomUUID(),
@@ -53,8 +69,6 @@ export class ReceiptCaptureCoordinator {
         receiptId: receipt.id,
         sourceType: selection.sourceType,
       });
-
-      return { document, receipt };
     } catch (error) {
       try {
         await this.#receipts.delete(receipt.id, receipt.version, new Date().toISOString());
@@ -66,6 +80,23 @@ export class ReceiptCaptureCoordinator {
       }
 
       throw error;
+    }
+
+    if (document.mimeType === 'application/pdf') {
+      return { document, preview: null, previewFailed: false, receipt };
+    }
+
+    try {
+      const preview = await this.#previewer.create({
+        createdAt: new Date().toISOString(),
+        documentId: randomUUID(),
+        original: document,
+        sourceUri: selection.uri,
+      });
+
+      return { document, preview, previewFailed: false, receipt };
+    } catch {
+      return { document, preview: null, previewFailed: true, receipt };
     }
   }
 }

@@ -49,6 +49,10 @@ positive page count and do not treat a whole document as having one image dimens
 must reference an original on the same receipt and has a distinct metadata row. Source type records
 camera capture, image import, PDF import, or derivative generation.
 
+Current JPEG and PNG derivatives are locally generated previews bounded to 1,600 pixels per side,
+2,560,000 pixels, and 5 MiB. They carry their own hash, dimensions, storage reference, and deletion
+state; the parent original metadata and bytes are unchanged.
+
 When its receipt is tombstoned, a document with a null `storage_deleted_at` is pending physical file
 cleanup. The timestamp is set only after the storage adapter reports successful, idempotent removal.
 Document metadata remains attached to the receipt tombstone for integrity and future synchronization

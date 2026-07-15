@@ -42,8 +42,9 @@
 - [x] Validate image and PDF content, limits, and metadata before persistence.
 - [x] Hash attachments and detect duplicates without external services.
 - [x] Add camera, image selection, and PDF import workflows.
-- [ ] Generate previews/thumbnails; separate original/derivative schema and UI labels are complete.
-- [ ] Add native/web storage-adapter coverage; core, SQLite, coordinator, and UI tests are complete.
+- [x] Generate bounded local previews for JPEG and PNG originals with distinct derivative metadata.
+- [ ] Generate first-page previews for PDF originals.
+- [x] Add native/web storage-adapter coverage alongside core, SQLite, coordinator, and UI tests.
 - [x] Remove attachment bytes when a receipt is deleted and provide cleanup retry behavior.
 
 ### Acceptance criteria for the current slice

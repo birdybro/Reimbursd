@@ -20,3 +20,10 @@ export {
   type AttachmentCleanupFailure,
   type ReceiptDeletionResult,
 } from './receipt-deletion.js';
+export {
+  AttachmentPreviewValidationError,
+  AttachmentPreviewWriter,
+  defaultAttachmentPreviewLimits,
+  type AttachmentPreviewLimits,
+  type WriteAttachmentPreviewInput,
+} from './attachment-preview.js';

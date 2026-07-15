@@ -11,6 +11,11 @@ export interface PickedLocalFile {
   readonly uri: string;
 }
 
+export interface OpenedLocalAttachment {
+  readonly release: () => void;
+  readonly uri: string;
+}
+
 export class LocalAttachmentStorage implements AttachmentStorage {
   async delete(storageReference: string): Promise<void> {
     const path = validateStorageReference(storageReference);
@@ -25,6 +30,26 @@ export class LocalAttachmentStorage implements AttachmentStorage {
     if (file.exists) {
       file.delete();
     }
+  }
+
+  async openForDisplay(storageReference: string): Promise<OpenedLocalAttachment> {
+    const path = validateStorageReference(storageReference);
+
+    if (Platform.OS === 'web') {
+      const { directory, filename } = await getWebParentDirectory(path, false);
+      const handle = await directory.getFileHandle(filename);
+      const uri = URL.createObjectURL(await handle.getFile());
+
+      return { release: () => URL.revokeObjectURL(uri), uri };
+    }
+
+    const file = new ExpoFile(Paths.document, ...path);
+
+    if (!file.exists) {
+      throw new Error('The local attachment file is unavailable.');
+    }
+
+    return { release: () => undefined, uri: file.uri };
   }
 
   async writeOnce(storageReference: string, bytes: Uint8Array): Promise<void> {
@@ -91,18 +116,36 @@ export async function readPickedLocalFile(asset: PickedLocalFile): Promise<Uint8
   return new ExpoFile(asset.uri).bytes();
 }
 
+export function releaseTemporaryLocalFile(uri: string): void {
+  if (Platform.OS === 'web') {
+    URL.revokeObjectURL(uri);
+    return;
+  }
+
+  const file = new ExpoFile(uri);
+
+  if (file.exists) {
+    file.delete();
+  }
+}
+
 function validateStorageReference(storageReference: string): readonly string[] {
   const path = storageReference.split('/');
-  const [root, receiptId, originalDirectory, filename] = path;
+  const [root, receiptId, documentDirectory, filename] = path;
   const filenameMatch = /^([0-9a-f-]+)\.(jpg|pdf|png)$/i.exec(filename ?? '');
+  const validDirectory = documentDirectory === 'originals' || documentDirectory === 'derivatives';
+  const validExtension =
+    documentDirectory === 'originals' ||
+    (filenameMatch !== null && filenameMatch[2]?.toLowerCase() !== 'pdf');
 
   if (
     path.length !== 4 ||
     root !== 'receipt-documents' ||
-    originalDirectory !== 'originals' ||
+    !validDirectory ||
     receiptId === undefined ||
     !isUuid(receiptId) ||
     filenameMatch === null ||
+    !validExtension ||
     !isUuid(filenameMatch[1] ?? '')
   ) {
     throw new Error('Attachment storage reference is invalid.');
@@ -169,6 +212,7 @@ async function writeWebFileOnce(path: readonly string[], bytes: Uint8Array): Pro
 
 async function getWebParentDirectory(
   path: readonly string[],
+  createDirectories = true,
 ): Promise<{ readonly directory: FileSystemDirectoryHandle; readonly filename: string }> {
   if (navigator.storage.getDirectory === undefined) {
     throw new Error('Private browser file storage is unavailable.');
@@ -183,7 +227,7 @@ async function getWebParentDirectory(
   let directory = await navigator.storage.getDirectory();
 
   for (const segment of path.slice(0, -1)) {
-    directory = await directory.getDirectoryHandle(segment, { create: true });
+    directory = await directory.getDirectoryHandle(segment, { create: createDirectories });
   }
 
   return { directory, filename };

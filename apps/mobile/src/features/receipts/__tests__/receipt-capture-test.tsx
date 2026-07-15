@@ -3,7 +3,7 @@ import type { IngestOriginalAttachmentInput } from '@reimbursd/attachments';
 import type { ReceiptRepository } from '@reimbursd/database';
 import type { ReceiptDocument } from '@reimbursd/domain';
 
-import { ReceiptCaptureCoordinator } from '../receipt-capture';
+import { ReceiptCaptureCoordinator, type ReceiptPreviewCreator } from '../receipt-capture';
 
 jest.mock('@reimbursd/attachments', () => ({
   AttachmentDuplicateError: class AttachmentDuplicateError extends Error {},
@@ -31,6 +31,28 @@ function createReceiptRepository(): jest.Mocked<ReceiptRepository> {
   };
 }
 
+function createPreviewer(): jest.Mocked<ReceiptPreviewCreator> {
+  return {
+    create: jest.fn(async (input): Promise<ReceiptDocument> => ({
+      byteSize: 1,
+      createdAt: input.createdAt,
+      heightPixels: 20,
+      id: input.documentId,
+      isOriginal: false,
+      mimeType: 'image/png',
+      originalFilename: 'receipt-preview.png',
+      pageCount: 1,
+      parentDocumentId: input.original.id,
+      receiptId: input.original.receiptId,
+      sha256: 'e'.repeat(64),
+      sourceType: 'derivative',
+      storageDeletedAt: null,
+      storageReference: 'receipt-documents/preview.png',
+      widthPixels: 10,
+    })),
+  };
+}
+
 describe('receipt capture coordinator', () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-07-15T12:00:00.000Z'));
@@ -39,7 +61,8 @@ describe('receipt capture coordinator', () => {
       .mockReset()
       .mockReturnValueOnce('11111111-1111-4111-8111-111111111111')
       .mockReturnValueOnce('22222222-2222-4222-8222-222222222222')
-      .mockReturnValueOnce('33333333-3333-4333-8333-333333333333');
+      .mockReturnValueOnce('33333333-3333-4333-8333-333333333333')
+      .mockReturnValueOnce('44444444-4444-4444-8444-444444444444');
   });
 
   afterEach(() => {
@@ -67,7 +90,12 @@ describe('receipt capture coordinator', () => {
         widthPixels: 10,
       }),
     );
-    const coordinator = new ReceiptCaptureCoordinator({ ingestor: { ingestOriginal }, receipts });
+    const previewer = createPreviewer();
+    const coordinator = new ReceiptCaptureCoordinator({
+      ingestor: { ingestOriginal },
+      previewer,
+      receipts,
+    });
 
     const imported = await coordinator.import({
       originalFilename: 'synthetic-receipt.png',
@@ -90,6 +118,15 @@ describe('receipt capture coordinator', () => {
         sourceType: 'image_import',
       }),
     );
+    expect(previewer.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documentId: '44444444-4444-4444-8444-444444444444',
+        original: imported.document,
+        sourceUri: 'file:///synthetic-receipt.png',
+      }),
+    );
+    expect(imported).toMatchObject({ previewFailed: false });
+    expect(imported.preview).not.toBeNull();
   });
 
   test('tombstones an empty review record when attachment ingestion fails', async () => {
@@ -105,6 +142,7 @@ describe('receipt capture coordinator', () => {
     });
     const coordinator = new ReceiptCaptureCoordinator({
       ingestor: { ingestOriginal: jest.fn().mockRejectedValue(new Error('Synthetic failure.')) },
+      previewer: createPreviewer(),
       receipts,
     });
 
@@ -120,5 +158,45 @@ describe('receipt capture coordinator', () => {
       1,
       expect.stringMatching(/^2026-07-15T12:00:00\.000Z$/),
     );
+  });
+
+  test('keeps the original receipt when nonessential preview generation fails', async () => {
+    const receipts = createReceiptRepository();
+    const previewer = createPreviewer();
+    previewer.create.mockRejectedValue(new Error('Synthetic preview failure.'));
+    const coordinator = new ReceiptCaptureCoordinator({
+      ingestor: {
+        ingestOriginal: jest.fn(
+          async (input: IngestOriginalAttachmentInput): Promise<ReceiptDocument> => ({
+            byteSize: input.bytes.byteLength,
+            createdAt: input.createdAt,
+            heightPixels: 20,
+            id: input.documentId,
+            isOriginal: true,
+            mimeType: 'image/jpeg',
+            originalFilename: input.originalFilename,
+            pageCount: 1,
+            parentDocumentId: null,
+            receiptId: input.receiptId,
+            sha256: 'd'.repeat(64),
+            sourceType: input.sourceType,
+            storageDeletedAt: null,
+            storageReference: 'receipt-documents/reference.jpg',
+            widthPixels: 10,
+          }),
+        ),
+      },
+      previewer,
+      receipts,
+    });
+
+    const imported = await coordinator.import({
+      originalFilename: 'synthetic-receipt.jpg',
+      sourceType: 'image_import',
+      uri: 'file:///synthetic-receipt.jpg',
+    });
+
+    expect(imported).toMatchObject({ preview: null, previewFailed: true });
+    expect(receipts.delete).not.toHaveBeenCalled();
   });
 });

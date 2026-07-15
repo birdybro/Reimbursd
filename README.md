@@ -12,8 +12,9 @@ Milestone 2 is in progress. The Expo application can create, view, edit, search,
 manual expenses, and it can capture JPEG/PNG receipts or import JPEG, PNG, and multi-page PDF
 originals into private local storage. Import validates content and limits, records SHA-256 and
 provenance, and requires no account or network service. Deleting an expense removes its local
-receipt bytes with durable retry after interruption. Generated previews, delete-all, export, and
-backup are not complete, and the project does not claim production readiness.
+receipt bytes with durable retry after interruption. JPEG and PNG imports receive separate bounded
+local previews. PDF page previews, delete-all, export, and backup are not complete, and the project
+does not claim production readiness.
 
 ## Requirements
 

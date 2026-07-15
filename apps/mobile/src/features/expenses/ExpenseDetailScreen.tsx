@@ -2,6 +2,7 @@
 import { FileImage, FileText, Pencil, ShieldCheck, Trash2 } from 'lucide-react-native';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -15,10 +16,12 @@ import type { AttachmentCleanupFailure, ReceiptDeletionCoordinator } from '@reim
 import type { ReceiptDocumentRepository } from '@reimbursd/database';
 import { formatMinorUnits, type Receipt, type ReceiptDocument } from '@reimbursd/domain';
 
+import type { LocalAttachmentStorage } from '../../storage/local-attachments';
 import { colors } from '../../theme';
 import { formatPurchaseDate } from './display';
 
 interface ExpenseDetailScreenProps {
+  readonly attachmentStorage: Pick<LocalAttachmentStorage, 'openForDisplay'>;
   readonly deletionCoordinator: Pick<
     ReceiptDeletionCoordinator,
     'cleanupDocuments' | 'deleteReceipt'
@@ -31,7 +34,13 @@ interface ExpenseDetailScreenProps {
   readonly receipt: Receipt;
 }
 
+type PreviewDisplayState =
+  | { readonly reference: string; readonly status: 'error' }
+  | { readonly reference: string; readonly status: 'ready'; readonly uri: string }
+  | null;
+
 export function ExpenseDetailScreen({
+  attachmentStorage,
   deletionCoordinator,
   documentRepository,
   onCleanupNeeded,
@@ -47,6 +56,7 @@ export function ExpenseDetailScreen({
   const [documents, setDocuments] = useState<readonly ReceiptDocument[]>([]);
   const [documentsError, setDocumentsError] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [previewDisplay, setPreviewDisplay] = useState<PreviewDisplayState>(null);
 
   useEffect(() => {
     let active = true;
@@ -72,7 +82,61 @@ export function ExpenseDetailScreen({
     };
   }, [documentRepository, receipt.id]);
 
+  const previewDocument = documents.find(
+    (document) => !document.isOriginal && document.sourceType === 'derivative',
+  );
+
+  useEffect(() => {
+    let active = true;
+    let release: (() => void) | undefined;
+
+    if (previewDocument === undefined) {
+      return () => {
+        active = false;
+      };
+    }
+
+    attachmentStorage
+      .openForDisplay(previewDocument.storageReference)
+      .then((opened) => {
+        if (!active) {
+          opened.release();
+          return;
+        }
+
+        release = opened.release;
+        setPreviewDisplay({
+          reference: previewDocument.storageReference,
+          status: 'ready',
+          uri: opened.uri,
+        });
+      })
+      .catch(() => {
+        if (active) {
+          setPreviewDisplay({
+            reference: previewDocument.storageReference,
+            status: 'error',
+          });
+        }
+      });
+
+    return () => {
+      active = false;
+      release?.();
+    };
+  }, [attachmentStorage, previewDocument]);
+
   const hasOriginal = documents.some((document) => document.isOriginal);
+  const hasImageOriginal = documents.some(
+    (document) => document.isOriginal && document.mimeType !== 'application/pdf',
+  );
+  const currentPreviewDisplay =
+    previewDocument !== undefined && previewDisplay?.reference === previewDocument.storageReference
+      ? previewDisplay
+      : null;
+  const previewError = currentPreviewDisplay?.status === 'error';
+  const previewLoading = previewDocument !== undefined && currentPreviewDisplay === null;
+  const previewUri = currentPreviewDisplay?.status === 'ready' ? currentPreviewDisplay.uri : null;
 
   const deleteReceipt = async () => {
     setDeleting(true);
@@ -147,6 +211,33 @@ export function ExpenseDetailScreen({
           </Text>
         </View>
       </View>
+
+      {previewLoading ? (
+        <View accessibilityLabel="Loading generated receipt preview" style={styles.previewLoading}>
+          <ActivityIndicator color={colors.green} size="small" />
+        </View>
+      ) : previewUri !== null && previewDocument !== undefined ? (
+        <View
+          accessibilityLabel="Generated local receipt preview"
+          style={[
+            styles.previewFrame,
+            {
+              aspectRatio: getPreviewAspectRatio(previewDocument),
+            },
+          ]}
+        >
+          <Image
+            accessibilityLabel="Receipt preview"
+            resizeMode="contain"
+            source={{ uri: previewUri }}
+            style={styles.previewImage}
+          />
+        </View>
+      ) : previewError || (!documentsLoading && !documentsError && hasImageOriginal) ? (
+        <Text accessibilityLiveRegion="polite" style={styles.previewError}>
+          A display preview is unavailable. The original receipt file remains preserved locally.
+        </Text>
+      ) : null}
 
       {documentsLoading ? (
         <View accessibilityLabel="Loading receipt files" style={styles.documentLoading}>
@@ -331,6 +422,14 @@ function formatByteSize(byteSize: number): string {
   }
 
   return `${(byteSize / (1_024 * 1_024)).toFixed(1)} MB`;
+}
+
+function getPreviewAspectRatio(document: ReceiptDocument): number {
+  if (document.widthPixels === null || document.heightPixels === null) {
+    return 0.75;
+  }
+
+  return Math.min(1.5, Math.max(0.6, document.widthPixels / document.heightPixels));
 }
 
 interface AmountRowProps {
@@ -556,6 +655,37 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 20,
     fontWeight: '700',
+  },
+  previewError: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 18,
+    padding: 11,
+  },
+  previewFrame: {
+    alignSelf: 'center',
+    backgroundColor: colors.paper,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginBottom: 18,
+    maxHeight: 520,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  previewImage: {
+    height: '100%',
+    width: '100%',
+  },
+  previewLoading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 180,
   },
   notes: {
     color: colors.ink,

@@ -5,15 +5,14 @@
 Milestones 0 and 1 are complete. Milestone 2 has working camera/image/PDF selection, decoded content
 validation, configurable limits, local SHA-256, global duplicate detection, immutable private file
 storage, versioned document metadata, original-file provenance UI, and durable attachment cleanup
-after receipt deletion. The web runtime loads both the application and Expo SQLite's WASM worker
-successfully.
+after receipt deletion. JPEG and PNG imports also receive bounded, separately stored local previews.
+The web runtime loads both the application and Expo SQLite's WASM worker successfully.
 
 ## Active direction
 
 Use npm workspaces, strict TypeScript, Expo SDK 57, and framework-independent domain/database
-packages. Milestone 2 remains active. The next work is derivative preview generation and direct
-native/web storage-adapter coverage. Preserve imported originals exactly; do not add OCR, hosted
-processing, or synchronization yet.
+packages. Milestone 2 remains active. The next work is first-page PDF preview generation. Preserve
+imported originals exactly; do not add OCR, hosted processing, or synchronization yet.
 
 ## Resume steps
 

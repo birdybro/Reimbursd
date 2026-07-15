@@ -101,6 +101,15 @@ function createDeletionCoordinator(): jest.Mocked<
   };
 }
 
+function createAttachmentStorage() {
+  return {
+    openForDisplay: jest.fn().mockResolvedValue({
+      release: jest.fn(),
+      uri: 'blob:synthetic-receipt-preview',
+    }),
+  };
+}
+
 describe('manual expense screens', () => {
   test('lists local expenses and exposes the primary create action', async () => {
     const onCreate = jest.fn();
@@ -210,6 +219,7 @@ describe('manual expense screens', () => {
     const deletionCoordinator = createDeletionCoordinator();
     const screen = await render(
       <ExpenseDetailScreen
+        attachmentStorage={createAttachmentStorage()}
         deletionCoordinator={deletionCoordinator}
         documentRepository={createDocumentRepository()}
         onCleanupNeeded={jest.fn()}
@@ -245,6 +255,7 @@ describe('manual expense screens', () => {
     });
     const screen = await render(
       <ExpenseDetailScreen
+        attachmentStorage={createAttachmentStorage()}
         deletionCoordinator={deletionCoordinator}
         documentRepository={createDocumentRepository()}
         onCleanupNeeded={onCleanupNeeded}
@@ -276,6 +287,7 @@ describe('manual expense screens', () => {
     documentRepository.listByReceiptId.mockResolvedValue([receiptDocument]);
     const screen = await render(
       <ExpenseDetailScreen
+        attachmentStorage={createAttachmentStorage()}
         deletionCoordinator={createDeletionCoordinator()}
         documentRepository={documentRepository}
         onCleanupNeeded={jest.fn()}
@@ -290,6 +302,52 @@ describe('manual expense screens', () => {
     expect(screen.getByText('PDF import | 3 pages | 4.0 KB')).toBeTruthy();
     expect(screen.getByText(`SHA-256 ${'d'.repeat(64)}`)).toBeTruthy();
     expect(screen.getByLabelText('Receipt imported and preserved locally')).toBeTruthy();
+  });
+
+  test('renders a generated derivative while keeping original metadata distinct', async () => {
+    const imageOriginal: ReceiptDocument = {
+      ...receiptDocument,
+      heightPixels: 2_400,
+      mimeType: 'image/jpeg',
+      originalFilename: 'synthetic-receipt.jpg',
+      pageCount: 1,
+      sourceType: 'image_import',
+      storageReference: `receipt-documents/${receipt.id}/originals/44444444-4444-4444-8444-444444444444.jpg`,
+      widthPixels: 1_800,
+    };
+    const preview: ReceiptDocument = {
+      ...imageOriginal,
+      byteSize: 1_024,
+      heightPixels: 1_600,
+      id: '55555555-5555-4555-8555-555555555555',
+      isOriginal: false,
+      originalFilename: 'receipt-preview.jpg',
+      parentDocumentId: imageOriginal.id,
+      sha256: 'e'.repeat(64),
+      sourceType: 'derivative',
+      storageReference: `receipt-documents/${receipt.id}/derivatives/55555555-5555-4555-8555-555555555555.jpg`,
+      widthPixels: 1_200,
+    };
+    const attachmentStorage = createAttachmentStorage();
+    const documentRepository = createDocumentRepository();
+    documentRepository.listByReceiptId.mockResolvedValue([imageOriginal, preview]);
+    const screen = await render(
+      <ExpenseDetailScreen
+        attachmentStorage={attachmentStorage}
+        deletionCoordinator={createDeletionCoordinator()}
+        documentRepository={documentRepository}
+        onCleanupNeeded={jest.fn()}
+        onDeleted={jest.fn()}
+        onEdit={jest.fn()}
+        onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
+        receipt={receipt}
+      />,
+    );
+
+    expect(await screen.findByLabelText('Generated local receipt preview')).toBeTruthy();
+    expect(attachmentStorage.openForDisplay).toHaveBeenCalledWith(preview.storageReference);
+    expect(screen.getByText('Original')).toBeTruthy();
+    expect(screen.getByText('Derived')).toBeTruthy();
   });
 
   test('explains how to recover from a stale edit conflict', async () => {

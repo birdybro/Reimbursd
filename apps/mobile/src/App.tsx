@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import {
   AttachmentIngestor,
+  AttachmentPreviewWriter,
   PdfLibAttachmentInspector,
   ReceiptDeletionCoordinator,
 } from '@reimbursd/attachments';
@@ -22,6 +23,7 @@ import {
   getReceiptImportErrorMessage,
   ReceiptCaptureCoordinator,
 } from './features/receipts/receipt-capture';
+import { ExpoReceiptPreviewCreator } from './features/receipts/receipt-preview';
 import {
   selectCameraReceipt,
   selectImageReceipt,
@@ -46,6 +48,7 @@ type RepositoryState =
       readonly deletion: ReceiptDeletionCoordinator;
       readonly repositories: LocalRepositories;
       readonly status: 'ready';
+      readonly storage: LocalAttachmentStorage;
     }
   | { readonly status: 'error' };
 
@@ -66,13 +69,24 @@ function AppContent() {
       .then(async (repositories) => {
         if (active) {
           const storage = new LocalAttachmentStorage();
+          const hasher = new ExpoAttachmentHasher();
+          const inspector = new PdfLibAttachmentInspector();
+          const previewer = new ExpoReceiptPreviewCreator(
+            new AttachmentPreviewWriter({
+              documents: repositories.documents,
+              hasher,
+              inspector,
+              storage,
+            }),
+          );
           const capture = new ReceiptCaptureCoordinator({
             ingestor: new AttachmentIngestor({
               documents: repositories.documents,
-              hasher: new ExpoAttachmentHasher(),
-              inspector: new PdfLibAttachmentInspector(),
+              hasher,
+              inspector,
               storage,
             }),
+            previewer,
             receipts: repositories.receipts,
           });
           const deletion = new ReceiptDeletionCoordinator({
@@ -87,7 +101,7 @@ function AppContent() {
           }
 
           setCleanupIssue(getCleanupIssue(cleanupFailures));
-          setRepositoryState({ capture, deletion, repositories, status: 'ready' });
+          setRepositoryState({ capture, deletion, repositories, status: 'ready', storage });
         }
       })
       .catch(() => {
@@ -221,6 +235,7 @@ function AppContent() {
           />
         ) : route.name === 'detail' ? (
           <ExpenseDetailScreen
+            attachmentStorage={repositoryState.storage}
             deletionCoordinator={repositoryState.deletion}
             documentRepository={repositoryState.repositories.documents}
             onDeleted={() => setRoute({ name: 'list' })}
