@@ -1,0 +1,30 @@
+{
+  "name": "@reimbursd/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "main": "index.ts",
+  "scripts": {
+    "start": "cross-env EXPO_NO_TELEMETRY=1 expo start",
+    "android": "cross-env EXPO_NO_TELEMETRY=1 expo start --android",
+    "ios": "cross-env EXPO_NO_TELEMETRY=1 expo start --ios",
+    "web": "cross-env EXPO_NO_TELEMETRY=1 expo start --web",
+    "build": "cross-env EXPO_NO_TELEMETRY=1 expo export --platform web --output-dir dist --clear",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "expo": "~57.0.4",
+    "expo-status-bar": "~57.0.0",
+    "lucide-react-native": "^1.24.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Reimbursd",
+    "slug": "reimbursd",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.reimbursd.mobile"
+    },
+    "android": {
+      "package": "app.reimbursd.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#dce9e1",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
