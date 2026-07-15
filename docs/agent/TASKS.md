@@ -43,7 +43,7 @@
 - [x] Hash attachments and detect duplicates without external services.
 - [x] Add camera, image selection, and PDF import workflows.
 - [x] Generate bounded local previews for JPEG and PNG originals with distinct derivative metadata.
-- [ ] Generate first-page previews for PDF originals.
+- [x] Preserve multi-page PDF metadata and document the deferred cross-platform page-preview gap.
 - [x] Add native/web storage-adapter coverage alongside core, SQLite, coordinator, and UI tests.
 - [x] Remove attachment bytes when a receipt is deleted and provide cleanup retry behavior.
 
@@ -60,3 +60,28 @@
   original.
 - Camera and picker permissions are requested only when their workflow is invoked.
 - Import failures leave existing expenses and originals intact and transmit no receipt data.
+
+### Deferred ingestion enhancement
+
+- [ ] Generate bounded PDF page previews when a mature offline renderer supports Expo Android, iOS,
+      and web without weakening the current Expo workflow.
+
+## Milestone 3: OCR, extraction, and review
+
+- [ ] Define field-evidence and processing-history domain models.
+- [ ] Add versioned local persistence for evidence and processing history.
+- [ ] Define the OCR provider contract and deterministic test provider.
+- [ ] Add an offline-capable local provider where the platform supports it.
+- [ ] Parse receipt text into candidate merchant, date, subtotal, tax, tip, and total fields.
+- [ ] Add review UI with confidence and local/remote provenance.
+- [ ] Preserve accepted user corrections across later processing runs.
+- [ ] Highlight source regions when bounding boxes are available.
+
+### Acceptance criteria for the next slice
+
+- OCR and parsing are separate interfaces and neither depends on generative AI.
+- Provider input and output are validated, bounded, and treated as untrusted data.
+- A deterministic provider supports tests without a network service or device OCR runtime.
+- Processing attempts record local/remote execution, processor version, timing, status, and redacted
+  failures without storing receipt text in logs.
+- Suggested values remain distinct from confirmed receipt fields until the user accepts them.

@@ -36,7 +36,8 @@
 
 ## Planned controls
 
-- PDF page-preview generation and complete data deletion.
+- Cross-platform PDF page-preview generation when a compatible bounded renderer is available, and
+  complete data deletion.
 - Secure platform key storage and authenticated encrypted backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
 - Cross-user isolation, backup restoration, provider-contract, and synchronization-conflict tests.

@@ -46,3 +46,13 @@ need explicit compensation and cannot claim full atomicity. Current format suppo
 JPEG, PNG, and unencrypted PDFs; other formats fail with a recoverable error. Storage is isolated by
 the platform but is not application-layer encrypted. PDF page-preview creation remains follow-up
 work, as do delete-all and secure deletion guarantees.
+
+PDF page rasterization is deliberately deferred. [PDF.js](https://mozilla.github.io/pdf.js/examples/)
+targets web-standard canvas rendering,
+[`react-native-pdf-thumbnail`](https://github.com/songsterq/react-native-pdf-thumbnail) explicitly
+excludes Expo, and the evaluated
+[`@kishannareshpal/expo-pdf`](https://github.com/kishannareshpal/expo-pdf) native viewer does not
+provide web support or a thumbnail export contract. Adding one of these now would either fragment
+persisted behavior by platform or replace the Expo Go development path with a custom native build.
+Reassess when a maintained offline renderer satisfies Android, iOS, and web behind the existing
+preview-writer boundary.
