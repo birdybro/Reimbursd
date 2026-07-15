@@ -2,17 +2,17 @@
 
 ## Repository state
 
-Milestones 0 and 1 are complete, and `npm run verify` passes. The Expo application provides local
-manual expense create, view, edit, delete, search, and currency filtering over versioned SQLite.
-The shared repository is tested against real SQLite, and the web runtime loads Expo SQLite's WASM
-worker successfully.
+Milestones 0 and 1 are complete. Milestone 2 has working camera/image/PDF selection, decoded content
+validation, configurable limits, local SHA-256, global duplicate detection, immutable private file
+storage, versioned document metadata, and original-file provenance UI. The web runtime loads both
+the application and Expo SQLite's WASM worker successfully.
 
 ## Active direction
 
 Use npm workspaces, strict TypeScript, Expo SDK 57, and framework-independent domain/database
-packages. Milestone 2 is active. Preserve imported originals immutably in private application file
-storage, keep only metadata and storage references in SQLite, validate file content and limits, and
-calculate hashes locally. Do not add OCR, hosted processing, or synchronization yet.
+packages. Milestone 2 remains active. The next work is derivative preview generation and physical
+attachment cleanup/retry when a receipt is tombstoned. Preserve imported originals exactly; do not
+add OCR, hosted processing, or synchronization yet.
 
 ## Resume steps
 

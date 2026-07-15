@@ -64,6 +64,56 @@ const migrations: readonly Migration[] = [
     `,
     version: 1,
   },
+  {
+    name: 'receipt_document_metadata',
+    sql: `
+      CREATE TABLE receipt_documents (
+        id TEXT PRIMARY KEY NOT NULL,
+        receipt_id TEXT NOT NULL REFERENCES receipts(id),
+        parent_document_id TEXT REFERENCES receipt_documents(id),
+        storage_reference TEXT NOT NULL UNIQUE
+          CHECK (length(storage_reference) BETWEEN 1 AND 1024),
+        original_filename TEXT NOT NULL
+          CHECK (length(original_filename) BETWEEN 1 AND 255),
+        mime_type TEXT NOT NULL
+          CHECK (mime_type IN ('application/pdf', 'image/jpeg', 'image/png')),
+        byte_size INTEGER NOT NULL CHECK (byte_size > 0),
+        sha256 TEXT NOT NULL
+          CHECK (length(sha256) = 64 AND sha256 = lower(sha256)),
+        page_count INTEGER NOT NULL CHECK (page_count > 0),
+        width_pixels INTEGER CHECK (width_pixels > 0),
+        height_pixels INTEGER CHECK (height_pixels > 0),
+        is_original INTEGER NOT NULL CHECK (is_original IN (0, 1)),
+        created_at TEXT NOT NULL,
+        CHECK (
+          (mime_type = 'application/pdf' AND width_pixels IS NULL AND height_pixels IS NULL)
+          OR
+          (mime_type != 'application/pdf' AND page_count = 1
+            AND width_pixels IS NOT NULL AND height_pixels IS NOT NULL)
+        ),
+        CHECK (
+          (is_original = 1 AND parent_document_id IS NULL)
+          OR (is_original = 0 AND parent_document_id IS NOT NULL)
+        )
+      );
+
+      CREATE INDEX receipt_documents_receipt_idx
+        ON receipt_documents(receipt_id, is_original DESC, created_at, id);
+      CREATE INDEX receipt_documents_sha256_idx ON receipt_documents(sha256);
+      CREATE UNIQUE INDEX receipt_documents_original_receipt_hash_idx
+        ON receipt_documents(receipt_id, sha256) WHERE is_original = 1;
+    `,
+    version: 2,
+  },
+  {
+    name: 'receipt_document_sources',
+    sql: `
+      ALTER TABLE receipt_documents
+      ADD COLUMN source_type TEXT NOT NULL DEFAULT 'image_import'
+        CHECK (source_type IN ('camera', 'image_import', 'pdf_import', 'derivative'));
+    `,
+    version: 3,
+  },
 ];
 
 export const schemaVersion = migrations.at(-1)?.version ?? 0;

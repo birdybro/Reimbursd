@@ -8,10 +8,11 @@ AI provider.
 
 ## Current status
 
-Milestone 1 provides the first local manual-expense workflow. The Expo application can create,
-view, edit, search, filter, and delete expenses in a versioned local SQLite database without an
-account or network service. The project does not yet import receipt files, export data, or claim
-production readiness.
+Milestone 2 is in progress. The Expo application can create, view, edit, search, filter, and delete
+manual expenses, and it can capture JPEG/PNG receipts or import JPEG, PNG, and multi-page PDF
+originals into private local storage. Import validates content and limits, records SHA-256 and
+provenance, and requires no account or network service. Generated previews, complete attachment
+deletion, export, and backup are not complete, and the project does not claim production readiness.
 
 ## Requirements
 
@@ -27,8 +28,8 @@ npm run dev:mobile
 ```
 
 Use the Expo terminal interface to open an Android emulator, iOS simulator, or browser. Manual
-expenses persist in the platform's local application storage. No account, environment variable,
-hosted service, or paid provider is required.
+expenses and supported receipt originals persist in the platform's local application storage. No
+account, environment variable, hosted service, or paid provider is required.
 
 ## Quality gate
 

@@ -14,3 +14,10 @@ export {
   type ReceiptRepository,
   type UpdateReceiptInput,
 } from './receipt-repository.js';
+export {
+  ReceiptDocumentDuplicateError,
+  ReceiptDocumentParentNotFoundError,
+  ReceiptDocumentReceiptNotFoundError,
+  SqliteReceiptDocumentRepository,
+  type ReceiptDocumentRepository,
+} from './receipt-document-repository.js';

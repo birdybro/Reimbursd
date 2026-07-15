@@ -16,6 +16,6 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run src"
+    "test": "vitest run --root ../.. packages/domain/src"
   }
 }

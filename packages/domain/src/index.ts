@@ -18,3 +18,15 @@ export {
   type Receipt,
   type ReceiptValidationIssue,
 } from './receipt.js';
+export {
+  isReceiptDocumentMimeType,
+  isReceiptDocumentSourceType,
+  receiptDocumentMimeTypes,
+  receiptDocumentSourceTypes,
+  ReceiptDocumentValidationError,
+  validateReceiptDocument,
+  type ReceiptDocument,
+  type ReceiptDocumentMimeType,
+  type ReceiptDocumentSourceType,
+  type ReceiptDocumentValidationIssue,
+} from './receipt-document.js';

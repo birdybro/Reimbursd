@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 
-import { createManualReceipt, type Receipt } from '@reimbursd/domain';
+import { createManualReceipt, type Receipt, type ReceiptDocument } from '@reimbursd/domain';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
@@ -13,6 +13,12 @@ import {
   SqliteReceiptRepository,
   type UpdateReceiptInput,
 } from './receipt-repository.js';
+import {
+  ReceiptDocumentDuplicateError,
+  ReceiptDocumentParentNotFoundError,
+  ReceiptDocumentReceiptNotFoundError,
+  SqliteReceiptDocumentRepository,
+} from './receipt-document-repository.js';
 import {
   migrateDatabase,
   schemaVersion,
@@ -39,7 +45,7 @@ describe('SQLite receipt repository', () => {
     const versions = await connection.getAll<{ version: number }>(
       'SELECT version FROM schema_migrations;',
     );
-    expect(versions).toEqual([{ version: schemaVersion }]);
+    expect(versions).toEqual([{ version: 1 }, { version: 2 }, { version: schemaVersion }]);
     connection.close();
   });
 
@@ -68,7 +74,7 @@ describe('SQLite receipt repository', () => {
     `);
 
     await expect(migrateDatabase(connection)).rejects.toThrow(
-      'Database schema version 999 is newer than supported version 1.',
+      `Database schema version 999 is newer than supported version ${schemaVersion}.`,
     );
     connection.close();
   });
@@ -167,6 +173,111 @@ describe('SQLite receipt repository', () => {
   });
 });
 
+describe('SQLite receipt document repository', () => {
+  it('stores immutable original metadata and retrieves it after reopening the database', async () => {
+    const path = createTemporaryDatabasePath();
+    const firstConnection = new NodeSqliteConnection(path);
+    await migrateDatabase(firstConnection);
+    const receiptRepository = new SqliteReceiptRepository(firstConnection);
+    const receipt = await receiptRepository.create(makeReceipt());
+    const document = makeDocument(receipt.id);
+    const documentRepository = new SqliteReceiptDocumentRepository(firstConnection);
+
+    await documentRepository.create(document);
+    firstConnection.close();
+
+    const reopenedConnection = new NodeSqliteConnection(path);
+    await migrateDatabase(reopenedConnection);
+    const reopenedRepository = new SqliteReceiptDocumentRepository(reopenedConnection);
+
+    await expect(reopenedRepository.getById(document.id)).resolves.toEqual(document);
+    await expect(reopenedRepository.listByReceiptId(receipt.id)).resolves.toEqual([document]);
+    reopenedConnection.close();
+  });
+
+  it('detects a duplicate original hash across local receipts', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipt = await new SqliteReceiptRepository(connection).create(makeReceipt());
+    const repository = new SqliteReceiptDocumentRepository(connection);
+    const original = makeDocument(receipt.id);
+    await repository.create(original);
+    const secondReceipt = await new SqliteReceiptRepository(connection).create(makeReceipt());
+
+    const duplicate = makeDocument(secondReceipt.id, {
+      id: randomUUID(),
+      storageReference: `receipts/${secondReceipt.id}/originals/duplicate.jpg`,
+    });
+
+    await expect(repository.create(duplicate)).rejects.toBeInstanceOf(
+      ReceiptDocumentDuplicateError,
+    );
+    await expect(repository.findOriginalByHash(original.sha256)).resolves.toEqual(original);
+    connection.close();
+  });
+
+  it('rejects a derivative whose parent belongs to another receipt', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipts = new SqliteReceiptRepository(connection);
+    const firstReceipt = await receipts.create(makeReceipt());
+    const secondReceipt = await receipts.create(makeReceipt());
+    const documents = new SqliteReceiptDocumentRepository(connection);
+    const original = await documents.create(makeDocument(firstReceipt.id));
+
+    await expect(
+      documents.create(
+        makeDocument(secondReceipt.id, {
+          id: randomUUID(),
+          isOriginal: false,
+          parentDocumentId: original.id,
+          sha256: 'f'.repeat(64),
+          sourceType: 'derivative',
+          storageReference: `receipts/${secondReceipt.id}/derivatives/cross-receipt.jpg`,
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ReceiptDocumentParentNotFoundError);
+    connection.close();
+  });
+
+  it('allows a derivative with a distinct hash and explicit parent', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipt = await new SqliteReceiptRepository(connection).create(makeReceipt());
+    const repository = new SqliteReceiptDocumentRepository(connection);
+    const original = await repository.create(makeDocument(receipt.id));
+    const derivative = makeDocument(receipt.id, {
+      byteSize: 2_048,
+      heightPixels: 1_200,
+      id: randomUUID(),
+      isOriginal: false,
+      parentDocumentId: original.id,
+      sha256: 'e'.repeat(64),
+      sourceType: 'derivative',
+      storageReference: `receipts/${receipt.id}/derivatives/preview.jpg`,
+      widthPixels: 900,
+    });
+
+    await expect(repository.create(derivative)).resolves.toEqual(derivative);
+    await expect(repository.listByReceiptId(receipt.id)).resolves.toEqual([original, derivative]);
+    connection.close();
+  });
+
+  it('rejects documents for missing or deleted receipts', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipts = new SqliteReceiptRepository(connection);
+    const documents = new SqliteReceiptDocumentRepository(connection);
+    const receipt = await receipts.create(makeReceipt());
+    await receipts.delete(receipt.id, receipt.version, '2026-07-15T01:30:00.000Z');
+
+    await expect(documents.create(makeDocument(receipt.id))).rejects.toBeInstanceOf(
+      ReceiptDocumentReceiptNotFoundError,
+    );
+    connection.close();
+  });
+});
+
 class NodeSqliteConnection implements SqliteConnection {
   readonly #database: DatabaseSync;
   readonly #failMigrationRecord: boolean;
@@ -258,6 +369,31 @@ function makeUpdate(
     tipMinor: receipt.tipMinor,
     totalMinor: receipt.totalMinor,
     updatedAt: '2026-07-14T18:45:00.000Z',
+    ...overrides,
+  };
+}
+
+function makeDocument(
+  receiptId: string,
+  overrides: Partial<ReceiptDocument> = {},
+): ReceiptDocument {
+  const id = randomUUID();
+
+  return {
+    byteSize: 4_096,
+    createdAt: '2026-07-15T01:00:00.000Z',
+    heightPixels: 2_400,
+    id,
+    isOriginal: true,
+    mimeType: 'image/jpeg',
+    originalFilename: 'synthetic-receipt.jpg',
+    pageCount: 1,
+    parentDocumentId: null,
+    receiptId,
+    sha256: 'd'.repeat(64),
+    sourceType: 'image_import',
+    storageReference: `receipts/${receiptId}/originals/${id}.jpg`,
+    widthPixels: 1_800,
     ...overrides,
   };
 }

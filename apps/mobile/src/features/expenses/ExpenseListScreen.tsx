@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { Filter, Plus, ReceiptText, Search, ShieldCheck } from 'lucide-react-native';
+import {
+  Camera,
+  FileImage,
+  FileText,
+  Filter,
+  Plus,
+  ReceiptText,
+  Search,
+  ShieldCheck,
+} from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,12 +29,26 @@ import { colors } from '../../theme';
 import { formatPurchaseDate } from './display';
 
 interface ExpenseListScreenProps {
+  readonly importError: string | null;
+  readonly importing: boolean;
+  readonly onCapture: () => void;
   readonly onCreate: () => void;
+  readonly onImportImage: () => void;
+  readonly onImportPdf: () => void;
   readonly onOpen: (receipt: Receipt) => void;
   readonly repository: ReceiptRepository;
 }
 
-export function ExpenseListScreen({ onCreate, onOpen, repository }: ExpenseListScreenProps) {
+export function ExpenseListScreen({
+  importError,
+  importing,
+  onCapture,
+  onCreate,
+  onImportImage,
+  onImportPdf,
+  onOpen,
+  repository,
+}: ExpenseListScreenProps) {
   const [currencyCode, setCurrencyCode] = useState<SupportedCurrencyCode | null>(null);
   const [error, setError] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
@@ -169,14 +192,42 @@ export function ExpenseListScreen({ onCreate, onOpen, repository }: ExpenseListS
       )}
 
       <View style={styles.actionArea}>
+        {importError === null ? null : (
+          <Text accessibilityLiveRegion="assertive" style={styles.importError}>
+            {importError}
+          </Text>
+        )}
+        <View style={styles.importActions}>
+          <ImportButton
+            disabled={importing}
+            icon={<Camera color={colors.paper} size={20} strokeWidth={2.3} />}
+            label="Scan"
+            onPress={onCapture}
+            primary
+          />
+          <ImportButton
+            disabled={importing}
+            icon={<FileImage color={colors.ink} size={20} strokeWidth={2.1} />}
+            label="Image"
+            onPress={onImportImage}
+          />
+          <ImportButton
+            disabled={importing}
+            icon={<FileText color={colors.ink} size={20} strokeWidth={2.1} />}
+            label="PDF"
+            onPress={onImportPdf}
+          />
+        </View>
         <Pressable
           accessibilityLabel="Create manual expense"
           accessibilityRole="button"
+          accessibilityState={{ disabled: importing }}
+          disabled={importing}
           onPress={onCreate}
-          style={({ pressed }) => [styles.primaryAction, pressed && styles.primaryPressed]}
+          style={({ pressed }) => [styles.manualAction, pressed && styles.pressed]}
         >
-          <Plus color={colors.paper} size={21} strokeWidth={2.4} />
-          <Text style={styles.primaryActionText}>Manual expense</Text>
+          <Plus color={colors.green} size={19} strokeWidth={2.3} />
+          <Text style={styles.manualActionText}>Manual expense</Text>
         </Pressable>
       </View>
 
@@ -191,12 +242,83 @@ export function ExpenseListScreen({ onCreate, onOpen, repository }: ExpenseListS
   );
 }
 
+interface ImportButtonProps {
+  readonly disabled: boolean;
+  readonly icon: React.ReactNode;
+  readonly label: string;
+  readonly onPress: () => void;
+  readonly primary?: boolean;
+}
+
+function ImportButton({ disabled, icon, label, onPress, primary = false }: ImportButtonProps) {
+  return (
+    <Pressable
+      accessibilityLabel={
+        label === 'Scan'
+          ? 'Scan receipt with camera'
+          : label === 'Image'
+            ? 'Import receipt image'
+            : 'Import receipt PDF'
+      }
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.importButton,
+        primary && styles.primaryImportButton,
+        pressed && (primary ? styles.primaryPressed : styles.pressed),
+      ]}
+    >
+      {icon}
+      <Text style={[styles.importButtonText, primary && styles.primaryActionText]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   actionArea: {
     backgroundColor: colors.background,
     borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 10,
     padding: 16,
+  },
+  importActions: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    maxWidth: 720,
+    width: '100%',
+  },
+  importButton: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 50,
+    minWidth: 0,
+    paddingHorizontal: 8,
+  },
+  importButtonText: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  importError: {
+    alignSelf: 'center',
+    backgroundColor: colors.dangerSoft,
+    borderRadius: 6,
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 19,
+    maxWidth: 720,
+    padding: 10,
+    width: '100%',
   },
   centerState: {
     alignItems: 'center',
@@ -285,17 +407,27 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.62,
   },
-  primaryAction: {
+  manualAction: {
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: colors.green,
+    borderColor: colors.green,
     borderRadius: 6,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: 9,
     justifyContent: 'center',
     maxWidth: 720,
-    minHeight: 50,
+    minHeight: 46,
     width: '100%',
+  },
+  manualActionText: {
+    color: colors.green,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  primaryImportButton: {
+    backgroundColor: colors.green,
+    borderColor: colors.green,
   },
   primaryActionText: {
     color: colors.paper,

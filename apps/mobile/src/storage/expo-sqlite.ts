@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import {
   migrateDatabase,
+  SqliteReceiptDocumentRepository,
   SqliteReceiptRepository,
+  type ReceiptDocumentRepository,
   type ReceiptRepository,
   type SqliteConnection,
   type SqliteRunResult,
@@ -11,22 +13,34 @@ import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 
 const databaseName = 'reimbursd.db';
 
-let repositoryPromise: Promise<ReceiptRepository> | undefined;
+export interface LocalRepositories {
+  readonly documents: ReceiptDocumentRepository;
+  readonly receipts: ReceiptRepository;
+}
+
+let repositoryPromise: Promise<LocalRepositories> | undefined;
 
 export function getLocalReceiptRepository(): Promise<ReceiptRepository> {
-  repositoryPromise ??= initializeRepository().catch((error: unknown) => {
+  return getLocalRepositories().then(({ receipts }) => receipts);
+}
+
+export function getLocalRepositories(): Promise<LocalRepositories> {
+  repositoryPromise ??= initializeRepositories().catch((error: unknown) => {
     repositoryPromise = undefined;
     throw error;
   });
   return repositoryPromise;
 }
 
-async function initializeRepository(): Promise<ReceiptRepository> {
+async function initializeRepositories(): Promise<LocalRepositories> {
   const database = await openDatabaseAsync(databaseName);
   const connection = new ExpoSqliteConnection(database);
   await connection.exec('PRAGMA journal_mode = WAL;');
   await migrateDatabase(connection);
-  return new SqliteReceiptRepository(connection);
+  return {
+    documents: new SqliteReceiptDocumentRepository(connection),
+    receipts: new SqliteReceiptRepository(connection),
+  };
 }
 
 class ExpoSqliteConnection implements SqliteConnection {

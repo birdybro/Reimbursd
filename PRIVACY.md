@@ -4,14 +4,20 @@ Reimbursd is designed to keep its core mobile experience local and usable withou
 
 ## Current implementation
 
-Manual expense fields are stored in a local SQLite database. On mobile, the database is inside the
-application sandbox. On web, it is stored for the current browser origin and profile. The database
-is not application-layer encrypted, and backup and restore are not implemented yet.
+Expense fields and receipt-file metadata are stored in local SQLite. Original JPEG, PNG, and PDF
+bytes are stored separately in private application documents on mobile or origin-private browser
+file storage on web. Originals are hashed and copied without modification. These stores are not
+application-layer encrypted, and backup and restore are not implemented yet.
 
 The application does not request location, use analytics, display advertising, transmit expense
-data to a Reimbursd service, or require an account. It has no external AI, synchronization, hosted
-processing, receipt-file ingestion, or telemetry integration. Deleting an expense retains a local
-tombstone for future synchronization semantics; there is not yet a delete-all workflow.
+or receipt data to a Reimbursd service, or require an account. It has no external AI,
+synchronization, hosted processing, or telemetry integration. Camera and photo-library permissions
+are requested only after the corresponding local import action. PDF selection does not request
+camera, photo, or location access.
+
+Deleting an expense currently retains a local tombstone for future synchronization semantics.
+Attachment cleanup on individual expense deletion and a delete-all workflow are not yet complete,
+so this development build must not claim complete deletion.
 
 ## Product commitments
 

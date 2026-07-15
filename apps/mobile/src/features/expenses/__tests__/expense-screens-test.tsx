@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
-import { ReceiptConflictError, type ReceiptRepository } from '@reimbursd/database';
-import { createManualReceipt } from '@reimbursd/domain';
+import {
+  ReceiptConflictError,
+  type ReceiptDocumentRepository,
+  type ReceiptRepository,
+} from '@reimbursd/database';
+import { createManualReceipt, type ReceiptDocument } from '@reimbursd/domain';
 
 import { ExpenseFormScreen } from '../ExpenseFormScreen';
 import { ExpenseDetailScreen } from '../ExpenseDetailScreen';
@@ -16,6 +20,9 @@ jest.mock('lucide-react-native', () => {
   const MockIcon = () => null;
   return {
     Check: MockIcon,
+    Camera: MockIcon,
+    FileImage: MockIcon,
+    FileText: MockIcon,
     Filter: MockIcon,
     Pencil: MockIcon,
     Plus: MockIcon,
@@ -51,13 +58,34 @@ function createRepository(): jest.Mocked<ReceiptRepository> {
   };
 }
 
+function createDocumentRepository(): jest.Mocked<ReceiptDocumentRepository> {
+  return {
+    create: jest.fn(),
+    findOriginalByHash: jest.fn(),
+    getById: jest.fn(),
+    listByReceiptId: jest.fn().mockResolvedValue([]),
+  };
+}
+
 describe('manual expense screens', () => {
   test('lists local expenses and exposes the primary create action', async () => {
     const onCreate = jest.fn();
     const onOpen = jest.fn();
     const repository = createRepository();
+    const onCapture = jest.fn();
+    const onImportImage = jest.fn();
+    const onImportPdf = jest.fn();
     const screen = await render(
-      <ExpenseListScreen onCreate={onCreate} onOpen={onOpen} repository={repository} />,
+      <ExpenseListScreen
+        importError={null}
+        importing={false}
+        onCapture={onCapture}
+        onCreate={onCreate}
+        onImportImage={onImportImage}
+        onImportPdf={onImportPdf}
+        onOpen={onOpen}
+        repository={repository}
+      />,
     );
 
     await waitFor(() => expect(screen.getByText('Corner Market')).toBeTruthy());
@@ -68,6 +96,13 @@ describe('manual expense screens', () => {
 
     await fireEvent.press(screen.getByLabelText('Corner Market, $13.34'));
     expect(onOpen).toHaveBeenCalledWith(receipt);
+
+    await fireEvent.press(screen.getByLabelText('Scan receipt with camera'));
+    await fireEvent.press(screen.getByLabelText('Import receipt image'));
+    await fireEvent.press(screen.getByLabelText('Import receipt PDF'));
+    expect(onCapture).toHaveBeenCalledTimes(1);
+    expect(onImportImage).toHaveBeenCalledTimes(1);
+    expect(onImportPdf).toHaveBeenCalledTimes(1);
   });
 
   test('validates and submits exact minor-unit amounts', async () => {
@@ -121,6 +156,7 @@ describe('manual expense screens', () => {
     });
     const screen = await render(
       <ExpenseDetailScreen
+        documentRepository={createDocumentRepository()}
         onDeleted={onDeleted}
         onEdit={jest.fn()}
         receipt={receipt}
@@ -135,6 +171,41 @@ describe('manual expense screens', () => {
     await fireEvent.press(screen.getByLabelText('Confirm expense deletion'));
     await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
     expect(repository.delete).toHaveBeenCalledWith(receipt.id, receipt.version, expect.any(String));
+  });
+
+  test('shows original receipt provenance and file integrity metadata', async () => {
+    const document: ReceiptDocument = {
+      byteSize: 4_096,
+      createdAt: '2026-07-15T01:00:00.000Z',
+      heightPixels: null,
+      id: '44444444-4444-4444-8444-444444444444',
+      isOriginal: true,
+      mimeType: 'application/pdf',
+      originalFilename: 'synthetic-receipt.pdf',
+      pageCount: 3,
+      parentDocumentId: null,
+      receiptId: receipt.id,
+      sha256: 'd'.repeat(64),
+      sourceType: 'pdf_import',
+      storageReference: `receipt-documents/${receipt.id}/originals/44444444-4444-4444-8444-444444444444.pdf`,
+      widthPixels: null,
+    };
+    const documentRepository = createDocumentRepository();
+    documentRepository.listByReceiptId.mockResolvedValue([document]);
+    const screen = await render(
+      <ExpenseDetailScreen
+        documentRepository={documentRepository}
+        onDeleted={jest.fn()}
+        onEdit={jest.fn()}
+        receipt={receipt}
+        repository={createRepository()}
+      />,
+    );
+
+    expect(await screen.findByText('synthetic-receipt.pdf')).toBeTruthy();
+    expect(screen.getByText('PDF import | 3 pages | 4.0 KB')).toBeTruthy();
+    expect(screen.getByText(`SHA-256 ${'d'.repeat(64)}`)).toBeTruthy();
+    expect(screen.getByLabelText('Receipt imported and preserved locally')).toBeTruthy();
   });
 
   test('explains how to recover from a stale edit conflict', async () => {

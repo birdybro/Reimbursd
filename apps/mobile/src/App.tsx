@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-import type { ReceiptRepository } from '@reimbursd/database';
+import { AttachmentIngestor, PdfLibAttachmentInspector } from '@reimbursd/attachments';
 import type { Receipt } from '@reimbursd/domain';
 
 import { AppHeader } from './components/AppHeader';
@@ -14,7 +14,19 @@ import { ExpenseDetailScreen } from './features/expenses/ExpenseDetailScreen';
 import { ExpenseFormScreen } from './features/expenses/ExpenseFormScreen';
 import { ExpenseListScreen } from './features/expenses/ExpenseListScreen';
 import type { ExpenseFormSubmission } from './features/expenses/expense-form';
-import { getLocalReceiptRepository } from './storage/expo-sqlite';
+import {
+  getReceiptImportErrorMessage,
+  ReceiptCaptureCoordinator,
+} from './features/receipts/receipt-capture';
+import {
+  selectCameraReceipt,
+  selectImageReceipt,
+  selectPdfReceipt,
+  ReceiptPickerPermissionError,
+  type SelectedReceiptFile,
+} from './features/receipts/receipt-pickers';
+import { getLocalRepositories, type LocalRepositories } from './storage/expo-sqlite';
+import { ExpoAttachmentHasher, LocalAttachmentStorage } from './storage/local-attachments';
 import { colors } from './theme';
 
 type Route =
@@ -25,22 +37,37 @@ type Route =
 
 type RepositoryState =
   | { readonly status: 'loading' }
-  | { readonly status: 'ready'; readonly repository: ReceiptRepository }
+  | {
+      readonly capture: ReceiptCaptureCoordinator;
+      readonly repositories: LocalRepositories;
+      readonly status: 'ready';
+    }
   | { readonly status: 'error' };
 
 function AppContent() {
   const [initializationKey, setInitializationKey] = useState(0);
   const [legalVisible, setLegalVisible] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const [repositoryState, setRepositoryState] = useState<RepositoryState>({ status: 'loading' });
   const [route, setRoute] = useState<Route>({ name: 'list' });
 
   useEffect(() => {
     let active = true;
 
-    getLocalReceiptRepository()
-      .then((repository) => {
+    getLocalRepositories()
+      .then((repositories) => {
         if (active) {
-          setRepositoryState({ repository, status: 'ready' });
+          const capture = new ReceiptCaptureCoordinator({
+            ingestor: new AttachmentIngestor({
+              documents: repositories.documents,
+              hasher: new ExpoAttachmentHasher(),
+              inspector: new PdfLibAttachmentInspector(),
+              storage: new LocalAttachmentStorage(),
+            }),
+            receipts: repositories.receipts,
+          });
+          setRepositoryState({ capture, repositories, status: 'ready' });
         }
       })
       .catch(() => {
@@ -70,9 +97,39 @@ function AppContent() {
 
     const receipt =
       submission.kind === 'create'
-        ? await repositoryState.repository.create(submission.receipt)
-        : await repositoryState.repository.update(submission.input);
+        ? await repositoryState.repositories.receipts.create(submission.receipt)
+        : await repositoryState.repositories.receipts.update(submission.input);
     setRoute({ name: 'detail', receipt });
+  };
+
+  const importReceipt = async (
+    picker: () => Promise<SelectedReceiptFile | null>,
+  ): Promise<void> => {
+    if (repositoryState.status !== 'ready' || importing) {
+      return;
+    }
+
+    setImportError(null);
+
+    try {
+      const selection = await picker();
+
+      if (selection === null) {
+        return;
+      }
+
+      setImporting(true);
+      const imported = await repositoryState.capture.import(selection);
+      setRoute({ name: 'detail', receipt: imported.receipt });
+    } catch (error) {
+      setImportError(
+        error instanceof ReceiptPickerPermissionError
+          ? error.message
+          : getReceiptImportErrorMessage(error),
+      );
+    } finally {
+      setImporting(false);
+    }
   };
 
   const screenTitle =
@@ -111,16 +168,22 @@ function AppContent() {
           />
         ) : route.name === 'list' ? (
           <ExpenseListScreen
+            importError={importError}
+            importing={importing}
+            onCapture={() => importReceipt(selectCameraReceipt)}
             onCreate={() => setRoute({ name: 'new' })}
+            onImportImage={() => importReceipt(selectImageReceipt)}
+            onImportPdf={() => importReceipt(selectPdfReceipt)}
             onOpen={(receipt) => setRoute({ name: 'detail', receipt })}
-            repository={repositoryState.repository}
+            repository={repositoryState.repositories.receipts}
           />
         ) : route.name === 'detail' ? (
           <ExpenseDetailScreen
             onDeleted={() => setRoute({ name: 'list' })}
             onEdit={() => setRoute({ name: 'edit', receipt: route.receipt })}
             receipt={route.receipt}
-            repository={repositoryState.repository}
+            documentRepository={repositoryState.repositories.documents}
+            repository={repositoryState.repositories.receipts}
           />
         ) : (
           <ExpenseFormScreen

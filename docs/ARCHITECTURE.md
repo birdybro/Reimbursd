@@ -6,8 +6,9 @@ Reimbursd is an npm workspace using strict TypeScript.
 
 ```text
 apps/mobile       Expo and React Native client
+packages/attachments File inspection and attachment-ingestion coordination
 packages/domain   Framework-independent business rules
-packages/database SQLite ports, migrations, and receipt repository
+packages/database SQLite ports, migrations, and local repositories
 ```
 
 The domain package cannot depend on React, React Native, HTTP frameworks, database drivers, cloud
@@ -21,7 +22,15 @@ the repository boundary.
 
 The receipt repository uses transactions for multi-table writes, parameterized statements,
 optimistic record versions, and deletion tombstones. UI code depends on the repository interface,
-not Expo SQLite directly. No attachment, hosted, synchronization, or provider boundary exists yet.
+not Expo SQLite directly.
+
+Receipt bytes cross a framework-independent ingestion boundary that validates decoded JPEG, PNG,
+or PDF content, applies configurable resource limits, calculates SHA-256, detects duplicate
+originals, and coordinates immutable file creation with metadata persistence. Native files use the
+private Expo document directory. Web files use the browser origin-private file system. SQLite stores
+only immutable document metadata and opaque storage references. Original and derivative records
+are distinct and derivatives must reference an original belonging to the same receipt. No receipt
+bytes or metadata are transmitted over a network.
 
 ## Intended growth
 
@@ -30,4 +39,5 @@ database access, cryptography, providers, and synchronization. These are not imp
 not required for local mobile use.
 
 See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
-[ADR-0002](architecture/adr/0002-local-sqlite-repository.md) for accepted decisions.
+[ADR-0002](architecture/adr/0002-local-sqlite-repository.md), and
+[ADR-0003](architecture/adr/0003-local-attachment-storage.md) for accepted decisions.

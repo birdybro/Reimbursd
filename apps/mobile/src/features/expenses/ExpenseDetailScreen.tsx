@@ -1,15 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { Pencil, ShieldCheck, Trash2 } from 'lucide-react-native';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useState } from 'react';
+import { FileImage, FileText, Pencil, ShieldCheck, Trash2 } from 'lucide-react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useEffect, useState } from 'react';
 
-import type { ReceiptRepository } from '@reimbursd/database';
-import { formatMinorUnits, type Receipt } from '@reimbursd/domain';
+import type { ReceiptDocumentRepository, ReceiptRepository } from '@reimbursd/database';
+import { formatMinorUnits, type Receipt, type ReceiptDocument } from '@reimbursd/domain';
 
 import { colors } from '../../theme';
 import { formatPurchaseDate } from './display';
 
 interface ExpenseDetailScreenProps {
+  readonly documentRepository: ReceiptDocumentRepository;
   readonly onDeleted: () => void;
   readonly onEdit: () => void;
   readonly receipt: Receipt;
@@ -17,6 +26,7 @@ interface ExpenseDetailScreenProps {
 }
 
 export function ExpenseDetailScreen({
+  documentRepository,
   onDeleted,
   onEdit,
   receipt,
@@ -25,6 +35,35 @@ export function ExpenseDetailScreen({
   const [confirmationVisible, setConfirmationVisible] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [documents, setDocuments] = useState<readonly ReceiptDocument[]>([]);
+  const [documentsError, setDocumentsError] = useState(false);
+  const [documentsLoading, setDocumentsLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    documentRepository
+      .listByReceiptId(receipt.id)
+      .then((result) => {
+        if (active) {
+          setDocuments(result);
+          setDocumentsError(false);
+          setDocumentsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setDocumentsError(true);
+          setDocumentsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [documentRepository, receipt.id]);
+
+  const hasOriginal = documents.some((document) => document.isOriginal);
 
   const deleteReceipt = async () => {
     setDeleting(true);
@@ -54,13 +93,39 @@ export function ExpenseDetailScreen({
         </Text>
       </View>
 
-      <View accessibilityLabel="Locally entered manual expense" style={styles.provenance}>
+      <View
+        accessibilityLabel={
+          hasOriginal ? 'Receipt imported and preserved locally' : 'Locally entered manual expense'
+        }
+        style={styles.provenance}
+      >
         <ShieldCheck color={colors.green} size={20} strokeWidth={2} />
         <View style={styles.provenanceCopy}>
-          <Text style={styles.provenanceTitle}>Manual entry</Text>
-          <Text style={styles.provenanceDetail}>Saved and processed locally</Text>
+          <Text style={styles.provenanceTitle}>
+            {hasOriginal ? 'Local receipt file' : 'Manual entry'}
+          </Text>
+          <Text style={styles.provenanceDetail}>
+            {hasOriginal ? 'Original preserved on this device' : 'Saved and processed locally'}
+          </Text>
         </View>
       </View>
+
+      {documentsLoading ? (
+        <View accessibilityLabel="Loading receipt files" style={styles.documentLoading}>
+          <ActivityIndicator color={colors.green} size="small" />
+        </View>
+      ) : documentsError ? (
+        <Text accessibilityLiveRegion="polite" style={styles.documentError}>
+          Receipt file details could not be loaded. The expense data is still available.
+        </Text>
+      ) : documents.length === 0 ? null : (
+        <View style={styles.documentsSection}>
+          <Text style={styles.sectionLabel}>Receipt files</Text>
+          {documents.map((document) => (
+            <DocumentRow document={document} key={document.id} />
+          ))}
+        </View>
+      )}
 
       <View style={styles.amounts}>
         <AmountRow
@@ -160,6 +225,60 @@ export function ExpenseDetailScreen({
   );
 }
 
+function DocumentRow({ document }: { readonly document: ReceiptDocument }) {
+  const sourceLabel = {
+    camera: 'Camera capture',
+    derivative: 'Derived preview',
+    image_import: 'Image import',
+    pdf_import: 'PDF import',
+  }[document.sourceType];
+  const documentDetail =
+    document.mimeType === 'application/pdf'
+      ? `${document.pageCount} ${document.pageCount === 1 ? 'page' : 'pages'}`
+      : `${document.widthPixels} x ${document.heightPixels} px`;
+
+  return (
+    <View
+      accessibilityLabel={`${document.isOriginal ? 'Original' : 'Derived'} ${document.originalFilename}, ${sourceLabel}`}
+      style={styles.documentRow}
+    >
+      <View style={styles.documentIcon}>
+        {document.mimeType === 'application/pdf' ? (
+          <FileText color={colors.coral} size={22} strokeWidth={2} />
+        ) : (
+          <FileImage color={colors.green} size={22} strokeWidth={2} />
+        )}
+      </View>
+      <View style={styles.documentCopy}>
+        <Text numberOfLines={1} style={styles.documentName}>
+          {document.originalFilename}
+        </Text>
+        <Text style={styles.documentMeta}>
+          {sourceLabel} | {documentDetail} | {formatByteSize(document.byteSize)}
+        </Text>
+        <Text numberOfLines={1} style={styles.documentHash}>
+          SHA-256 {document.sha256}
+        </Text>
+      </View>
+      <Text style={document.isOriginal ? styles.originalBadge : styles.derivativeBadge}>
+        {document.isOriginal ? 'Original' : 'Derived'}
+      </Text>
+    </View>
+  );
+}
+
+function formatByteSize(byteSize: number): string {
+  if (byteSize < 1_024) {
+    return `${byteSize} B`;
+  }
+
+  if (byteSize < 1_024 * 1_024) {
+    return `${(byteSize / 1_024).toFixed(1)} KB`;
+  }
+
+  return `${(byteSize / (1_024 * 1_024)).toFixed(1)} MB`;
+}
+
 interface AmountRowProps {
   readonly label: string;
   readonly strong?: boolean;
@@ -216,6 +335,67 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 14,
     marginTop: 5,
+  },
+  derivativeBadge: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  documentCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  documentError: {
+    backgroundColor: colors.dangerSoft,
+    borderRadius: 6,
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 18,
+    padding: 11,
+  },
+  documentHash: {
+    color: colors.muted,
+    fontFamily: 'monospace',
+    fontSize: 10,
+    marginTop: 5,
+  },
+  documentIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: 6,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  documentLoading: {
+    alignItems: 'center',
+    minHeight: 48,
+  },
+  documentMeta: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  documentName: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  documentRow: {
+    alignItems: 'center',
+    backgroundColor: colors.paper,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 11,
+    minHeight: 78,
+    padding: 12,
+  },
+  documentsSection: {
+    gap: 9,
+    marginBottom: 22,
   },
   deleteButton: {
     alignItems: 'center',
@@ -328,6 +508,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
     marginTop: 8,
+  },
+  originalBadge: {
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: '700',
   },
   notesSection: {
     borderBottomColor: colors.border,

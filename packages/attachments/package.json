@@ -1,5 +1,5 @@
 {
-  "name": "@reimbursd/database",
+  "name": "@reimbursd/attachments",
   "version": "0.1.0",
   "private": true,
   "license": "GPL-3.0-only",
@@ -15,10 +15,12 @@
   ],
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --root ../.. packages/database/src"
+    "test": "vitest run --root ../.. packages/attachments/src",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@reimbursd/domain": "*"
+    "@reimbursd/database": "*",
+    "@reimbursd/domain": "*",
+    "pdf-lib": "^1.17.1"
   }
 }

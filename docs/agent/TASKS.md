@@ -37,13 +37,14 @@
 ## Milestone 2: Receipt file ingestion
 
 - [x] Define acceptance criteria and storage/privacy implications.
-- [ ] Add receipt-document metadata and versioned migrations.
-- [ ] Add private immutable original-file storage behind a platform port.
-- [ ] Validate image and PDF content, limits, and metadata before persistence.
-- [ ] Hash attachments and detect duplicates without external services.
-- [ ] Add camera, image selection, and PDF import workflows.
-- [ ] Distinguish original files from generated previews and thumbnails.
-- [ ] Add unit, storage, provider-boundary, and UI tests.
+- [x] Add receipt-document metadata and versioned migrations.
+- [x] Add private immutable original-file storage behind a platform port.
+- [x] Validate image and PDF content, limits, and metadata before persistence.
+- [x] Hash attachments and detect duplicates without external services.
+- [x] Add camera, image selection, and PDF import workflows.
+- [ ] Generate previews/thumbnails; separate original/derivative schema and UI labels are complete.
+- [ ] Add native/web storage-adapter coverage; core, SQLite, coordinator, and UI tests are complete.
+- [ ] Remove attachment bytes when a receipt is deleted and provide cleanup retry behavior.
 
 ### Acceptance criteria for the current slice
 

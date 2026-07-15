@@ -10,6 +10,13 @@
 - Schema constraints, domain validation at repository boundaries, and parameterized SQL.
 - Optimistic versions reject stale updates, and deletion retains explicit tombstones.
 - Local expense storage has no account, network, analytics, location, or external-processing path.
+- Receipt formats are identified from file signatures and decoded content rather than filename
+  extensions or picker MIME values.
+- Receipt ingestion enforces configurable byte, page, dimension, and pixel-count limits before
+  persistence, and malformed or encrypted PDFs fail closed.
+- Original receipt files are written once to private platform or origin storage; SQLite retains
+  metadata and opaque references rather than file BLOBs.
+- SHA-256 is calculated locally for integrity metadata and duplicate detection.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -18,13 +25,14 @@
   build-tool advisories through Expo configuration and `xcode`; no high or critical advisory is
   present, and npm's proposed remediation is an invalid downgrade to Expo SDK 46. Automated secret
   scanning and a generated SBOM will be added to CI as tooling is selected.
-- Local SQLite relies on the mobile application sandbox or the browser's origin/profile isolation.
-  It is not application-layer encrypted, and this milestone has no secure key storage or encrypted
-  backup.
+- Local SQLite and original attachments rely on the mobile application sandbox or the browser's
+  origin/profile isolation. They are not application-layer encrypted, and this milestone has no
+  secure key storage or encrypted backup. Android/iOS storage behavior has not yet been exercised
+  on physical devices in this Linux development environment.
 
 ## Planned controls
 
-- Private immutable attachment storage and content validation.
+- Attachment derivative generation, attachment cleanup retry, and complete data deletion.
 - Secure platform key storage and authenticated encrypted backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
 - Cross-user isolation, backup restoration, provider-contract, and synchronization-conflict tests.
@@ -33,4 +41,5 @@
 
 Reimbursd does not currently provide encrypted backups, end-to-end encryption, authentication,
 hosted storage, synchronization, complete data deletion, secure deletion guarantees, OCR, or remote
-AI processing. Product surfaces and documentation must not imply otherwise.
+AI processing. Local receipt storage is not described as encrypted. Product surfaces and
+documentation must not imply otherwise.
