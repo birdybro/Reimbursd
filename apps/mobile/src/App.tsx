@@ -274,16 +274,17 @@ function AppContent() {
         ) : route.name === 'detail' ? (
           <ExpenseDetailScreen
             attachmentStorage={repositoryState.storage}
+            categoryRepository={repositoryState.repositories.categories}
             deletionCoordinator={repositoryState.deletion}
             documentRepository={repositoryState.repositories.documents}
             evidenceRepository={repositoryState.repositories.evidence}
-            processingHistoryRepository={repositoryState.repositories.processingHistory}
-            onDeleted={() => setRoute({ name: 'list' })}
             onCleanupNeeded={() =>
               setCleanupIssue(
                 'An expense was removed, but at least one local receipt file still needs deletion.',
               )
             }
+            onClassified={(receipt) => setRoute({ name: 'detail', receipt })}
+            onDeleted={() => setRoute({ name: 'list' })}
             onEdit={(suggestions, processingHistoryIds) =>
               setRoute({
                 name: 'edit',
@@ -293,7 +294,10 @@ function AppContent() {
               })
             }
             onRefreshCleanup={retryPendingCleanup}
+            processingHistoryRepository={repositoryState.repositories.processingHistory}
+            receiptClassificationRepository={repositoryState.repositories.receiptClassifications}
             receipt={route.receipt}
+            tagRepository={repositoryState.repositories.tags}
           />
         ) : (
           <ExpenseFormScreen

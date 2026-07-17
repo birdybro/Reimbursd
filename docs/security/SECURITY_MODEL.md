@@ -37,6 +37,9 @@
 - Category and tag boundaries validate UUIDs, normalized bounded names, timestamps, and versions.
   Normalized duplicates are rejected, tombstones remain reserved, and assigned records cannot be
   deleted silently.
+- Receipt category and tag replacement validates every selected active record and uses one
+  optimistic SQLite transaction for the receipt version plus all relationship changes. Missing,
+  deleted, duplicate, excessive, or stale assignments fail without partial changes.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls

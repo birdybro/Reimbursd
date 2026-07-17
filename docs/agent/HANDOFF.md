@@ -18,9 +18,11 @@ authoritative user corrections, the versioned receipt update, and parser review 
 Use npm workspaces, strict TypeScript, Expo SDK 57, and framework-independent domain/database
 packages. Milestone 4 is active. Category/tag domain records, migration 6, and local repositories are
 implemented with UUIDs, normalized unique names, optimistic versions, tombstones, and explicit
-in-use deletion errors. The next work is atomic receipt assignment and the corresponding expense UI.
-Keep existing receipts valid and local, preserve imported originals exactly, and do not add hosted
-processing, synchronization, or generative AI.
+in-use deletion errors. Expense details can create and atomically assign one category plus multiple
+tags; removed relationships are tombstoned and re-addition revives the stable key. The next work is
+expanded local filtering, followed by totals and export. Keep existing receipts valid and local,
+preserve imported originals exactly, and do not add hosted processing, synchronization, or
+generative AI.
 
 ## Resume steps
 

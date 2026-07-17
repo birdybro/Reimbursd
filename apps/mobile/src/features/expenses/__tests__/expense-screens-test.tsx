@@ -4,10 +4,13 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReceiptDeletionCoordinator } from '@reimbursd/attachments';
 import {
   ReceiptConflictError,
+  type CategoryRepository,
   type FieldEvidenceRepository,
   type ProcessingHistoryRepository,
+  type ReceiptClassificationRepository,
   type ReceiptDocumentRepository,
   type ReceiptRepository,
+  type TagRepository,
 } from '@reimbursd/database';
 import { createManualReceipt, type ReceiptDocument } from '@reimbursd/domain';
 
@@ -24,6 +27,7 @@ jest.mock('lucide-react-native', () => {
   return {
     Check: MockIcon,
     Camera: MockIcon,
+    Circle: MockIcon,
     Crosshair: MockIcon,
     FileImage: MockIcon,
     FileText: MockIcon,
@@ -35,6 +39,8 @@ jest.mock('lucide-react-native', () => {
     Save: MockIcon,
     Search: MockIcon,
     ShieldCheck: MockIcon,
+    Square: MockIcon,
+    Tags: MockIcon,
     Trash2: MockIcon,
     X: MockIcon,
   };
@@ -107,6 +113,51 @@ function createEvidenceRepository(): jest.Mocked<FieldEvidenceRepository> {
     createMany: jest.fn(),
     getPreferred: jest.fn(),
     listByReceiptId: jest.fn().mockResolvedValue([]),
+  };
+}
+
+function createCategoryRepository(): jest.Mocked<CategoryRepository> {
+  return {
+    create: jest.fn(async (category) => category),
+    delete: jest.fn(),
+    getById: jest.fn(),
+    list: jest.fn().mockResolvedValue([]),
+    update: jest.fn(),
+  };
+}
+
+function createTagRepository(): jest.Mocked<TagRepository> {
+  return {
+    create: jest.fn(async (tag) => tag),
+    delete: jest.fn(),
+    getById: jest.fn(),
+    list: jest.fn().mockResolvedValue([]),
+    update: jest.fn(),
+  };
+}
+
+function createReceiptClassificationRepository(): jest.Mocked<ReceiptClassificationRepository> {
+  return {
+    getByReceiptId: jest.fn().mockResolvedValue({ category: null, receipt, tags: [] }),
+    update: jest.fn().mockImplementation(async (input) => ({
+      category: null,
+      receipt: {
+        ...receipt,
+        categoryId: input.categoryId,
+        updatedAt: input.updatedAt,
+        version: receipt.version + 1,
+      },
+      tags: [],
+    })),
+  };
+}
+
+function createClassificationProps() {
+  return {
+    categoryRepository: createCategoryRepository(),
+    onClassified: jest.fn(),
+    receiptClassificationRepository: createReceiptClassificationRepository(),
+    tagRepository: createTagRepository(),
   };
 }
 
@@ -276,6 +327,7 @@ describe('manual expense screens', () => {
     const screen = await render(
       <ExpenseDetailScreen
         attachmentStorage={createAttachmentStorage()}
+        {...createClassificationProps()}
         deletionCoordinator={deletionCoordinator}
         documentRepository={createDocumentRepository()}
         evidenceRepository={createEvidenceRepository()}
@@ -314,6 +366,7 @@ describe('manual expense screens', () => {
     const screen = await render(
       <ExpenseDetailScreen
         attachmentStorage={createAttachmentStorage()}
+        {...createClassificationProps()}
         deletionCoordinator={deletionCoordinator}
         documentRepository={createDocumentRepository()}
         evidenceRepository={createEvidenceRepository()}
@@ -348,6 +401,7 @@ describe('manual expense screens', () => {
     const screen = await render(
       <ExpenseDetailScreen
         attachmentStorage={createAttachmentStorage()}
+        {...createClassificationProps()}
         deletionCoordinator={createDeletionCoordinator()}
         documentRepository={documentRepository}
         evidenceRepository={createEvidenceRepository()}
@@ -448,6 +502,7 @@ describe('manual expense screens', () => {
     const screen = await render(
       <ExpenseDetailScreen
         attachmentStorage={attachmentStorage}
+        {...createClassificationProps()}
         deletionCoordinator={createDeletionCoordinator()}
         documentRepository={documentRepository}
         evidenceRepository={evidenceRepository}
@@ -526,6 +581,7 @@ describe('manual expense screens', () => {
     const screen = await render(
       <ExpenseDetailScreen
         attachmentStorage={createAttachmentStorage()}
+        {...createClassificationProps()}
         deletionCoordinator={createDeletionCoordinator()}
         documentRepository={createDocumentRepository()}
         evidenceRepository={evidenceRepository}
@@ -541,6 +597,52 @@ describe('manual expense screens', () => {
     await waitFor(() => expect(evidenceRepository.listByReceiptId).toHaveBeenCalled());
     expect(screen.queryByText('Suggested values')).toBeNull();
     expect(screen.getByLabelText('Edit expense')).toBeTruthy();
+  });
+
+  test('creates and atomically assigns a category and tag from expense details', async () => {
+    const classificationProps = createClassificationProps();
+    const screen = await render(
+      <ExpenseDetailScreen
+        attachmentStorage={createAttachmentStorage()}
+        {...classificationProps}
+        deletionCoordinator={createDeletionCoordinator()}
+        documentRepository={createDocumentRepository()}
+        evidenceRepository={createEvidenceRepository()}
+        onCleanupNeeded={jest.fn()}
+        onDeleted={jest.fn()}
+        onEdit={jest.fn()}
+        onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
+        processingHistoryRepository={createProcessingHistoryRepository()}
+        receipt={receipt}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(classificationProps.receiptClassificationRepository.getByReceiptId).toHaveBeenCalled(),
+    );
+    await fireEvent.press(screen.getByLabelText('Classify expense'));
+    expect(await screen.findByText('Classify expense')).toBeTruthy();
+
+    await fireEvent.changeText(screen.getByLabelText('New category name'), 'Client Meals');
+    await fireEvent.press(screen.getByLabelText('Add new category'));
+    await waitFor(() => expect(screen.getByLabelText('Client Meals, selected')).toBeTruthy());
+
+    await fireEvent.changeText(screen.getByLabelText('New tag name'), 'Reimbursable');
+    await fireEvent.press(screen.getByLabelText('Add new tag'));
+    await waitFor(() => expect(screen.getByLabelText('Reimbursable, selected')).toBeTruthy());
+
+    await fireEvent.press(screen.getByLabelText('Save expense classification'));
+    await waitFor(() =>
+      expect(classificationProps.receiptClassificationRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          categoryId: '11111111-1111-4111-8111-111111111111',
+          expectedVersion: receipt.version,
+          receiptId: receipt.id,
+          tagIds: ['11111111-1111-4111-8111-111111111111'],
+        }),
+      ),
+    );
+    expect(classificationProps.onClassified).toHaveBeenCalledTimes(1);
   });
 
   test('explains how to recover from a stale edit conflict', async () => {

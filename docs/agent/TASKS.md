@@ -98,7 +98,8 @@
 
 - [x] Define category and tag domain models plus migration implications.
 - [x] Add local category/tag persistence with versions, tombstones, and duplicate protection.
-- [ ] Add atomic receipt category/tag assignment and unassignment.
+- [x] Add atomic receipt category/tag assignment and unassignment.
+- [x] Add accessible local category/tag creation and assignment UI on expense details.
 - [ ] Expand filters for date, merchant, category, tag, and amount.
 - [ ] Add monthly and category totals.
 - [ ] Add CSV and complete structured export with attachment checksums.

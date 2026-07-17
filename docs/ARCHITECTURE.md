@@ -30,7 +30,10 @@ Milestone 4 category and tag records are framework-independent, UUID-backed, ver
 tombstoned. Shared SQLite repositories validate them on every read and write, reject normalized name
 collisions, and prevent deletion while an active receipt assignment exists. Migration 6 leaves
 existing nullable receipt categories unchanged and creates versioned receipt-tag relationships for
-the later assignment flow.
+the assignment flow. A dedicated repository replaces the receipt's category and complete tag set in
+one transaction, increments the receipt version, tombstones removed tag relationships, and revives
+re-added relationships deterministically. Expense details expose this through a local classification
+modal that can create and select records without any network path.
 
 Receipt bytes cross a framework-independent ingestion boundary that validates decoded JPEG, PNG,
 or PDF content, applies configurable resource limits, calculates SHA-256, detects duplicate

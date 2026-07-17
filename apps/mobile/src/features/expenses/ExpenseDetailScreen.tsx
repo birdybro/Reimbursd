@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { Crosshair, FileImage, FileText, Pencil, ShieldCheck, Trash2 } from 'lucide-react-native';
+import {
+  Crosshair,
+  FileImage,
+  FileText,
+  Pencil,
+  ShieldCheck,
+  Tags,
+  Trash2,
+} from 'lucide-react-native';
 import {
   ActivityIndicator,
   Image,
@@ -17,7 +25,10 @@ import type { AttachmentCleanupFailure, ReceiptDeletionCoordinator } from '@reim
 import type {
   FieldEvidenceRepository,
   ProcessingHistoryRepository,
+  CategoryRepository,
+  ReceiptClassificationRepository,
   ReceiptDocumentRepository,
+  TagRepository,
 } from '@reimbursd/database';
 import {
   canSupersedeFieldEvidence,
@@ -33,9 +44,11 @@ import {
 import type { LocalAttachmentStorage } from '../../storage/local-attachments';
 import { colors } from '../../theme';
 import { formatPurchaseDate } from './display';
+import { ExpenseClassificationModal } from './ExpenseClassificationModal';
 
 interface ExpenseDetailScreenProps {
   readonly attachmentStorage: Pick<LocalAttachmentStorage, 'openForDisplay'>;
+  readonly categoryRepository: CategoryRepository;
   readonly deletionCoordinator: Pick<
     ReceiptDeletionCoordinator,
     'cleanupDocuments' | 'deleteReceipt'
@@ -43,6 +56,7 @@ interface ExpenseDetailScreenProps {
   readonly documentRepository: ReceiptDocumentRepository;
   readonly evidenceRepository: FieldEvidenceRepository;
   readonly onCleanupNeeded: () => void;
+  readonly onClassified: (receipt: Receipt) => void;
   readonly onDeleted: () => void;
   readonly onEdit: (
     suggestions: readonly FieldEvidence[],
@@ -50,7 +64,9 @@ interface ExpenseDetailScreenProps {
   ) => void;
   readonly onRefreshCleanup: () => Promise<void>;
   readonly processingHistoryRepository: ProcessingHistoryRepository;
+  readonly receiptClassificationRepository: ReceiptClassificationRepository;
   readonly receipt: Receipt;
+  readonly tagRepository: TagRepository;
 }
 
 type PreviewDisplayState =
@@ -60,16 +76,26 @@ type PreviewDisplayState =
 
 export function ExpenseDetailScreen({
   attachmentStorage,
+  categoryRepository,
   deletionCoordinator,
   documentRepository,
   evidenceRepository,
   onCleanupNeeded,
+  onClassified,
   onDeleted,
   onEdit,
   onRefreshCleanup,
   processingHistoryRepository,
+  receiptClassificationRepository,
   receipt,
+  tagRepository,
 }: ExpenseDetailScreenProps) {
+  const [classification, setClassification] = useState<Awaited<
+    ReturnType<ReceiptClassificationRepository['getByReceiptId']>
+  > | null>(null);
+  const [classificationError, setClassificationError] = useState(false);
+  const [classificationLoading, setClassificationLoading] = useState(true);
+  const [classificationVisible, setClassificationVisible] = useState(false);
   const [confirmationVisible, setConfirmationVisible] = useState(false);
   const [cleanupFailures, setCleanupFailures] = useState<readonly AttachmentCleanupFailure[]>([]);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -83,6 +109,30 @@ export function ExpenseDetailScreen({
   const [previewLayout, setPreviewLayout] = useState<PreviewLayout | null>(null);
   const [processingHistory, setProcessingHistory] = useState<readonly ProcessingHistory[]>([]);
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    receiptClassificationRepository
+      .getByReceiptId(receipt.id)
+      .then((result) => {
+        if (active) {
+          setClassification(result);
+          setClassificationError(false);
+          setClassificationLoading(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setClassificationError(true);
+          setClassificationLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [receipt.id, receiptClassificationRepository]);
 
   useEffect(() => {
     let active = true;
@@ -396,6 +446,37 @@ export function ExpenseDetailScreen({
         />
       </View>
 
+      <View style={styles.classificationSection}>
+        <Text style={styles.sectionLabel}>Classification</Text>
+        {classificationLoading ? (
+          <ActivityIndicator
+            accessibilityLabel="Loading expense classification"
+            color={colors.green}
+            size="small"
+            style={styles.classificationLoading}
+          />
+        ) : classificationError ? (
+          <Text accessibilityLiveRegion="polite" style={styles.documentError}>
+            Category and tags could not be loaded. Saved expense values remain available.
+          </Text>
+        ) : (
+          <>
+            <Text style={styles.classificationValue}>
+              {classification?.category?.name ?? 'Uncategorized'}
+            </Text>
+            {classification?.tags.length ? (
+              <View style={styles.tagList}>
+                {classification.tags.map((tag) => (
+                  <View key={tag.id} style={styles.tag}>
+                    <Text style={styles.tagText}>{tag.name}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </>
+        )}
+      </View>
+
       {receipt.notes.length === 0 ? null : (
         <View style={styles.notesSection}>
           <Text style={styles.sectionLabel}>Notes</Text>
@@ -410,6 +491,17 @@ export function ExpenseDetailScreen({
       )}
 
       <View style={styles.actions}>
+        {cleanupFailures.length === 0 ? (
+          <Pressable
+            accessibilityLabel="Classify expense"
+            accessibilityRole="button"
+            onPress={() => setClassificationVisible(true)}
+            style={({ pressed }) => [styles.classifyButton, pressed && styles.pressed]}
+          >
+            <Tags color={colors.green} size={19} strokeWidth={2.3} />
+            <Text style={styles.classifyText}>Classify</Text>
+          </Pressable>
+        ) : null}
         {cleanupFailures.length === 0 ? (
           <Pressable
             accessibilityLabel={suggestions.length > 0 ? 'Review suggestions' : 'Edit expense'}
@@ -487,6 +579,21 @@ export function ExpenseDetailScreen({
           </View>
         </View>
       </Modal>
+
+      {classificationVisible ? (
+        <ExpenseClassificationModal
+          categories={categoryRepository}
+          classification={receiptClassificationRepository}
+          onClose={() => setClassificationVisible(false)}
+          onSaved={(result) => {
+            setClassification(result);
+            setClassificationVisible(false);
+            onClassified(result.receipt);
+          }}
+          receipt={receipt}
+          tags={tagRepository}
+        />
+      ) : null}
     </ScrollView>
   );
 }
@@ -804,6 +911,7 @@ function AmountRow({ label, strong = false, value }: AmountRowProps) {
 const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginTop: 24,
   },
@@ -824,6 +932,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  classificationSection: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: 18,
+    paddingTop: 22,
+  },
+  classificationLoading: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+  },
+  classificationValue: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  classifyButton: {
+    alignItems: 'center',
+    borderColor: colors.green,
+    borderRadius: 6,
+    borderWidth: 1,
+    flex: 1,
+    flexBasis: 140,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  classifyText: {
+    color: colors.green,
+    fontSize: 15,
+    fontWeight: '700',
   },
   amountValue: {
     color: colors.ink,
@@ -910,6 +1051,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     flex: 1,
+    flexBasis: 140,
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
@@ -934,6 +1076,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.green,
     borderRadius: 6,
     flex: 1,
+    flexBasis: 140,
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
@@ -1097,6 +1240,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginTop: 4,
+  },
+  tag: {
+    backgroundColor: colors.softGreen,
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  tagList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 10,
+  },
+  tagText: {
+    color: colors.green,
+    fontSize: 12,
+    fontWeight: '700',
   },
   notes: {
     color: colors.ink,

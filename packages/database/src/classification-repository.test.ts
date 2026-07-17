@@ -12,10 +12,12 @@ import {
   ClassificationConflictError,
   ClassificationDuplicateNameError,
   ClassificationInUseError,
+  ClassificationNotFoundError,
   SqliteCategoryRepository,
+  SqliteReceiptClassificationRepository,
   SqliteTagRepository,
 } from './classification-repository.js';
-import { SqliteReceiptRepository } from './receipt-repository.js';
+import { ReceiptConflictError, SqliteReceiptRepository } from './receipt-repository.js';
 import {
   migrateDatabase,
   type SqliteConnection,
@@ -188,6 +190,125 @@ describe('SQLite category and tag repositories', () => {
     );
     connection.close();
   });
+
+  it('atomically assigns a category and complete tag set to a versioned receipt', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipts = new SqliteReceiptRepository(connection);
+    const receipt = await receipts.create(makeReceipt());
+    const categories = new SqliteCategoryRepository(connection);
+    const tags = new SqliteTagRepository(connection);
+    const category = await categories.create(
+      createCategory({ createdAt: timestamp, id: randomUUID(), name: 'Meals' }),
+    );
+    const reimbursable = await tags.create(
+      createTag({ createdAt: timestamp, id: randomUUID(), name: 'Reimbursable' }),
+    );
+    const client = await tags.create(
+      createTag({ createdAt: timestamp, id: randomUUID(), name: 'Client' }),
+    );
+    const repository = new SqliteReceiptClassificationRepository(connection);
+    const updatedAt = '2026-07-17T14:05:00-06:00';
+
+    const classification = await repository.update({
+      categoryId: category.id,
+      expectedVersion: receipt.version,
+      receiptId: receipt.id,
+      tagIds: [reimbursable.id, client.id],
+      updatedAt,
+    });
+
+    expect(classification).toMatchObject({
+      category,
+      receipt: { categoryId: category.id, updatedAt, version: 2 },
+      tags: [client, reimbursable],
+    });
+    await expect(repository.getByReceiptId(receipt.id)).resolves.toEqual(classification);
+    connection.close();
+  });
+
+  it('tombstones removed tag assignments and can revive them deterministically', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipt = await new SqliteReceiptRepository(connection).create(makeReceipt());
+    const tags = new SqliteTagRepository(connection);
+    const firstTag = await tags.create(
+      createTag({ createdAt: timestamp, id: randomUUID(), name: 'First' }),
+    );
+    const secondTag = await tags.create(
+      createTag({ createdAt: timestamp, id: randomUUID(), name: 'Second' }),
+    );
+    const repository = new SqliteReceiptClassificationRepository(connection);
+    const first = await repository.update({
+      categoryId: null,
+      expectedVersion: 1,
+      receiptId: receipt.id,
+      tagIds: [firstTag.id],
+      updatedAt: '2026-07-17T14:05:00-06:00',
+    });
+    const second = await repository.update({
+      categoryId: null,
+      expectedVersion: first.receipt.version,
+      receiptId: receipt.id,
+      tagIds: [secondTag.id],
+      updatedAt: '2026-07-17T14:06:00-06:00',
+    });
+    const revived = await repository.update({
+      categoryId: null,
+      expectedVersion: second.receipt.version,
+      receiptId: receipt.id,
+      tagIds: [firstTag.id],
+      updatedAt: '2026-07-17T14:07:00-06:00',
+    });
+
+    expect(revived.tags).toEqual([firstTag]);
+    const rows = await connection.getAll<{
+      deleted_at: string | null;
+      tag_id: string;
+      version: number;
+    }>(
+      'SELECT tag_id, version, deleted_at FROM receipt_tags WHERE receipt_id = ? ORDER BY tag_id;',
+      [receipt.id],
+    );
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        { deleted_at: null, tag_id: firstTag.id, version: 3 },
+        { deleted_at: '2026-07-17T14:07:00-06:00', tag_id: secondTag.id, version: 2 },
+      ]),
+    );
+    connection.close();
+  });
+
+  it('rejects missing assignments and stale receipt versions without partial changes', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipts = new SqliteReceiptRepository(connection);
+    const receipt = await receipts.create(makeReceipt());
+    const repository = new SqliteReceiptClassificationRepository(connection);
+
+    await expect(
+      repository.update({
+        categoryId: randomUUID(),
+        expectedVersion: receipt.version,
+        receiptId: receipt.id,
+        tagIds: [],
+        updatedAt: '2026-07-17T14:05:00-06:00',
+      }),
+    ).rejects.toBeInstanceOf(ClassificationNotFoundError);
+    await expect(receipts.getById(receipt.id)).resolves.toEqual(receipt);
+
+    await expect(
+      repository.update({
+        categoryId: null,
+        expectedVersion: receipt.version + 1,
+        receiptId: receipt.id,
+        tagIds: [],
+        updatedAt: '2026-07-17T14:05:00-06:00',
+      }),
+    ).rejects.toBeInstanceOf(ReceiptConflictError);
+    await expect(receipts.getById(receipt.id)).resolves.toEqual(receipt);
+    connection.close();
+  });
 });
 
 class NodeSqliteConnection implements SqliteConnection {
@@ -237,6 +358,21 @@ function createTemporaryDatabasePath(): string {
   const path = join(tmpdir(), `reimbursd-classification-${randomUUID()}.sqlite`);
   temporaryDatabases.push(path);
   return path;
+}
+
+function makeReceipt() {
+  return createManualReceipt({
+    capturedAt: timestamp,
+    currencyCode: 'USD',
+    id: randomUUID(),
+    merchantId: randomUUID(),
+    merchantName: 'Synthetic Market',
+    purchasedAt: timestamp,
+    subtotalMinor: 1_000,
+    taxMinor: 0,
+    tipMinor: 0,
+    totalMinor: 1_000,
+  });
 }
 
 function toNodeValues(values: readonly SqliteValue[]): SQLInputValue[] {

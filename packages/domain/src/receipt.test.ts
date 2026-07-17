@@ -71,6 +71,17 @@ describe('manual receipts', () => {
     }
   });
 
+  it('validates optional category and location identifiers', () => {
+    const receipt = createManualReceipt(validInput);
+    const fields = validateReceipt({
+      ...receipt,
+      categoryId: 'category-1',
+      locationId: 'location-1',
+    }).map(({ field }) => field);
+
+    expect(fields).toEqual(expect.arrayContaining(['categoryId', 'locationId']));
+  });
+
   it('preserves the local purchase date and original timezone offset', () => {
     const purchasedAt = localDateToOffsetDateTime('2026-07-14', 360);
 

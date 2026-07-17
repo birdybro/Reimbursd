@@ -2,11 +2,19 @@
 import {
   assertValidCategory,
   assertValidTag,
+  isUuid,
   normalizeClassificationName,
+  validateReceipt,
   type Category,
+  type Receipt,
   type Tag,
 } from '@reimbursd/domain';
 
+import {
+  ReceiptConflictError,
+  ReceiptNotFoundError,
+  SqliteReceiptRepository,
+} from './receipt-repository.js';
 import type { SqliteConnection, SqliteValue } from './sqlite.js';
 
 export interface UpdateClassificationInput {
@@ -27,6 +35,25 @@ interface NamedClassificationRepository<Record> {
 export type CategoryRepository = NamedClassificationRepository<Category>;
 
 export type TagRepository = NamedClassificationRepository<Tag>;
+
+export interface ReceiptClassification {
+  readonly category: Category | null;
+  readonly receipt: Receipt;
+  readonly tags: readonly Tag[];
+}
+
+export interface UpdateReceiptClassificationInput {
+  readonly categoryId: string | null;
+  readonly expectedVersion: number;
+  readonly receiptId: string;
+  readonly tagIds: readonly string[];
+  readonly updatedAt: string;
+}
+
+export interface ReceiptClassificationRepository {
+  getByReceiptId(receiptId: string): Promise<ReceiptClassification>;
+  update(input: UpdateReceiptClassificationInput): Promise<ReceiptClassification>;
+}
 
 export class ClassificationNotFoundError extends Error {
   constructor() {
@@ -63,6 +90,12 @@ interface ClassificationRow {
   name: string;
   normalized_name: string;
   updated_at: string;
+  version: number;
+}
+
+interface ReceiptTagRow {
+  deleted_at: string | null;
+  tag_id: string;
   version: number;
 }
 
@@ -259,6 +292,174 @@ export class SqliteTagRepository
   }
 }
 
+export class SqliteReceiptClassificationRepository implements ReceiptClassificationRepository {
+  readonly #connection: SqliteConnection;
+
+  constructor(connection: SqliteConnection) {
+    this.#connection = connection;
+  }
+
+  async getByReceiptId(receiptId: string): Promise<ReceiptClassification> {
+    const receipt = await new SqliteReceiptRepository(this.#connection).getById(receiptId);
+
+    if (receipt === null) {
+      throw new ReceiptNotFoundError();
+    }
+
+    return {
+      category: await this.#loadCategory(receipt.categoryId),
+      receipt,
+      tags: await this.#listReceiptTags(receipt.id),
+    };
+  }
+
+  async update(input: UpdateReceiptClassificationInput): Promise<ReceiptClassification> {
+    validateAssignmentInput(input);
+
+    return this.#connection.transaction(async () => {
+      const receipt = await new SqliteReceiptRepository(this.#connection).getById(input.receiptId);
+
+      if (receipt === null) {
+        throw new ReceiptNotFoundError();
+      }
+
+      if (receipt.version !== input.expectedVersion) {
+        throw new ReceiptConflictError();
+      }
+
+      const category = await this.#loadCategory(input.categoryId);
+      const tags = await this.#loadTags(input.tagIds);
+      const updatedReceipt: Receipt = {
+        ...receipt,
+        categoryId: input.categoryId,
+        updatedAt: input.updatedAt,
+        version: receipt.version + 1,
+      };
+      const receiptIssues = validateReceipt(updatedReceipt);
+
+      if (receiptIssues.length > 0) {
+        throw new TypeError('Receipt classification update is invalid.');
+      }
+
+      const receiptResult = await this.#connection.run(
+        `UPDATE receipts
+         SET category_id = ?, updated_at = ?, version = version + 1
+         WHERE id = ? AND version = ? AND deleted_at IS NULL;`,
+        [input.categoryId, input.updatedAt, input.receiptId, input.expectedVersion],
+      );
+
+      if (receiptResult.changes !== 1) {
+        throw new ReceiptConflictError();
+      }
+
+      await this.#replaceTags(input);
+      return { category, receipt: updatedReceipt, tags };
+    });
+  }
+
+  async #listReceiptTags(receiptId: string): Promise<readonly Tag[]> {
+    const rows = await this.#connection.getAll<ClassificationRow>(
+      `SELECT t.id, t.name, t.normalized_name, t.created_at, t.updated_at, t.version, t.deleted_at
+       FROM receipt_tags rt
+       INNER JOIN tags t ON t.id = rt.tag_id
+       WHERE rt.receipt_id = ? AND rt.deleted_at IS NULL AND t.deleted_at IS NULL
+       ORDER BY t.normalized_name, t.id;`,
+      [receiptId],
+    );
+    return rows.map(mapTagRow);
+  }
+
+  async #loadCategory(categoryId: string | null): Promise<Category | null> {
+    if (categoryId === null) {
+      return null;
+    }
+
+    const category = await new SqliteCategoryRepository(this.#connection).getById(categoryId);
+
+    if (category === null) {
+      throw new ClassificationNotFoundError();
+    }
+
+    return category;
+  }
+
+  async #loadTags(tagIds: readonly string[]): Promise<readonly Tag[]> {
+    const repository = new SqliteTagRepository(this.#connection);
+    const tags: Tag[] = [];
+
+    for (const tagId of tagIds) {
+      const tag = await repository.getById(tagId);
+
+      if (tag === null) {
+        throw new ClassificationNotFoundError();
+      }
+
+      tags.push(tag);
+    }
+
+    return tags.sort((left, right) =>
+      left.normalizedName === right.normalizedName
+        ? left.id.localeCompare(right.id)
+        : left.normalizedName.localeCompare(right.normalizedName),
+    );
+  }
+
+  async #replaceTags(input: UpdateReceiptClassificationInput): Promise<void> {
+    const rows = await this.#connection.getAll<ReceiptTagRow>(
+      `SELECT tag_id, version, deleted_at FROM receipt_tags WHERE receipt_id = ?;`,
+      [input.receiptId],
+    );
+    const byTagId = new Map(rows.map((row) => [row.tag_id, row]));
+    const desiredTagIds = new Set(input.tagIds);
+
+    for (const row of rows) {
+      if (row.deleted_at !== null || desiredTagIds.has(row.tag_id)) {
+        continue;
+      }
+
+      const result = await this.#connection.run(
+        `UPDATE receipt_tags
+         SET deleted_at = ?, updated_at = ?, version = version + 1
+         WHERE receipt_id = ? AND tag_id = ? AND version = ? AND deleted_at IS NULL;`,
+        [input.updatedAt, input.updatedAt, input.receiptId, row.tag_id, row.version],
+      );
+
+      if (result.changes !== 1) {
+        throw new ReceiptConflictError();
+      }
+    }
+
+    for (const tagId of input.tagIds) {
+      const existing = byTagId.get(tagId);
+
+      if (existing?.deleted_at === null) {
+        continue;
+      }
+
+      if (existing === undefined) {
+        await this.#connection.run(
+          `INSERT INTO receipt_tags (
+             receipt_id, tag_id, assigned_at, updated_at, version, deleted_at
+           ) VALUES (?, ?, ?, ?, 1, NULL);`,
+          [input.receiptId, tagId, input.updatedAt, input.updatedAt],
+        );
+        continue;
+      }
+
+      const result = await this.#connection.run(
+        `UPDATE receipt_tags
+         SET assigned_at = ?, updated_at = ?, deleted_at = NULL, version = version + 1
+         WHERE receipt_id = ? AND tag_id = ? AND version = ? AND deleted_at IS NOT NULL;`,
+        [input.updatedAt, input.updatedAt, input.receiptId, tagId, existing.version],
+      );
+
+      if (result.changes !== 1) {
+        throw new ReceiptConflictError();
+      }
+    }
+  }
+}
+
 function assertExpectedVersion(record: Category, expectedVersion: number): void {
   if (record.version !== expectedVersion) {
     throw new ClassificationConflictError();
@@ -275,4 +476,30 @@ function classificationParameters(record: Category): readonly SqliteValue[] {
     record.version,
     record.deletedAt,
   ];
+}
+
+function validateAssignmentInput(input: UpdateReceiptClassificationInput): void {
+  if (
+    !isUuid(input.receiptId) ||
+    (input.categoryId !== null && !isUuid(input.categoryId)) ||
+    input.tagIds.length > 50 ||
+    input.tagIds.some((tagId) => !isUuid(tagId)) ||
+    new Set(input.tagIds).size !== input.tagIds.length
+  ) {
+    throw new TypeError('Receipt classification identifiers must be valid and unique.');
+  }
+}
+
+function mapTagRow(row: ClassificationRow): Tag {
+  const tag: Tag = {
+    createdAt: row.created_at,
+    deletedAt: row.deleted_at,
+    id: row.id,
+    name: row.name,
+    normalizedName: row.normalized_name,
+    updatedAt: row.updated_at,
+    version: row.version,
+  };
+  assertValidTag(tag);
+  return tag;
 }

@@ -83,7 +83,9 @@ tombstones. Names remain reserved after deletion to prevent silent identity reus
 must be explicitly unassigned before deletion.
 
 `receipt_tags` uses the receipt/tag UUID pair as its stable relationship key and stores assignment,
-update, version, and deletion state for future offline synchronization. Receipt assignment APIs and
-UI are not implemented yet. Later schemas will add locations, optional line items, and delete-all
-tracking without weakening the local-only workflow. The current nullable location reference remains
-a reserved field, not a complete feature.
+update, version, and deletion state for future offline synchronization. Replacing a receipt's
+category and complete tag set increments the receipt version in the same transaction. Removed tag
+relationships receive tombstones; re-adding a tag revives the same relationship key with a new
+version. Later schemas will add locations, optional line items, and delete-all tracking without
+weakening the local-only workflow. The current nullable location reference remains a reserved field,
+not a complete feature.

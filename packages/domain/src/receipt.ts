@@ -152,6 +152,14 @@ export function validateReceipt(receipt: Receipt): readonly ReceiptValidationIss
     issues.push({ field: 'merchantId', message: 'Merchant ID must be a UUID.' });
   }
 
+  if (receipt.categoryId !== null && !isUuid(receipt.categoryId)) {
+    issues.push({ field: 'categoryId', message: 'Category ID must be a UUID when present.' });
+  }
+
+  if (receipt.locationId !== null && !isUuid(receipt.locationId)) {
+    issues.push({ field: 'locationId', message: 'Location ID must be a UUID when present.' });
+  }
+
   if (receipt.merchantName.length === 0 || receipt.merchantName.length > 200) {
     issues.push({
       field: 'merchantName',

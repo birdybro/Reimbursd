@@ -5,6 +5,7 @@ import {
   SqliteFieldEvidenceRepository,
   SqliteProcessingHistoryRepository,
   SqliteReceiptDocumentRepository,
+  SqliteReceiptClassificationRepository,
   SqliteReceiptRepository,
   SqliteReceiptReviewRepository,
   SqliteTagRepository,
@@ -12,6 +13,7 @@ import {
   type FieldEvidenceRepository,
   type ProcessingHistoryRepository,
   type ReceiptDocumentRepository,
+  type ReceiptClassificationRepository,
   type ReceiptRepository,
   type ReceiptReviewRepository,
   type SqliteConnection,
@@ -28,6 +30,7 @@ export interface LocalRepositories {
   readonly documents: ReceiptDocumentRepository;
   readonly evidence: FieldEvidenceRepository;
   readonly processingHistory: ProcessingHistoryRepository;
+  readonly receiptClassifications: ReceiptClassificationRepository;
   readonly receipts: ReceiptRepository;
   readonly reviews: ReceiptReviewRepository;
   readonly tags: TagRepository;
@@ -57,6 +60,7 @@ async function initializeRepositories(): Promise<LocalRepositories> {
     documents: new SqliteReceiptDocumentRepository(connection),
     evidence: new SqliteFieldEvidenceRepository(connection),
     processingHistory: new SqliteProcessingHistoryRepository(connection),
+    receiptClassifications: new SqliteReceiptClassificationRepository(connection),
     receipts: new SqliteReceiptRepository(connection),
     reviews: new SqliteReceiptReviewRepository(connection),
     tags: new SqliteTagRepository(connection),

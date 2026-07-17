@@ -44,8 +44,12 @@ export {
   ClassificationInUseError,
   ClassificationNotFoundError,
   SqliteCategoryRepository,
+  SqliteReceiptClassificationRepository,
   SqliteTagRepository,
   type CategoryRepository,
+  type ReceiptClassification,
+  type ReceiptClassificationRepository,
   type TagRepository,
   type UpdateClassificationInput,
+  type UpdateReceiptClassificationInput,
 } from './classification-repository.js';
