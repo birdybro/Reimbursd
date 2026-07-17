@@ -19,7 +19,11 @@ import {
   SqliteFieldEvidenceRepository,
   SqliteProcessingHistoryRepository,
 } from './processing-repository.js';
-import { SqliteReceiptRepository } from './receipt-repository.js';
+import {
+  SqliteReceiptRepository,
+  SqliteReceiptReviewRepository,
+  type UpdateReceiptInput,
+} from './receipt-repository.js';
 import {
   migrateDatabase,
   type SqliteConnection,
@@ -157,6 +161,164 @@ describe('SQLite processing provenance repositories', () => {
     ).rejects.toBeInstanceOf(ProcessingReceiptNotFoundError);
     connection.close();
   });
+
+  it('atomically accepts suggestions and closes pending processing review', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipt = await new SqliteReceiptRepository(connection).create(makeReceipt());
+    const evidenceRepository = new SqliteFieldEvidenceRepository(connection);
+    const suggestions = [
+      makeEvidence(receipt.id, {
+        extractedValue: 'Corner Market',
+        fieldName: 'merchant_name',
+        normalizedValue: 'Corner Market',
+      }),
+      makeEvidence(receipt.id, {
+        fieldName: 'subtotal_minor',
+        id: randomUUID(),
+        normalizedValue: '1000',
+      }),
+      makeEvidence(receipt.id, {
+        fieldName: 'tax_minor',
+        id: randomUUID(),
+        normalizedValue: '80',
+      }),
+      makeEvidence(receipt.id, { id: randomUUID(), normalizedValue: '1080' }),
+    ];
+    await evidenceRepository.createMany(suggestions);
+    const historyRepository = new SqliteProcessingHistoryRepository(connection);
+    const running = makeHistory(receipt.id);
+    await historyRepository.create(running);
+    await historyRepository.complete({
+      affectedFields: suggestions.map(({ fieldName }) => fieldName),
+      completedAt: '2026-07-15T06:00:01.000Z',
+      failureCode: null,
+      id: running.id,
+      reviewStatus: 'pending',
+      status: 'succeeded',
+    });
+    const reviewedAt = '2026-07-15T06:05:00.000Z';
+
+    const reviewed = await new SqliteReceiptReviewRepository(connection).review({
+      corrections: [],
+      evidenceReviews: suggestions.map(({ id }) => ({
+        evidenceId: id,
+        reviewedAt,
+        status: 'accepted',
+      })),
+      processingHistoryIds: [running.id],
+      update: makeReviewUpdate(receipt, {
+        merchantId: randomUUID(),
+        merchantName: 'Corner Market',
+        subtotalMinor: 1_000,
+        taxMinor: 80,
+        totalMinor: 1_080,
+        updatedAt: reviewedAt,
+      }),
+    });
+
+    expect(reviewed).toMatchObject({
+      merchantName: 'Corner Market',
+      subtotalMinor: 1_000,
+      taxMinor: 80,
+      totalMinor: 1_080,
+      version: 2,
+    });
+    expect(await evidenceRepository.listByReceiptId(receipt.id)).toEqual(
+      expect.arrayContaining(suggestions.map((item) => ({ ...item, acceptedAt: reviewedAt }))),
+    );
+    await expect(historyRepository.getById(running.id)).resolves.toMatchObject({
+      reviewStatus: 'accepted',
+    });
+    connection.close();
+  });
+
+  it('preserves corrected suggestions as authoritative user evidence', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipt = await new SqliteReceiptRepository(connection).create(makeReceipt());
+    const evidenceRepository = new SqliteFieldEvidenceRepository(connection);
+    const subtotal = makeEvidence(receipt.id, {
+      fieldName: 'subtotal_minor',
+      normalizedValue: '1000',
+    });
+    const total = makeEvidence(receipt.id, { id: randomUUID(), normalizedValue: '1080' });
+    await evidenceRepository.createMany([subtotal, total]);
+    const historyRepository = new SqliteProcessingHistoryRepository(connection);
+    const running = makeHistory(receipt.id);
+    await historyRepository.create(running);
+    await historyRepository.complete({
+      affectedFields: ['subtotal_minor', 'total_minor'],
+      completedAt: '2026-07-15T06:00:01.000Z',
+      failureCode: null,
+      id: running.id,
+      reviewStatus: 'pending',
+      status: 'succeeded',
+    });
+    const reviewedAt = '2026-07-15T06:05:00.000Z';
+    const taxCorrection = makeCorrection(receipt.id, 'tax_minor', '100', reviewedAt);
+    const totalCorrection = makeCorrection(receipt.id, 'total_minor', '1100', reviewedAt);
+
+    await new SqliteReceiptReviewRepository(connection).review({
+      corrections: [taxCorrection, totalCorrection],
+      evidenceReviews: [
+        { evidenceId: subtotal.id, reviewedAt, status: 'accepted' },
+        { evidenceId: total.id, reviewedAt, status: 'corrected' },
+      ],
+      processingHistoryIds: [running.id],
+      update: makeReviewUpdate(receipt, {
+        subtotalMinor: 1_000,
+        taxMinor: 100,
+        totalMinor: 1_100,
+        updatedAt: reviewedAt,
+      }),
+    });
+
+    await expect(evidenceRepository.getPreferred(receipt.id, 'total_minor')).resolves.toEqual(
+      totalCorrection,
+    );
+    await expect(historyRepository.getById(running.id)).resolves.toMatchObject({
+      reviewStatus: 'corrected',
+    });
+    connection.close();
+  });
+
+  it('rolls back receipt and review markers when correction persistence fails', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipts = new SqliteReceiptRepository(connection);
+    const receipt = await receipts.create(makeReceipt());
+    const evidenceRepository = new SqliteFieldEvidenceRepository(connection);
+    const total = makeEvidence(receipt.id, { normalizedValue: '100' });
+    await evidenceRepository.create(total);
+    const reviewedAt = '2026-07-15T06:05:00.000Z';
+    const duplicateCorrection = makeCorrection(
+      receipt.id,
+      'tax_minor',
+      '100',
+      reviewedAt,
+      total.id,
+    );
+
+    await expect(
+      new SqliteReceiptReviewRepository(connection).review({
+        corrections: [duplicateCorrection],
+        evidenceReviews: [{ evidenceId: total.id, reviewedAt, status: 'accepted' }],
+        processingHistoryIds: [],
+        update: makeReviewUpdate(receipt, {
+          taxMinor: 100,
+          totalMinor: 100,
+          updatedAt: reviewedAt,
+        }),
+      }),
+    ).rejects.toThrow();
+
+    await expect(receipts.getById(receipt.id)).resolves.toEqual(receipt);
+    await expect(evidenceRepository.getPreferred(receipt.id, 'total_minor')).resolves.toEqual(
+      total,
+    );
+    connection.close();
+  });
 });
 
 class NodeSqliteConnection implements SqliteConnection {
@@ -258,6 +420,53 @@ function makeHistory(receiptId: string): ProcessingHistory {
     reviewStatus: 'not_applicable',
     startedAt: '2026-07-15T06:00:00.000Z',
     status: 'running',
+  };
+}
+
+function makeCorrection(
+  receiptId: string,
+  fieldName: FieldEvidence['fieldName'],
+  normalizedValue: string,
+  reviewedAt: string,
+  id: string = randomUUID(),
+): FieldEvidence {
+  return {
+    acceptedAt: null,
+    boundingBox: null,
+    confidence: 1,
+    correctedAt: reviewedAt,
+    extractedValue: normalizedValue,
+    fieldName,
+    id,
+    normalizedValue,
+    pageNumber: null,
+    processedAt: reviewedAt,
+    processorName: 'reimbursd-user-review',
+    processorVersion: '1.0.0',
+    receiptId,
+    sourceType: 'user_correction',
+  };
+}
+
+function makeReviewUpdate(
+  receipt: Receipt,
+  overrides: Partial<UpdateReceiptInput>,
+): UpdateReceiptInput {
+  return {
+    currencyCode: receipt.currencyCode,
+    discountMinor: receipt.discountMinor,
+    expectedVersion: receipt.version,
+    id: receipt.id,
+    merchantId: receipt.merchantId,
+    merchantName: receipt.merchantName,
+    notes: receipt.notes,
+    purchasedAt: receipt.purchasedAt,
+    subtotalMinor: receipt.subtotalMinor,
+    taxMinor: receipt.taxMinor,
+    tipMinor: receipt.tipMinor,
+    totalMinor: receipt.totalMinor,
+    updatedAt: '2026-07-15T06:05:00.000Z',
+    ...overrides,
   };
 }
 

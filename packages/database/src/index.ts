@@ -9,9 +9,14 @@ export {
 export {
   ReceiptConflictError,
   ReceiptNotFoundError,
+  ReceiptReviewConflictError,
   SqliteReceiptRepository,
+  SqliteReceiptReviewRepository,
+  type EvidenceReviewInput,
   type ReceiptListOptions,
   type ReceiptRepository,
+  type ReceiptReviewRepository,
+  type ReviewReceiptInput,
   type UpdateReceiptInput,
 } from './receipt-repository.js';
 export {

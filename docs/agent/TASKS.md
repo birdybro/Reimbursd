@@ -75,7 +75,7 @@
 - [x] Parse receipt text into candidate merchant, date, currency, subtotal, tax, tip, and total
       fields.
 - [x] Add review UI with confidence and local/remote provenance.
-- [ ] Preserve accepted user corrections across later processing runs.
+- [x] Preserve accepted user corrections across later processing runs.
 - [x] Highlight source regions when bounding boxes and a local image preview are available.
 
 ### Acceptance criteria for the current milestone
@@ -88,5 +88,28 @@
 - Suggested values remain distinct from confirmed receipt fields until the user accepts them.
 - Parser candidates are validated and persisted atomically as unaccepted evidence after OCR history
   completes; parser or evidence failures do not change the successful OCR result.
+- Review prefills normalized suggestions without changing saved values until save. Receipt updates,
+  evidence decisions, user-correction evidence, and parser review status commit or roll back together.
+- Accepted suggestions and user corrections outrank later unreviewed automation.
 - Supported iOS builds run OCR through an operating-system framework without a hosted service;
   Android, web, and Expo Go fail gracefully without reading bytes or invoking a remote fallback.
+
+## Milestone 4: Categories, reporting, and exports
+
+- [ ] Define category and tag domain models plus migration implications.
+- [ ] Add local category/tag persistence and receipt assignment.
+- [ ] Expand filters for date, merchant, category, tag, and amount.
+- [ ] Add monthly and category totals.
+- [ ] Add CSV and complete structured export with attachment checksums.
+- [ ] Add clean-install restore and round-trip coverage.
+- [ ] Add complete local data deletion with attachment cleanup.
+- [ ] Document the open export format.
+
+### Acceptance criteria for the next slice
+
+- Categories and tags use stable UUIDs and remain fully local without an account.
+- Category names and tag names are validated, persist across restart, and cannot be silently lost
+  during receipt updates.
+- Existing uncategorized receipts remain valid after migration.
+- Category and tag deletion behavior preserves receipt integrity and is explicit to the user.
+- Migration, repository, domain, and UI tests cover create, assign, filter, and conflict behavior.

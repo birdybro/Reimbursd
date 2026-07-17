@@ -65,12 +65,16 @@ correction time. Bounding-box coordinates are constrained to the inclusive 0-to-
 they remain independent of display size. Repository precedence ranks user corrections, manual
 values, and accepted suggestions above unreviewed automated output.
 Candidate sets from one parser run are inserted in a single transaction so a constraint failure
-cannot leave partial extraction evidence.
+cannot leave partial extraction evidence. User review also uses one transaction: accepted candidates
+receive `accepted_at`, rejected candidates receive `corrected_at`, corrected normalized values are
+inserted as `user_correction` evidence, and the versioned receipt update succeeds or rolls back with
+all provenance changes. Later automation cannot supersede accepted or corrected evidence.
 
 `processing_history` stores processor/provider identity, local or remote execution, optional model
 version, start/completion time, lifecycle status, affected fields, and review status. Failures store
 a bounded machine code, not raw provider errors or receipt text. A running row can transition to a
-completed state exactly once.
+completed state exactly once. Successful parser rows move from `pending` to `accepted` or
+`corrected` during the same transaction as the reviewed receipt values.
 
 Later schemas will add locations, categories, tags, optional line items, and delete-all tracking
 without weakening the local-only workflow. The current nullable category and location references

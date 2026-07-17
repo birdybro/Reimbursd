@@ -8,22 +8,23 @@ AI provider.
 
 ## Current status
 
-Milestone 2 is complete. The Expo application can create, view, edit, search, filter, and delete
+Milestones 0 through 3 are complete. The Expo application can create, view, edit, search, filter, and delete
 manual expenses, and it can capture JPEG/PNG receipts or import JPEG, PNG, and multi-page PDF
 originals into private local storage. Import validates content and limits, records SHA-256 and
 provenance, and requires no account or network service. Deleting an expense removes its local
 receipt bytes with durable retry after interruption. JPEG and PNG imports receive separate bounded
-local previews. OCR, PDF page previews, delete-all, export, and backup are not complete, and the
+local previews. Cross-platform OCR, PDF page previews, delete-all, export, and backup are not complete, and the
 project does not claim production readiness.
 
-Milestone 3 foundations now include durable field evidence and processing history, a validated OCR
+Milestone 3 includes durable field evidence and processing history, a validated OCR
 provider contract, a deterministic test provider, and on-device Apple Vision OCR in iOS development
 or release builds. Validated OCR text is parsed locally into merchant, purchase date, currency, and
 amount suggestions. The review surface keeps suggestions separate from saved values, shows
-confidence and provenance, and can highlight source rectangles on image previews. Accepting or
-correcting suggestions is not yet implemented. OCR is unavailable on Android, web, and Expo Go
-until a compatible local engine is implemented. Receipt text is not sent to a Reimbursd or
-third-party service.
+confidence and provenance, can highlight source rectangles on image previews, and prefills a
+review form. Accepted suggestions, user corrections, receipt updates, and parser review status are
+committed atomically. Reviewed evidence remains authoritative over later automation. OCR is
+unavailable on Android, web, and Expo Go until a compatible local engine is implemented. Receipt
+text is not sent to a Reimbursd or third-party service.
 
 ## Requirements
 

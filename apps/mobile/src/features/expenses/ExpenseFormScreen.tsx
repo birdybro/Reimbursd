@@ -13,8 +13,12 @@ import {
   View,
 } from 'react-native';
 
-import type { Receipt, SupportedCurrencyCode } from '@reimbursd/domain';
-import { ReceiptConflictError, ReceiptNotFoundError } from '@reimbursd/database';
+import type { FieldEvidence, Receipt, SupportedCurrencyCode } from '@reimbursd/domain';
+import {
+  ReceiptConflictError,
+  ReceiptNotFoundError,
+  ReceiptReviewConflictError,
+} from '@reimbursd/database';
 
 import { CurrencyPickerModal } from '../../components/CurrencyPickerModal';
 import { colors } from '../../theme';
@@ -27,10 +31,12 @@ import {
   type ExpenseFormSubmission,
   type ExpenseFormValues,
 } from './expense-form';
+import { receiptToReviewExpenseForm } from './expense-review';
 
 interface ExpenseFormScreenProps {
   readonly onSubmit: (submission: ExpenseFormSubmission) => Promise<void>;
   readonly receipt: Receipt | undefined;
+  readonly suggestions?: readonly FieldEvidence[];
 }
 
 interface FormFieldProps {
@@ -44,14 +50,19 @@ interface FormFieldProps {
   readonly value: string;
 }
 
-export function ExpenseFormScreen({ onSubmit, receipt }: ExpenseFormScreenProps) {
+export function ExpenseFormScreen({ onSubmit, receipt, suggestions = [] }: ExpenseFormScreenProps) {
   const [currencyVisible, setCurrencyVisible] = useState(false);
   const [errors, setErrors] = useState<ExpenseFormErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState<ExpenseFormValues>(() =>
-    receipt === undefined ? createEmptyExpenseForm(new Date()) : receiptToExpenseForm(receipt),
+    receipt === undefined
+      ? createEmptyExpenseForm(new Date())
+      : suggestions.length === 0
+        ? receiptToExpenseForm(receipt)
+        : receiptToReviewExpenseForm(receipt, suggestions),
   );
+  const reviewingSuggestions = suggestions.length > 0;
 
   const changeField = (field: ExpenseFormField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -97,7 +108,11 @@ export function ExpenseFormScreen({ onSubmit, receipt }: ExpenseFormScreenProps)
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.intro}>
           <Text style={styles.introTitle}>
-            {receipt === undefined ? 'Manual expense' : 'Edit expense'}
+            {receipt === undefined
+              ? 'Manual expense'
+              : reviewingSuggestions
+                ? 'Review receipt'
+                : 'Edit expense'}
           </Text>
           <Text style={styles.introCopy}>Amounts are saved in minor currency units.</Text>
         </View>
@@ -211,7 +226,11 @@ export function ExpenseFormScreen({ onSubmit, receipt }: ExpenseFormScreenProps)
 
         <Pressable
           accessibilityLabel={
-            receipt === undefined ? 'Save manual expense' : 'Save expense changes'
+            receipt === undefined
+              ? 'Save manual expense'
+              : reviewingSuggestions
+                ? 'Save reviewed expense'
+                : 'Save expense changes'
           }
           accessibilityRole="button"
           accessibilityState={{ disabled: saving }}
@@ -415,7 +434,11 @@ function getTimezoneOffsetForLocalDate(localDate: string): number {
 }
 
 function getSaveErrorMessage(error: unknown): string {
-  if (error instanceof ReceiptConflictError || error instanceof ReceiptNotFoundError) {
+  if (
+    error instanceof ReceiptConflictError ||
+    error instanceof ReceiptNotFoundError ||
+    error instanceof ReceiptReviewConflictError
+  ) {
     return 'This expense changed or was removed. Your entries are still here; go back and reopen the expense before editing again.';
   }
 

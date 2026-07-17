@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { randomUUID } from 'expo-crypto';
 
 import {
   AttachmentIngestor,
@@ -10,7 +11,7 @@ import {
   PdfLibAttachmentInspector,
   ReceiptDeletionCoordinator,
 } from '@reimbursd/attachments';
-import type { Receipt } from '@reimbursd/domain';
+import type { FieldEvidence, Receipt } from '@reimbursd/domain';
 import { DeterministicReceiptParser, type DateOrder } from '@reimbursd/extraction';
 
 import { AppHeader } from './components/AppHeader';
@@ -20,6 +21,7 @@ import { ExpenseDetailScreen } from './features/expenses/ExpenseDetailScreen';
 import { ExpenseFormScreen } from './features/expenses/ExpenseFormScreen';
 import { ExpenseListScreen } from './features/expenses/ExpenseListScreen';
 import type { ExpenseFormSubmission } from './features/expenses/expense-form';
+import { buildReceiptReviewInput } from './features/expenses/expense-review';
 import {
   getReceiptImportErrorMessage,
   ReceiptCaptureCoordinator,
@@ -42,7 +44,12 @@ type Route =
   | { readonly name: 'list' }
   | { readonly name: 'detail'; readonly receipt: Receipt }
   | { readonly name: 'new' }
-  | { readonly name: 'edit'; readonly receipt: Receipt };
+  | {
+      readonly name: 'edit';
+      readonly processingHistoryIds: readonly string[];
+      readonly receipt: Receipt;
+      readonly suggestions: readonly FieldEvidence[];
+    };
 
 type RepositoryState =
   | { readonly status: 'loading' }
@@ -143,7 +150,17 @@ function AppContent() {
     const receipt =
       submission.kind === 'create'
         ? await repositoryState.repositories.receipts.create(submission.receipt)
-        : await repositoryState.repositories.receipts.update(submission.input);
+        : route.name === 'edit'
+          ? await repositoryState.repositories.reviews.review(
+              buildReceiptReviewInput({
+                idFactory: randomUUID,
+                processingHistoryIds: route.processingHistoryIds,
+                receipt: route.receipt,
+                suggestions: route.suggestions,
+                update: submission.input,
+              }),
+            )
+          : await repositoryState.repositories.receipts.update(submission.input);
     setRoute({ name: 'detail', receipt });
   };
 
@@ -267,7 +284,14 @@ function AppContent() {
                 'An expense was removed, but at least one local receipt file still needs deletion.',
               )
             }
-            onEdit={() => setRoute({ name: 'edit', receipt: route.receipt })}
+            onEdit={(suggestions, processingHistoryIds) =>
+              setRoute({
+                name: 'edit',
+                processingHistoryIds,
+                receipt: route.receipt,
+                suggestions,
+              })
+            }
             onRefreshCleanup={retryPendingCleanup}
             receipt={route.receipt}
           />
@@ -275,6 +299,7 @@ function AppContent() {
           <ExpenseFormScreen
             onSubmit={submit}
             receipt={route.name === 'edit' ? route.receipt : undefined}
+            {...(route.name === 'edit' ? { suggestions: route.suggestions } : {})}
           />
         )}
       </View>

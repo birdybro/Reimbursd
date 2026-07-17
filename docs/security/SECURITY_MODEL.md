@@ -31,6 +31,9 @@
 - Deterministic extraction validates locale context and parser output, bounds candidate text, treats
   instruction-like receipt lines as data rather than commands, and atomically persists only typed
   field evidence. Suggestions remain separate from saved receipt values.
+- Receipt review uses optimistic versions and one SQLite transaction for the structured update,
+  evidence acceptance/correction markers, authoritative user-correction evidence, and processing
+  review status. Any conflict or persistence failure rolls back the complete review.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -48,8 +51,7 @@
 
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available, and
   complete data deletion.
-- An Android-compatible offline OCR adapter and accept/correct review actions that keep user
-  corrections authoritative across later processing runs.
+- An Android-compatible offline OCR adapter.
 - Secure platform key storage and authenticated encrypted backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
 - Cross-user isolation, backup restoration, provider-contract, and synchronization-conflict tests.

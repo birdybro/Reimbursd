@@ -68,7 +68,10 @@ untrusted data and are excluded from merchant candidates. Candidate evidence is 
 SQLite transaction after successful OCR, while parsing and persistence have their own processing
 history result. The detail screen keeps unaccepted suggestions separate from saved receipt values,
 shows confidence and execution provenance, and maps normalized page rectangles onto a contained
-image preview when a user selects a sourced field.
+image preview when a user selects a sourced field. Review opens the existing validated expense form
+with normalized suggestions prefilled. One SQLite transaction applies the versioned receipt update,
+marks each candidate accepted or corrected, inserts authoritative `user_correction` evidence, and
+closes pending parser review history. A failure rolls back every part of the review.
 
 ## Intended growth
 

@@ -44,7 +44,10 @@ interface ExpenseDetailScreenProps {
   readonly evidenceRepository: FieldEvidenceRepository;
   readonly onCleanupNeeded: () => void;
   readonly onDeleted: () => void;
-  readonly onEdit: () => void;
+  readonly onEdit: (
+    suggestions: readonly FieldEvidence[],
+    processingHistoryIds: readonly string[],
+  ) => void;
   readonly onRefreshCleanup: () => Promise<void>;
   readonly processingHistoryRepository: ProcessingHistoryRepository;
   readonly receipt: Receipt;
@@ -196,6 +199,9 @@ export function ExpenseDetailScreen({
     .filter((history) => history.processorName === 'reimbursd-deterministic-parser')
     .at(-1);
   const suggestions = getPreferredSuggestions(evidence);
+  const pendingProcessingHistoryIds = processingHistory
+    .filter((history) => history.status === 'succeeded' && history.reviewStatus === 'pending')
+    .map(({ id }) => id);
   const suggestedCurrencyCode = getSuggestedCurrencyCode(suggestions, receipt.currencyCode);
   const processingSummary = getProcessingSummary(
     hasOriginal,
@@ -406,13 +412,13 @@ export function ExpenseDetailScreen({
       <View style={styles.actions}>
         {cleanupFailures.length === 0 ? (
           <Pressable
-            accessibilityLabel="Edit expense"
+            accessibilityLabel={suggestions.length > 0 ? 'Review suggestions' : 'Edit expense'}
             accessibilityRole="button"
-            onPress={onEdit}
+            onPress={() => onEdit(suggestions, pendingProcessingHistoryIds)}
             style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
           >
             <Pencil color={colors.paper} size={19} strokeWidth={2.3} />
-            <Text style={styles.editText}>Edit</Text>
+            <Text style={styles.editText}>{suggestions.length > 0 ? 'Review' : 'Edit'}</Text>
           </Pressable>
         ) : null}
         <Pressable
@@ -538,16 +544,8 @@ interface PreviewLayout {
 }
 
 function getPreferredSuggestions(evidence: readonly FieldEvidence[]): readonly FieldEvidence[] {
-  const automatedSuggestions = evidence.filter(
-    (item) =>
-      item.acceptedAt === null &&
-      item.correctedAt === null &&
-      item.sourceType !== 'manual' &&
-      item.sourceType !== 'user_correction',
-  );
-
   return evidenceFieldNames.flatMap((fieldName) => {
-    const preferred = automatedSuggestions
+    const preferred = evidence
       .filter((item) => item.fieldName === fieldName)
       .reduce<FieldEvidence | null>((current, candidate) => {
         if (current === null || canSupersedeFieldEvidence(candidate, current)) {
@@ -557,7 +555,13 @@ function getPreferredSuggestions(evidence: readonly FieldEvidence[]): readonly F
         return current;
       }, null);
 
-    return preferred === null ? [] : [preferred];
+    return preferred === null ||
+      preferred.acceptedAt !== null ||
+      preferred.correctedAt !== null ||
+      preferred.sourceType === 'manual' ||
+      preferred.sourceType === 'user_correction'
+      ? []
+      : [preferred];
   });
 }
 

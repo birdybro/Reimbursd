@@ -235,6 +235,41 @@ describe('manual expense screens', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  test('prefills reviewed suggestions before saving the structured expense', async () => {
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
+    const suggestion = {
+      acceptedAt: null,
+      boundingBox: null,
+      confidence: 0.92,
+      correctedAt: null,
+      extractedValue: 'Updated Market',
+      fieldName: 'merchant_name',
+      id: '77777777-7777-4777-8777-777777777777',
+      normalizedValue: 'Updated Market',
+      pageNumber: null,
+      processedAt: '2026-07-15T12:01:00.000Z',
+      processorName: 'reimbursd-deterministic-parser',
+      processorVersion: '1.0.0',
+      receiptId: receipt.id,
+      sourceType: 'deterministic_parser',
+    } as const;
+    const screen = await render(
+      <ExpenseFormScreen onSubmit={onSubmit} receipt={receipt} suggestions={[suggestion]} />,
+    );
+
+    expect(screen.getByText('Review receipt')).toBeTruthy();
+    expect(screen.getByDisplayValue('Updated Market')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Save reviewed expense'));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ merchantName: 'Updated Market' }),
+        kind: 'update',
+      }),
+    );
+  });
+
   test('requires confirmation before deleting an expense', async () => {
     const onDeleted = jest.fn();
     const deletionCoordinator = createDeletionCoordinator();
@@ -359,25 +394,25 @@ describe('manual expense screens', () => {
     const documentRepository = createDocumentRepository();
     const evidenceRepository = createEvidenceRepository();
     const processingHistoryRepository = createProcessingHistoryRepository();
+    const onEdit = jest.fn();
     documentRepository.listByReceiptId.mockResolvedValue([imageOriginal, preview]);
-    evidenceRepository.listByReceiptId.mockResolvedValue([
-      {
-        acceptedAt: null,
-        boundingBox: { height: 0.04, width: 0.18, x: 0.7, y: 0.82 },
-        confidence: 0.91,
-        correctedAt: null,
-        extractedValue: '$14.34',
-        fieldName: 'total_minor',
-        id: '77777777-7777-4777-8777-777777777777',
-        normalizedValue: '1434',
-        pageNumber: 1,
-        processedAt: '2026-07-15T12:00:02.000Z',
-        processorName: 'reimbursd-deterministic-parser',
-        processorVersion: '1.0.0',
-        receiptId: receipt.id,
-        sourceType: 'deterministic_parser',
-      },
-    ]);
+    const totalSuggestion = {
+      acceptedAt: null,
+      boundingBox: { height: 0.04, width: 0.18, x: 0.7, y: 0.82 },
+      confidence: 0.91,
+      correctedAt: null,
+      extractedValue: '$14.34',
+      fieldName: 'total_minor',
+      id: '77777777-7777-4777-8777-777777777777',
+      normalizedValue: '1434',
+      pageNumber: 1,
+      processedAt: '2026-07-15T12:00:02.000Z',
+      processorName: 'reimbursd-deterministic-parser',
+      processorVersion: '1.0.0',
+      receiptId: receipt.id,
+      sourceType: 'deterministic_parser',
+    } as const;
+    evidenceRepository.listByReceiptId.mockResolvedValue([totalSuggestion]);
     processingHistoryRepository.listByReceiptId.mockResolvedValue([
       {
         affectedFields: [],
@@ -418,7 +453,7 @@ describe('manual expense screens', () => {
         evidenceRepository={evidenceRepository}
         onCleanupNeeded={jest.fn()}
         onDeleted={jest.fn()}
-        onEdit={jest.fn()}
+        onEdit={onEdit}
         onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
         processingHistoryRepository={processingHistoryRepository}
         receipt={receipt}
@@ -444,6 +479,68 @@ describe('manual expense screens', () => {
       screen.getByLabelText('Suggested Total, $14.34, 91% confidence, processed locally'),
     );
     await waitFor(() => expect(screen.getByLabelText('Receipt source highlight')).toBeTruthy());
+
+    await fireEvent.press(screen.getByLabelText('Review suggestions'));
+    expect(onEdit).toHaveBeenCalledWith(
+      [totalSuggestion],
+      ['88888888-8888-4888-8888-888888888888'],
+    );
+  });
+
+  test('keeps reviewed user corrections authoritative over later automation', async () => {
+    const evidenceRepository = createEvidenceRepository();
+    evidenceRepository.listByReceiptId.mockResolvedValue([
+      {
+        acceptedAt: null,
+        boundingBox: null,
+        confidence: 0.99,
+        correctedAt: null,
+        extractedValue: '$99.00',
+        fieldName: 'total_minor',
+        id: '77777777-7777-4777-8777-777777777777',
+        normalizedValue: '9900',
+        pageNumber: null,
+        processedAt: '2026-07-15T12:10:00.000Z',
+        processorName: 'reimbursd-deterministic-parser',
+        processorVersion: '1.0.0',
+        receiptId: receipt.id,
+        sourceType: 'deterministic_parser',
+      },
+      {
+        acceptedAt: null,
+        boundingBox: null,
+        confidence: 1,
+        correctedAt: '2026-07-15T12:05:00.000Z',
+        extractedValue: '1334',
+        fieldName: 'total_minor',
+        id: '99999999-9999-4999-8999-999999999999',
+        normalizedValue: '1334',
+        pageNumber: null,
+        processedAt: '2026-07-15T12:05:00.000Z',
+        processorName: 'reimbursd-user-review',
+        processorVersion: '1.0.0',
+        receiptId: receipt.id,
+        sourceType: 'user_correction',
+      },
+    ]);
+    const screen = await render(
+      <ExpenseDetailScreen
+        attachmentStorage={createAttachmentStorage()}
+        deletionCoordinator={createDeletionCoordinator()}
+        documentRepository={createDocumentRepository()}
+        evidenceRepository={evidenceRepository}
+        onCleanupNeeded={jest.fn()}
+        onDeleted={jest.fn()}
+        onEdit={jest.fn()}
+        onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
+        processingHistoryRepository={createProcessingHistoryRepository()}
+        receipt={receipt}
+      />,
+    );
+
+    await waitFor(() => expect(evidenceRepository.listByReceiptId).toHaveBeenCalled());
+    expect(screen.queryByText('Suggested values')).toBeNull();
+    expect(screen.getByLabelText('Edit expense')).toBeTruthy();
   });
 
   test('explains how to recover from a stale edit conflict', async () => {

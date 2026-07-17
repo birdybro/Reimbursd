@@ -5,10 +5,12 @@ import {
   SqliteProcessingHistoryRepository,
   SqliteReceiptDocumentRepository,
   SqliteReceiptRepository,
+  SqliteReceiptReviewRepository,
   type FieldEvidenceRepository,
   type ProcessingHistoryRepository,
   type ReceiptDocumentRepository,
   type ReceiptRepository,
+  type ReceiptReviewRepository,
   type SqliteConnection,
   type SqliteRunResult,
   type SqliteValue,
@@ -22,6 +24,7 @@ export interface LocalRepositories {
   readonly evidence: FieldEvidenceRepository;
   readonly processingHistory: ProcessingHistoryRepository;
   readonly receipts: ReceiptRepository;
+  readonly reviews: ReceiptReviewRepository;
 }
 
 let repositoryPromise: Promise<LocalRepositories> | undefined;
@@ -48,6 +51,7 @@ async function initializeRepositories(): Promise<LocalRepositories> {
     evidence: new SqliteFieldEvidenceRepository(connection),
     processingHistory: new SqliteProcessingHistoryRepository(connection),
     receipts: new SqliteReceiptRepository(connection),
+    reviews: new SqliteReceiptReviewRepository(connection),
   };
 }
 
