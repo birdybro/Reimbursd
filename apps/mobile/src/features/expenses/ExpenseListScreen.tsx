@@ -21,15 +21,26 @@ import {
   View,
 } from 'react-native';
 
-import type { ReceiptRepository } from '@reimbursd/database';
-import { formatMinorUnits, type Receipt, type SupportedCurrencyCode } from '@reimbursd/domain';
+import type {
+  CategoryRepository,
+  ReceiptListOptions,
+  ReceiptRepository,
+  TagRepository,
+} from '@reimbursd/database';
+import { formatMinorUnits, type Receipt } from '@reimbursd/domain';
 
-import { CurrencyPickerModal } from '../../components/CurrencyPickerModal';
 import { StatusPanel } from '../../components/StatusPanel';
 import { colors } from '../../theme';
 import { formatPurchaseDate } from './display';
+import { ExpenseFilterModal } from './ExpenseFilterModal';
+import {
+  countActiveExpenseFilters,
+  emptyExpenseFilters,
+  type ExpenseFilterValues,
+} from './expense-filter';
 
 interface ExpenseListScreenProps {
+  readonly categoryRepository: CategoryRepository;
   readonly cleanupIssue: string | null;
   readonly importError: string | null;
   readonly importing: boolean;
@@ -41,9 +52,11 @@ interface ExpenseListScreenProps {
   readonly onRetryCleanup: () => void;
   readonly repository: ReceiptRepository;
   readonly retryingCleanup: boolean;
+  readonly tagRepository: TagRepository;
 }
 
 export function ExpenseListScreen({
+  categoryRepository,
   cleanupIssue,
   importError,
   importing,
@@ -55,10 +68,12 @@ export function ExpenseListScreen({
   onRetryCleanup,
   repository,
   retryingCleanup,
+  tagRepository,
 }: ExpenseListScreenProps) {
-  const [currencyCode, setCurrencyCode] = useState<SupportedCurrencyCode | null>(null);
   const [error, setError] = useState(false);
+  const [filterOptions, setFilterOptions] = useState<ReceiptListOptions>({});
   const [filterVisible, setFilterVisible] = useState(false);
+  const [filterValues, setFilterValues] = useState<ExpenseFilterValues>(emptyExpenseFilters);
   const [loading, setLoading] = useState(true);
   const [receipts, setReceipts] = useState<readonly Receipt[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -68,7 +83,7 @@ export function ExpenseListScreen({
     let active = true;
 
     repository
-      .list({ currencyCode, search })
+      .list({ ...filterOptions, search })
       .then((results) => {
         if (active) {
           setReceipts(results);
@@ -86,9 +101,10 @@ export function ExpenseListScreen({
     return () => {
       active = false;
     };
-  }, [currencyCode, refreshKey, repository, search]);
+  }, [filterOptions, refreshKey, repository, search]);
 
-  const filtering = search.trim().length > 0 || currencyCode !== null;
+  const activeFilterCount = countActiveExpenseFilters(filterValues);
+  const filtering = search.trim().length > 0 || activeFilterCount > 0;
 
   return (
     <View style={styles.screen}>
@@ -132,22 +148,22 @@ export function ExpenseListScreen({
           />
         </View>
         <Pressable
-          accessibilityLabel={`Filter currency, ${currencyCode ?? 'all currencies'}`}
+          accessibilityLabel={`Filter expenses, ${activeFilterCount} active`}
           accessibilityRole="button"
           onPress={() => setFilterVisible(true)}
           style={({ pressed }) => [
             styles.filterButton,
-            currencyCode !== null && styles.filterButtonActive,
+            activeFilterCount > 0 && styles.filterButtonActive,
             pressed && styles.pressed,
           ]}
         >
           <Filter
-            color={currencyCode === null ? colors.ink : colors.green}
+            color={activeFilterCount === 0 ? colors.ink : colors.green}
             size={19}
             strokeWidth={2}
           />
-          <Text style={[styles.filterText, currencyCode !== null && styles.filterTextActive]}>
-            {currencyCode ?? 'All'}
+          <Text style={[styles.filterText, activeFilterCount > 0 && styles.filterTextActive]}>
+            {activeFilterCount === 0 ? 'Filters' : activeFilterCount}
           </Text>
         </Pressable>
       </View>
@@ -186,7 +202,7 @@ export function ExpenseListScreen({
           </Text>
           <Text style={styles.emptyCopy}>
             {filtering
-              ? 'Adjust the search or currency filter.'
+              ? 'Adjust the search or filters.'
               : 'Your locally saved expenses will appear here.'}
           </Text>
         </View>
@@ -257,13 +273,19 @@ export function ExpenseListScreen({
         </Pressable>
       </View>
 
-      <CurrencyPickerModal
-        allowAll
-        onClose={() => setFilterVisible(false)}
-        onSelect={setCurrencyCode}
-        value={currencyCode}
-        visible={filterVisible}
-      />
+      {filterVisible ? (
+        <ExpenseFilterModal
+          categories={categoryRepository}
+          initialValues={filterValues}
+          onApply={(values, options) => {
+            setFilterValues(values);
+            setFilterOptions(options);
+            setFilterVisible(false);
+          }}
+          onClose={() => setFilterVisible(false)}
+          tags={tagRepository}
+        />
+      ) : null}
     </View>
   );
 }

@@ -5,6 +5,7 @@ export {
   isSupportedCurrencyCode,
   minorUnitsToDecimal,
   parseDecimalToMinorUnits,
+  supportedCurrencyCodes,
   type SupportedCurrencyCode,
 } from './money.js';
 export {

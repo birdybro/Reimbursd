@@ -5,7 +5,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 
-import { createManualReceipt, type Receipt, type ReceiptDocument } from '@reimbursd/domain';
+import {
+  createCategory,
+  createManualReceipt,
+  createTag,
+  type Receipt,
+  type ReceiptDocument,
+} from '@reimbursd/domain';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
@@ -20,6 +26,11 @@ import {
   ReceiptDocumentReceiptNotDeletedError,
   SqliteReceiptDocumentRepository,
 } from './receipt-document-repository.js';
+import {
+  SqliteCategoryRepository,
+  SqliteReceiptClassificationRepository,
+  SqliteTagRepository,
+} from './classification-repository.js';
 import {
   migrateDatabase,
   schemaVersion,
@@ -124,6 +135,82 @@ describe('SQLite receipt repository', () => {
       [{ currencyCode: 'CAD', merchantName: 'North Market' }],
     );
     await expect(repository.list({ search: '_' })).resolves.toEqual([]);
+    connection.close();
+  });
+
+  it('combines local date, category, tag, currency, and amount filters', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const repository = new SqliteReceiptRepository(connection);
+    const lowValue = await repository.create(
+      makeReceipt({
+        merchantName: 'Older Supplies',
+        purchasedAt: '2026-06-30T12:00:00-06:00',
+        subtotalMinor: 500,
+        taxMinor: 0,
+        tipMinor: 0,
+        totalMinor: 500,
+      }),
+    );
+    const target = await repository.create(
+      makeReceipt({ merchantName: 'Client Lunch', purchasedAt: '2026-07-12T12:00:00-06:00' }),
+    );
+    await repository.create(
+      makeReceipt({
+        currencyCode: 'CAD',
+        merchantName: 'Canadian Dinner',
+        purchasedAt: '2026-07-15T12:00:00-06:00',
+      }),
+    );
+    const createdAt = '2026-07-16T12:00:00-06:00';
+    const category = await new SqliteCategoryRepository(connection).create(
+      createCategory({ createdAt, id: randomUUID(), name: 'Meals' }),
+    );
+    const tag = await new SqliteTagRepository(connection).create(
+      createTag({ createdAt, id: randomUUID(), name: 'Reimbursable' }),
+    );
+    await new SqliteReceiptClassificationRepository(connection).update({
+      categoryId: category.id,
+      expectedVersion: target.version,
+      receiptId: target.id,
+      tagIds: [tag.id],
+      updatedAt: createdAt,
+    });
+
+    await expect(
+      repository.list({
+        categoryId: category.id,
+        currencyCode: 'USD',
+        maximumTotalMinor: 1_500,
+        minimumTotalMinor: 1_000,
+        purchasedFrom: '2026-07-01',
+        purchasedTo: '2026-07-31',
+        search: 'lunch',
+        tagId: tag.id,
+      }),
+    ).resolves.toMatchObject([{ id: target.id }]);
+    await expect(repository.list({ categoryId: null })).resolves.toHaveLength(2);
+    await expect(repository.list({ tagId: tag.id })).resolves.toMatchObject([{ id: target.id }]);
+    await expect(
+      repository.list({ currencyCode: 'USD', maximumTotalMinor: 600 }),
+    ).resolves.toMatchObject([{ id: lowValue.id }]);
+    connection.close();
+  });
+
+  it('rejects ambiguous or malformed receipt filters', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const repository = new SqliteReceiptRepository(connection);
+
+    await expect(repository.list({ minimumTotalMinor: 100 })).rejects.toThrow(
+      'Amount filters require a currency filter.',
+    );
+    await expect(
+      repository.list({ purchasedFrom: '2026-02-30', purchasedTo: '2026-02-01' }),
+    ).rejects.toThrow('Date filters must use real YYYY-MM-DD calendar dates.');
+    await expect(
+      repository.list({ currencyCode: 'USD', maximumTotalMinor: 100, minimumTotalMinor: 200 }),
+    ).rejects.toThrow('Minimum amount cannot exceed maximum amount.');
     connection.close();
   });
 

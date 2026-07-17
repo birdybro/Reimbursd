@@ -19,10 +19,11 @@ Use npm workspaces, strict TypeScript, Expo SDK 57, and framework-independent do
 packages. Milestone 4 is active. Category/tag domain records, migration 6, and local repositories are
 implemented with UUIDs, normalized unique names, optimistic versions, tombstones, and explicit
 in-use deletion errors. Expense details can create and atomically assign one category plus multiple
-tags; removed relationships are tombstoned and re-addition revives the stable key. The next work is
-expanded local filtering, followed by totals and export. Keep existing receipts valid and local,
-preserve imported originals exactly, and do not add hosted processing, synchronization, or
-generative AI.
+tags; removed relationships are tombstoned and re-addition revives the stable key. The expense list
+now composes validated local merchant, date, currency-specific amount, category, and active-tag
+filters through parameterized queries. The next work is monthly and category totals, followed by
+export. Keep existing receipts valid and local, preserve imported originals exactly, and do not add
+hosted processing, synchronization, or generative AI.
 
 ## Resume steps
 

@@ -35,6 +35,12 @@ one transaction, increments the receipt version, tombstones removed tag relation
 re-added relationships deterministically. Expense details expose this through a local classification
 modal that can create and select records without any network path.
 
+Receipt list filters are validated at both the UI parser and repository boundary, then composed from
+parameterized SQL predicates. Purchase-date bounds use the stored timestamp's local calendar-date
+prefix. Amount ranges require an explicit currency so values from different currencies are never
+compared as though they were equivalent. Category filters support uncategorized receipts, and tag
+filters require an active assignment to an active tag.
+
 Receipt bytes cross a framework-independent ingestion boundary that validates decoded JPEG, PNG,
 or PDF content, applies configurable resource limits, calculates SHA-256, detects duplicate
 originals, and coordinates immutable file creation with metadata persistence. Native files use the

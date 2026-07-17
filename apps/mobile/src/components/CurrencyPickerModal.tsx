@@ -2,11 +2,9 @@
 import { Check, X } from 'lucide-react-native';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import type { SupportedCurrencyCode } from '@reimbursd/domain';
+import { supportedCurrencyCodes, type SupportedCurrencyCode } from '@reimbursd/domain';
 
 import { colors } from '../theme';
-
-const currencies: readonly SupportedCurrencyCode[] = ['USD', 'CAD', 'EUR', 'GBP', 'AUD', 'JPY'];
 
 interface CurrencyPickerModalProps {
   readonly allowAll?: boolean;
@@ -24,8 +22,8 @@ export function CurrencyPickerModal({
   visible,
 }: CurrencyPickerModalProps) {
   const choices: readonly (SupportedCurrencyCode | null)[] = allowAll
-    ? [null, ...currencies]
-    : currencies;
+    ? [null, ...supportedCurrencyCodes]
+    : supportedCurrencyCodes;
 
   return (
     <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>

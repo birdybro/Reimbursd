@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
-const currencyFractionDigits = {
+export const supportedCurrencyCodes = ['USD', 'CAD', 'EUR', 'GBP', 'AUD', 'JPY'] as const;
+
+export type SupportedCurrencyCode = (typeof supportedCurrencyCodes)[number];
+
+const currencyFractionDigits: Readonly<Record<SupportedCurrencyCode, number>> = {
   AUD: 2,
   CAD: 2,
   EUR: 2,
   GBP: 2,
   JPY: 0,
   USD: 2,
-} as const;
-
-export type SupportedCurrencyCode = keyof typeof currencyFractionDigits;
+};
 
 export function isSupportedCurrencyCode(value: string): value is SupportedCurrencyCode {
   return Object.hasOwn(currencyFractionDigits, value);

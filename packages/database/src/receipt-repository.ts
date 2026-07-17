@@ -16,8 +16,14 @@ import {
 import type { SqliteConnection, SqliteValue } from './sqlite.js';
 
 export interface ReceiptListOptions {
+  readonly categoryId?: string | null;
   readonly currencyCode?: SupportedCurrencyCode | null;
+  readonly maximumTotalMinor?: number;
+  readonly minimumTotalMinor?: number;
+  readonly purchasedFrom?: string;
+  readonly purchasedTo?: string;
   readonly search?: string;
+  readonly tagId?: string;
 }
 
 export interface UpdateReceiptInput {
@@ -202,11 +208,7 @@ export class SqliteReceiptRepository implements ReceiptRepository {
   }
 
   async list(options: ReceiptListOptions = {}): Promise<readonly Receipt[]> {
-    if (options.currencyCode !== undefined && options.currencyCode !== null) {
-      if (!isSupportedCurrencyCode(options.currencyCode)) {
-        throw new TypeError('Currency filter is not supported.');
-      }
-    }
+    validateReceiptListOptions(options);
 
     const conditions = ['r.deleted_at IS NULL'];
     const parameters: SqliteValue[] = [];
@@ -220,6 +222,44 @@ export class SqliteReceiptRepository implements ReceiptRepository {
     if (options.currencyCode !== undefined && options.currencyCode !== null) {
       conditions.push('r.currency_code = ?');
       parameters.push(options.currencyCode);
+    }
+
+    if (options.purchasedFrom !== undefined) {
+      conditions.push('substr(r.purchased_at, 1, 10) >= ?');
+      parameters.push(options.purchasedFrom);
+    }
+
+    if (options.purchasedTo !== undefined) {
+      conditions.push('substr(r.purchased_at, 1, 10) <= ?');
+      parameters.push(options.purchasedTo);
+    }
+
+    if (options.minimumTotalMinor !== undefined) {
+      conditions.push('r.total_minor >= ?');
+      parameters.push(options.minimumTotalMinor);
+    }
+
+    if (options.maximumTotalMinor !== undefined) {
+      conditions.push('r.total_minor <= ?');
+      parameters.push(options.maximumTotalMinor);
+    }
+
+    if (options.categoryId === null) {
+      conditions.push('r.category_id IS NULL');
+    } else if (options.categoryId !== undefined) {
+      conditions.push('r.category_id = ?');
+      parameters.push(options.categoryId);
+    }
+
+    if (options.tagId !== undefined) {
+      conditions.push(`EXISTS (
+        SELECT 1
+        FROM receipt_tags rt
+        INNER JOIN tags t ON t.id = rt.tag_id
+        WHERE rt.receipt_id = r.id AND rt.tag_id = ?
+          AND rt.deleted_at IS NULL AND t.deleted_at IS NULL
+      )`);
+      parameters.push(options.tagId);
     }
 
     const rows = await this.#connection.getAll<ReceiptRow>(
@@ -419,6 +459,81 @@ function assertValidReceipt(receipt: Receipt): void {
 
 function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
+}
+
+function validateReceiptListOptions(options: ReceiptListOptions): void {
+  if (
+    options.currencyCode !== undefined &&
+    options.currencyCode !== null &&
+    !isSupportedCurrencyCode(options.currencyCode)
+  ) {
+    throw new TypeError('Currency filter is not supported.');
+  }
+
+  if (
+    options.categoryId !== undefined &&
+    options.categoryId !== null &&
+    !isUuid(options.categoryId)
+  ) {
+    throw new TypeError('Category filter must be a UUID.');
+  }
+
+  if (options.tagId !== undefined && !isUuid(options.tagId)) {
+    throw new TypeError('Tag filter must be a UUID.');
+  }
+
+  for (const value of [options.minimumTotalMinor, options.maximumTotalMinor]) {
+    if (value !== undefined && (!Number.isSafeInteger(value) || value < 0)) {
+      throw new TypeError('Amount filters must be nonnegative safe integer minor units.');
+    }
+  }
+
+  if (
+    options.minimumTotalMinor !== undefined &&
+    options.maximumTotalMinor !== undefined &&
+    options.minimumTotalMinor > options.maximumTotalMinor
+  ) {
+    throw new RangeError('Minimum amount cannot exceed maximum amount.');
+  }
+
+  if (
+    (options.minimumTotalMinor !== undefined || options.maximumTotalMinor !== undefined) &&
+    (options.currencyCode === undefined || options.currencyCode === null)
+  ) {
+    throw new TypeError('Amount filters require a currency filter.');
+  }
+
+  for (const date of [options.purchasedFrom, options.purchasedTo]) {
+    if (date !== undefined && !isValidLocalDate(date)) {
+      throw new TypeError('Date filters must use real YYYY-MM-DD calendar dates.');
+    }
+  }
+
+  if (
+    options.purchasedFrom !== undefined &&
+    options.purchasedTo !== undefined &&
+    options.purchasedFrom > options.purchasedTo
+  ) {
+    throw new RangeError('Start date cannot be after end date.');
+  }
+}
+
+function isValidLocalDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+  if (match === null) {
+    return false;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  return (
+    candidate.getUTCFullYear() === year &&
+    candidate.getUTCMonth() === month - 1 &&
+    candidate.getUTCDate() === day
+  );
 }
 
 function mapReceiptRow(row: ReceiptRow): Receipt {

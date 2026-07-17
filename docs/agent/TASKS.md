@@ -100,7 +100,7 @@
 - [x] Add local category/tag persistence with versions, tombstones, and duplicate protection.
 - [x] Add atomic receipt category/tag assignment and unassignment.
 - [x] Add accessible local category/tag creation and assignment UI on expense details.
-- [ ] Expand filters for date, merchant, category, tag, and amount.
+- [x] Expand filters for date, merchant, category, tag, and amount.
 - [ ] Add monthly and category totals.
 - [ ] Add CSV and complete structured export with attachment checksums.
 - [ ] Add clean-install restore and round-trip coverage.
@@ -109,9 +109,7 @@
 
 ### Acceptance criteria for the next slice
 
-- Categories and tags use stable UUIDs and remain fully local without an account.
-- Category names and tag names are validated, persist across restart, and cannot be silently lost
-  during receipt updates.
-- Existing uncategorized receipts remain valid after migration.
-- Category and tag deletion behavior preserves receipt integrity and is explicit to the user.
-- Migration, repository, domain, and UI tests cover create, assign, filter, and conflict behavior.
+- Monthly totals use the receipt purchase date and never combine different currencies.
+- Category totals include an explicit uncategorized group and exclude deleted receipts.
+- Reporting remains local, works without an account, and reads integer minor-unit values.
+- Repository, domain, and UI tests cover empty data, multiple months, categories, and currencies.

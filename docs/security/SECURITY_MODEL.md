@@ -40,6 +40,9 @@
 - Receipt category and tag replacement validates every selected active record and uses one
   optimistic SQLite transaction for the receipt version plus all relationship changes. Missing,
   deleted, duplicate, excessive, or stale assignments fail without partial changes.
+- Receipt-list date, currency, amount, category, tag, and merchant filters are validated before use
+  and composed only through parameterized SQL. Amount bounds require a currency, preventing
+  misleading cross-currency comparisons.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls

@@ -8,8 +8,8 @@ AI provider.
 
 ## Current status
 
-Milestones 0 through 3 are complete. The Expo application can create, view, edit, search, filter, and delete
-manual expenses, and it can capture JPEG/PNG receipts or import JPEG, PNG, and multi-page PDF
+Milestones 0 through 3 are complete. The Expo application can create, view, edit, search, filter, and
+delete manual expenses, and it can capture JPEG/PNG receipts or import JPEG, PNG, and multi-page PDF
 originals into private local storage. Import validates content and limits, records SHA-256 and
 provenance, and requires no account or network service. Deleting an expense removes its local
 receipt bytes with durable retry after interruption. JPEG and PNG imports receive separate bounded
@@ -28,8 +28,9 @@ text is not sent to a Reimbursd or third-party service.
 
 Milestone 4 is underway. The local schema and repositories support validated, versioned, tombstoned
 categories and tags while keeping existing receipts valid. Expense details can create and assign one
-category plus multiple tags through an atomic local workflow. Expanded filtering, reporting, export,
-restore, and delete-all workflows are still pending.
+category plus multiple tags through an atomic local workflow. The list filters locally by merchant,
+purchase date, currency-specific amount range, category, and tag. Reporting, export, restore, and
+delete-all workflows are still pending.
 
 ## Requirements
 

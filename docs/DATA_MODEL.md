@@ -33,8 +33,10 @@ in both the domain and database. Updates increment `version`; deletes set `delet
 tombstone. Active reads exclude tombstones.
 
 Migrations run transactionally and are recorded only after their schema changes succeed. Repository
-tests cover reopening a file database, rollback, literal merchant search, currency filtering,
-optimistic conflicts, and deletion behavior.
+tests cover reopening a file database, rollback, literal merchant search, combined filtering,
+optimistic conflicts, and deletion behavior. Receipt filters compare the local `YYYY-MM-DD` prefix
+of `purchased_at`, raw integer totals only within one explicit currency, nullable categories, and
+active receipt-tag relationships. Every filter value is validated and bound as a SQL parameter.
 
 `receipt_documents` stores:
 

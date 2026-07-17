@@ -259,6 +259,7 @@ function AppContent() {
           />
         ) : route.name === 'list' ? (
           <ExpenseListScreen
+            categoryRepository={repositoryState.repositories.categories}
             cleanupIssue={cleanupIssue}
             importError={importError}
             importing={importing}
@@ -270,6 +271,7 @@ function AppContent() {
             onRetryCleanup={retryPendingCleanup}
             repository={repositoryState.repositories.receipts}
             retryingCleanup={retryingCleanup}
+            tagRepository={repositoryState.repositories.tags}
           />
         ) : route.name === 'detail' ? (
           <ExpenseDetailScreen

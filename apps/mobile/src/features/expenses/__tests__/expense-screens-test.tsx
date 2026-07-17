@@ -12,7 +12,12 @@ import {
   type ReceiptRepository,
   type TagRepository,
 } from '@reimbursd/database';
-import { createManualReceipt, type ReceiptDocument } from '@reimbursd/domain';
+import {
+  createCategory,
+  createManualReceipt,
+  createTag,
+  type ReceiptDocument,
+} from '@reimbursd/domain';
 
 import { ExpenseFormScreen } from '../ExpenseFormScreen';
 import { ExpenseDetailScreen } from '../ExpenseDetailScreen';
@@ -35,6 +40,7 @@ jest.mock('lucide-react-native', () => {
     Pencil: MockIcon,
     Plus: MockIcon,
     RefreshCw: MockIcon,
+    RotateCcw: MockIcon,
     ReceiptText: MockIcon,
     Save: MockIcon,
     Search: MockIcon,
@@ -192,6 +198,7 @@ describe('manual expense screens', () => {
     const onImportPdf = jest.fn();
     const screen = await render(
       <ExpenseListScreen
+        categoryRepository={createCategoryRepository()}
         cleanupIssue={null}
         importError={null}
         importing={false}
@@ -203,6 +210,7 @@ describe('manual expense screens', () => {
         onRetryCleanup={jest.fn()}
         repository={repository}
         retryingCleanup={false}
+        tagRepository={createTagRepository()}
       />,
     );
 
@@ -221,6 +229,66 @@ describe('manual expense screens', () => {
     expect(onCapture).toHaveBeenCalledTimes(1);
     expect(onImportImage).toHaveBeenCalledTimes(1);
     expect(onImportPdf).toHaveBeenCalledTimes(1);
+  });
+
+  test('applies combined local date, category, tag, currency, and amount filters', async () => {
+    const repository = createRepository();
+    const categoryRepository = createCategoryRepository();
+    const tagRepository = createTagRepository();
+    const category = createCategory({
+      createdAt: '2026-07-17T12:00:00-06:00',
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      name: 'Client Meals',
+    });
+    const tag = createTag({
+      createdAt: '2026-07-17T12:00:00-06:00',
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      name: 'Reimbursable',
+    });
+    categoryRepository.list.mockResolvedValue([category]);
+    tagRepository.list.mockResolvedValue([tag]);
+    const screen = await render(
+      <ExpenseListScreen
+        categoryRepository={categoryRepository}
+        cleanupIssue={null}
+        importError={null}
+        importing={false}
+        onCapture={jest.fn()}
+        onCreate={jest.fn()}
+        onImportImage={jest.fn()}
+        onImportPdf={jest.fn()}
+        onOpen={jest.fn()}
+        onRetryCleanup={jest.fn()}
+        repository={repository}
+        retryingCleanup={false}
+        tagRepository={tagRepository}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Corner Market')).toBeTruthy());
+    await fireEvent.press(screen.getByLabelText('Filter expenses, 0 active'));
+    expect(await screen.findByText('Filter expenses')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('USD currencies, not selected'));
+    await fireEvent.changeText(screen.getByLabelText('From date'), '2026-07-01');
+    await fireEvent.changeText(screen.getByLabelText('Minimum total'), '10.00');
+    await fireEvent.changeText(screen.getByLabelText('Maximum total'), '20.00');
+    await fireEvent.press(screen.getByLabelText('Client Meals, not selected'));
+    await fireEvent.press(screen.getByLabelText('Reimbursable, not selected'));
+    await fireEvent.press(screen.getByLabelText('Apply expense filters'));
+
+    await waitFor(() =>
+      expect(repository.list).toHaveBeenLastCalledWith({
+        categoryId: category.id,
+        currencyCode: 'USD',
+        maximumTotalMinor: 2_000,
+        minimumTotalMinor: 1_000,
+        purchasedFrom: '2026-07-01',
+        search: '',
+        tagId: tag.id,
+      }),
+    );
+    expect(screen.getByLabelText('Filter expenses, 5 active')).toBeTruthy();
   });
 
   test('validates and submits exact minor-unit amounts', async () => {
@@ -252,6 +320,7 @@ describe('manual expense screens', () => {
     const onRetryCleanup = jest.fn();
     const screen = await render(
       <ExpenseListScreen
+        categoryRepository={createCategoryRepository()}
         cleanupIssue="1 local receipt file still needs deletion."
         importError={null}
         importing={false}
@@ -263,6 +332,7 @@ describe('manual expense screens', () => {
         onRetryCleanup={onRetryCleanup}
         repository={createRepository()}
         retryingCleanup={false}
+        tagRepository={createTagRepository()}
       />,
     );
 
