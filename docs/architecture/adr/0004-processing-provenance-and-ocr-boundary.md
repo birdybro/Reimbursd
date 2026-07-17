@@ -31,6 +31,7 @@ deterministic local provider for contract and orchestration tests. It is not pre
 
 Processing provenance survives restart and cannot persist arbitrary error messages through the
 repository API. Provider implementations can vary without changing review or evidence semantics.
-OCR output text is currently transient and has no production consumer; deterministic parsing,
-production offline OCR, review UI, and source highlighting remain follow-up work. Remote processing
-is still disabled and no receipt data crosses a network boundary.
+OCR output text is currently transient and has no parser consumer. An Apple Vision provider now
+implements the boundary on iOS, while deterministic parsing, Android OCR, review UI, and source
+highlighting remain follow-up work. Remote processing is still disabled and no receipt data crosses
+a network boundary.

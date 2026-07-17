@@ -11,7 +11,11 @@ are resized and encoded locally as separate derivatives in the same private stor
 These stores are not application-layer encrypted, and backup and restore are not implemented yet.
 
 The application does not request location, use analytics, display advertising, transmit expense
-or receipt data to a Reimbursd service, or require an account. It has no external AI,
+or receipt data to a Reimbursd service, or require an account. On iOS development and release
+builds, imported image derivatives can be processed on-device with Apple Vision. The processing
+copy is removed from private cache after the attempt, recognized text remains transient, and only
+bounded lifecycle status is currently persisted. Android, web, and Expo Go do not run OCR. The
+application has no external AI,
 synchronization, hosted processing, or telemetry integration. Camera and photo-library permissions
 are requested only after the corresponding local import action. PDF selection does not request
 camera, photo, or location access.

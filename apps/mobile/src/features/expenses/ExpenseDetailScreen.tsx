@@ -13,8 +13,13 @@ import {
 import { useEffect, useState } from 'react';
 
 import type { AttachmentCleanupFailure, ReceiptDeletionCoordinator } from '@reimbursd/attachments';
-import type { ReceiptDocumentRepository } from '@reimbursd/database';
-import { formatMinorUnits, type Receipt, type ReceiptDocument } from '@reimbursd/domain';
+import type { ProcessingHistoryRepository, ReceiptDocumentRepository } from '@reimbursd/database';
+import {
+  formatMinorUnits,
+  type ProcessingHistory,
+  type Receipt,
+  type ReceiptDocument,
+} from '@reimbursd/domain';
 
 import type { LocalAttachmentStorage } from '../../storage/local-attachments';
 import { colors } from '../../theme';
@@ -31,6 +36,7 @@ interface ExpenseDetailScreenProps {
   readonly onDeleted: () => void;
   readonly onEdit: () => void;
   readonly onRefreshCleanup: () => Promise<void>;
+  readonly processingHistoryRepository: ProcessingHistoryRepository;
   readonly receipt: Receipt;
 }
 
@@ -47,6 +53,7 @@ export function ExpenseDetailScreen({
   onDeleted,
   onEdit,
   onRefreshCleanup,
+  processingHistoryRepository,
   receipt,
 }: ExpenseDetailScreenProps) {
   const [confirmationVisible, setConfirmationVisible] = useState(false);
@@ -57,6 +64,7 @@ export function ExpenseDetailScreen({
   const [documentsError, setDocumentsError] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [previewDisplay, setPreviewDisplay] = useState<PreviewDisplayState>(null);
+  const [processingHistory, setProcessingHistory] = useState<readonly ProcessingHistory[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -81,6 +89,23 @@ export function ExpenseDetailScreen({
       active = false;
     };
   }, [documentRepository, receipt.id]);
+
+  useEffect(() => {
+    let active = true;
+
+    processingHistoryRepository
+      .listByReceiptId(receipt.id)
+      .then((result) => {
+        if (active) {
+          setProcessingHistory(result);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [processingHistoryRepository, receipt.id]);
 
   const previewDocument = documents.find(
     (document) => !document.isOriginal && document.sourceType === 'derivative',
@@ -127,6 +152,10 @@ export function ExpenseDetailScreen({
   }, [attachmentStorage, previewDocument]);
 
   const hasOriginal = documents.some((document) => document.isOriginal);
+  const latestOcrHistory = processingHistory
+    .filter((history) => history.processorName === 'reimbursd-receipt-ocr')
+    .at(-1);
+  const processingSummary = getProcessingSummary(hasOriginal, latestOcrHistory);
   const hasImageOriginal = documents.some(
     (document) => document.isOriginal && document.mimeType !== 'application/pdf',
   );
@@ -203,12 +232,8 @@ export function ExpenseDetailScreen({
       >
         <ShieldCheck color={colors.green} size={20} strokeWidth={2} />
         <View style={styles.provenanceCopy}>
-          <Text style={styles.provenanceTitle}>
-            {hasOriginal ? 'Local receipt file' : 'Manual entry'}
-          </Text>
-          <Text style={styles.provenanceDetail}>
-            {hasOriginal ? 'Original preserved on this device' : 'Saved and processed locally'}
-          </Text>
+          <Text style={styles.provenanceTitle}>{processingSummary.title}</Text>
+          <Text style={styles.provenanceDetail}>{processingSummary.detail}</Text>
         </View>
       </View>
 
@@ -368,6 +393,44 @@ export function ExpenseDetailScreen({
       </Modal>
     </ScrollView>
   );
+}
+
+function getProcessingSummary(
+  hasOriginal: boolean,
+  history: ProcessingHistory | undefined,
+): { readonly detail: string; readonly title: string } {
+  if (!hasOriginal) {
+    return { detail: 'Saved and processed locally', title: 'Manual entry' };
+  }
+
+  if (history?.status === 'succeeded') {
+    return { detail: 'Text recognized on this device', title: 'Local OCR complete' };
+  }
+
+  if (
+    history?.status === 'failed' &&
+    [
+      'development_build_required',
+      'device_unsupported',
+      'native_module_unavailable',
+      'unsupported_platform',
+    ].includes(history.failureCode ?? '')
+  ) {
+    return { detail: 'Original preserved. Enter values manually.', title: 'Local OCR unavailable' };
+  }
+
+  if (history?.status === 'failed' || history?.status === 'cancelled') {
+    return {
+      detail: 'Original preserved. Enter values manually.',
+      title: 'Local OCR did not finish',
+    };
+  }
+
+  if (history?.status === 'running') {
+    return { detail: 'Original preserved on this device', title: 'Local OCR in progress' };
+  }
+
+  return { detail: 'Original preserved on this device', title: 'Local receipt file' };
 }
 
 function DocumentRow({ document }: { readonly document: ReceiptDocument }) {

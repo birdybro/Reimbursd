@@ -51,6 +51,15 @@ clones preserved input bytes and schema-validates bounded pages, blocks, text, c
 before returning typed output. The deterministic provider is test infrastructure, not production
 OCR.
 
+The production local provider currently targets iOS only. A repository-owned Expo local module
+invokes Apple Vision in a development or release build and returns text observations, native
+confidence, and normalized source rectangles. The application copies already validated attachment
+bytes to a unique private cache file, calls the module, and removes that file in a `finally` path.
+Provider output still crosses the common unknown-data boundary. OCR failure is nonfatal to import,
+and processing history contains only bounded status codes. The module is optional, so Android, web,
+and Expo Go keep the receipt usable and record that OCR is unavailable without loading a remote
+fallback.
+
 ## Intended growth
 
 Future work may add `apps/web`, `apps/api`, `apps/worker`, and focused packages for schemas,
@@ -60,4 +69,5 @@ not required for local mobile use.
 See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0002](architecture/adr/0002-local-sqlite-repository.md), and
 [ADR-0003](architecture/adr/0003-local-attachment-storage.md), and
-[ADR-0004](architecture/adr/0004-processing-provenance-and-ocr-boundary.md) for accepted decisions.
+[ADR-0004](architecture/adr/0004-processing-provenance-and-ocr-boundary.md), and
+[ADR-0005](architecture/adr/0005-apple-vision-local-ocr.md) for accepted decisions.

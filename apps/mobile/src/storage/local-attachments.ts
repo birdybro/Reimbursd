@@ -52,6 +52,24 @@ export class LocalAttachmentStorage implements AttachmentStorage {
     return { release: () => undefined, uri: file.uri };
   }
 
+  async read(storageReference: string): Promise<Uint8Array> {
+    const path = validateStorageReference(storageReference);
+
+    if (Platform.OS === 'web') {
+      const { directory, filename } = await getWebParentDirectory(path, false);
+      const handle = await directory.getFileHandle(filename);
+      return new Uint8Array(await (await handle.getFile()).arrayBuffer());
+    }
+
+    const file = new ExpoFile(Paths.document, ...path);
+
+    if (!file.exists) {
+      throw new Error('The local attachment file is unavailable.');
+    }
+
+    return file.bytes();
+  }
+
   async writeOnce(storageReference: string, bytes: Uint8Array): Promise<void> {
     const path = validateStorageReference(storageReference);
 

@@ -32,3 +32,9 @@ terms are available from:
 
 These packages are not bundled as Reimbursd application source, and their copyright and license
 metadata remain intact in the installed dependency graph.
+
+## Platform frameworks
+
+The optional iOS OCR implementation invokes Apple's Vision and UIKit frameworks supplied by the
+operating system. Reimbursd does not vendor those frameworks or add a third-party OCR SDK. The
+adapter source in this repository is licensed `GPL-3.0-only`.

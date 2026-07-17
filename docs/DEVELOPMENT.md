@@ -24,9 +24,19 @@ the cross-origin isolation headers required by the SQLite WASM runtime. Web atta
 origin-private file system and are isolated to the current origin/profile. Native attachment bytes
 use Expo's private application document directory.
 
+Expo Go and web exercise the local expense and ingestion workflows but do not contain Reimbursd's
+Apple Vision OCR module. Use `npm run ios:native --workspace @reimbursd/mobile` on macOS to generate
+and launch an iOS development build with on-device OCR. The module is discovered through Expo local
+module autolinking. Android currently records OCR as unavailable and keeps the imported receipt
+usable; no external fallback is used.
+
 ## Commands
 
 - `npm run dev:mobile`: start the Expo development server.
+- `npm run android:native --workspace @reimbursd/mobile`: generate and run an Android development
+  build; local OCR is not implemented on Android yet.
+- `npm run ios:native --workspace @reimbursd/mobile`: generate and run an iOS development build with
+  the local Apple Vision module; requires macOS and Xcode.
 - `npm run format`: format supported source and documentation.
 - `npm run lint`: lint all workspaces.
 - `npm run typecheck`: run strict TypeScript checks.

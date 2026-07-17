@@ -71,13 +71,13 @@
 - [x] Define field-evidence and processing-history domain models.
 - [x] Add versioned local persistence for evidence and processing history.
 - [x] Define the OCR provider contract and deterministic test provider.
-- [ ] Add an offline-capable local provider where the platform supports it.
+- [x] Add an offline-capable Apple Vision provider for iOS development and release builds.
 - [ ] Parse receipt text into candidate merchant, date, subtotal, tax, tip, and total fields.
 - [ ] Add review UI with confidence and local/remote provenance.
 - [ ] Preserve accepted user corrections across later processing runs.
 - [ ] Highlight source regions when bounding boxes are available.
 
-### Acceptance criteria for the next slice
+### Acceptance criteria for the current milestone
 
 - OCR and parsing are separate interfaces and neither depends on generative AI.
 - Provider input and output are validated, bounded, and treated as untrusted data.
@@ -85,3 +85,5 @@
 - Processing attempts record local/remote execution, processor version, timing, status, and redacted
   failures without storing receipt text in logs.
 - Suggested values remain distinct from confirmed receipt fields until the user accepts them.
+- Supported iOS builds run OCR through an operating-system framework without a hosted service;
+  Android, web, and Expo Go fail gracefully without reading bytes or invoking a remote fallback.

@@ -23,6 +23,8 @@ import {
   getReceiptImportErrorMessage,
   ReceiptCaptureCoordinator,
 } from './features/receipts/receipt-capture';
+import { AppleVisionOcrProvider } from './features/receipts/local-ocr-provider';
+import { LocalReceiptOcrProcessor } from './features/receipts/receipt-ocr';
 import { ExpoReceiptPreviewCreator } from './features/receipts/receipt-preview';
 import {
   selectCameraReceipt,
@@ -46,6 +48,7 @@ type RepositoryState =
   | {
       readonly capture: ReceiptCaptureCoordinator;
       readonly deletion: ReceiptDeletionCoordinator;
+      readonly ocr: LocalReceiptOcrProcessor;
       readonly repositories: LocalRepositories;
       readonly status: 'ready';
       readonly storage: LocalAttachmentStorage;
@@ -94,6 +97,11 @@ function AppContent() {
             receipts: repositories.receipts,
             storage,
           });
+          const ocr = new LocalReceiptOcrProcessor({
+            history: repositories.processingHistory,
+            provider: new AppleVisionOcrProvider(),
+            storage,
+          });
           const cleanupFailures = await deletion.cleanupPending().catch(() => null);
 
           if (!active) {
@@ -101,7 +109,7 @@ function AppContent() {
           }
 
           setCleanupIssue(getCleanupIssue(cleanupFailures));
-          setRepositoryState({ capture, deletion, repositories, status: 'ready', storage });
+          setRepositoryState({ capture, deletion, ocr, repositories, status: 'ready', storage });
         }
       })
       .catch(() => {
@@ -154,6 +162,9 @@ function AppContent() {
 
       setImporting(true);
       const imported = await repositoryState.capture.import(selection);
+      await repositoryState.ocr
+        .process(imported.preview ?? imported.document)
+        .catch(() => 'failed');
       setRoute({ name: 'detail', receipt: imported.receipt });
     } catch (error) {
       setImportError(
@@ -238,6 +249,7 @@ function AppContent() {
             attachmentStorage={repositoryState.storage}
             deletionCoordinator={repositoryState.deletion}
             documentRepository={repositoryState.repositories.documents}
+            processingHistoryRepository={repositoryState.repositories.processingHistory}
             onDeleted={() => setRoute({ name: 'list' })}
             onCleanupNeeded={() =>
               setCleanupIssue(

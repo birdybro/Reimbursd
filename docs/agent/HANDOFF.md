@@ -12,11 +12,12 @@ worker successfully.
 ## Active direction
 
 Use npm workspaces, strict TypeScript, Expo SDK 57, and framework-independent domain/database
-packages. Milestone 3 is active. The next work is an offline OCR implementation where the platform
-supports it. The domain and SQLite layers already persist bounded field evidence and processing
-history, and `packages/ocr` validates untrusted provider output with a deterministic test provider.
-Preserve imported originals exactly and do not add hosted processing, synchronization, or
-generative AI.
+packages. Milestone 3 is active. A GPL-licensed Expo local module now invokes Apple Vision OCR in
+iOS development and release builds; Android, web, and Expo Go record an unavailable outcome without
+reading receipt bytes or using a remote fallback. The native response is bounded and validated, and
+processing history stores only lifecycle metadata and redacted codes. The next work is deterministic
+receipt parsing into field evidence. Preserve imported originals exactly and do not add hosted
+processing, synchronization, or generative AI.
 
 ## Resume steps
 

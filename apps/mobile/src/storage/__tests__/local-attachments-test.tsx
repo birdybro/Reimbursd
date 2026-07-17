@@ -82,6 +82,7 @@ describe('local attachment storage adapter', () => {
     await expect(storage.openForDisplay(previewReference)).resolves.toMatchObject({
       uri: storedPath,
     });
+    await expect(storage.read(previewReference)).resolves.toEqual(Uint8Array.from([1, 2, 3]));
 
     await storage.delete(previewReference);
     await expect(storage.delete(previewReference)).resolves.toBeUndefined();
@@ -116,6 +117,7 @@ describe('local attachment storage adapter', () => {
     const storage = new LocalAttachmentStorage();
 
     await storage.writeOnce(originalReference, Uint8Array.from([4, 5, 6]));
+    await expect(storage.read(originalReference)).resolves.toEqual(Uint8Array.from([4, 5, 6]));
     const opened = await storage.openForDisplay(originalReference);
 
     expect(opened.uri).toBe('blob:local-preview');

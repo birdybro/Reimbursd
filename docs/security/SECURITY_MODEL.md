@@ -25,6 +25,9 @@
   block, text, confidence, and normalized-coordinate validation before typed use.
 - Processing failures persist bounded codes rather than raw errors, filenames, OCR text, merchant
   names, totals, or other receipt contents.
+- iOS OCR uses a GPL-licensed local Expo adapter around the operating-system Vision framework.
+  Validated bytes are copied to a unique private cache file, the file is removed after success or
+  failure, and malformed native output is rejected before typed use.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -42,8 +45,8 @@
 
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available, and
   complete data deletion.
-- A production offline OCR adapter, deterministic parsing, evidence review UI, and source-region
-  highlighting.
+- An Android-compatible offline OCR adapter, deterministic parsing, evidence review UI, and
+  source-region highlighting.
 - Secure platform key storage and authenticated encrypted backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
 - Cross-user isolation, backup restoration, provider-contract, and synchronization-conflict tests.
@@ -51,6 +54,7 @@
 ## Unsupported claims
 
 Reimbursd does not currently provide encrypted backups, end-to-end encryption, authentication,
-hosted storage, synchronization, complete data deletion, secure deletion guarantees, OCR, or remote
-AI processing. Local receipt storage is not described as encrypted. Product surfaces and
+hosted storage, synchronization, complete data deletion, secure deletion guarantees, Android/web
+OCR, or remote AI processing. iOS OCR has not been exercised on Apple hardware in this Linux
+environment. Local receipt storage is not described as encrypted. Product surfaces and
 documentation must not imply otherwise.

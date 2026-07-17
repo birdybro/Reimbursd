@@ -4,6 +4,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReceiptDeletionCoordinator } from '@reimbursd/attachments';
 import {
   ReceiptConflictError,
+  type ProcessingHistoryRepository,
   type ReceiptDocumentRepository,
   type ReceiptRepository,
 } from '@reimbursd/database';
@@ -86,6 +87,15 @@ function createDocumentRepository(): jest.Mocked<ReceiptDocumentRepository> {
     listByReceiptId: jest.fn().mockResolvedValue([]),
     listPendingStorageDeletion: jest.fn().mockResolvedValue([]),
     markStorageDeleted: jest.fn(),
+  };
+}
+
+function createProcessingHistoryRepository(): jest.Mocked<ProcessingHistoryRepository> {
+  return {
+    complete: jest.fn(),
+    create: jest.fn(),
+    getById: jest.fn(),
+    listByReceiptId: jest.fn().mockResolvedValue([]),
   };
 }
 
@@ -226,6 +236,7 @@ describe('manual expense screens', () => {
         onDeleted={onDeleted}
         onEdit={jest.fn()}
         onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
+        processingHistoryRepository={createProcessingHistoryRepository()}
         receipt={receipt}
       />,
     );
@@ -262,6 +273,7 @@ describe('manual expense screens', () => {
         onDeleted={onDeleted}
         onEdit={jest.fn()}
         onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
+        processingHistoryRepository={createProcessingHistoryRepository()}
         receipt={receipt}
       />,
     );
@@ -294,6 +306,7 @@ describe('manual expense screens', () => {
         onDeleted={jest.fn()}
         onEdit={jest.fn()}
         onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
+        processingHistoryRepository={createProcessingHistoryRepository()}
         receipt={receipt}
       />,
     );
@@ -330,7 +343,25 @@ describe('manual expense screens', () => {
     };
     const attachmentStorage = createAttachmentStorage();
     const documentRepository = createDocumentRepository();
+    const processingHistoryRepository = createProcessingHistoryRepository();
     documentRepository.listByReceiptId.mockResolvedValue([imageOriginal, preview]);
+    processingHistoryRepository.listByReceiptId.mockResolvedValue([
+      {
+        affectedFields: [],
+        completedAt: '2026-07-15T12:00:01.000Z',
+        executionLocation: 'local',
+        failureCode: null,
+        id: '66666666-6666-4666-8666-666666666666',
+        modelVersion: null,
+        processorName: 'reimbursd-receipt-ocr',
+        processorVersion: '1.0.0',
+        providerName: 'reimbursd-apple-vision-ocr',
+        receiptId: receipt.id,
+        reviewStatus: 'not_applicable',
+        startedAt: '2026-07-15T12:00:00.000Z',
+        status: 'succeeded',
+      },
+    ]);
     const screen = await render(
       <ExpenseDetailScreen
         attachmentStorage={attachmentStorage}
@@ -340,11 +371,14 @@ describe('manual expense screens', () => {
         onDeleted={jest.fn()}
         onEdit={jest.fn()}
         onRefreshCleanup={jest.fn().mockResolvedValue(undefined)}
+        processingHistoryRepository={processingHistoryRepository}
         receipt={receipt}
       />,
     );
 
     expect(await screen.findByLabelText('Generated local receipt preview')).toBeTruthy();
+    expect(await screen.findByText('Local OCR complete')).toBeTruthy();
+    expect(screen.getByText('Text recognized on this device')).toBeTruthy();
     expect(attachmentStorage.openForDisplay).toHaveBeenCalledWith(preview.storageReference);
     expect(screen.getByText('Original')).toBeTruthy();
     expect(screen.getByText('Derived')).toBeTruthy();
