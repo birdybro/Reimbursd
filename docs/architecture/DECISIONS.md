@@ -7,3 +7,5 @@
 | [0003](adr/0003-local-attachment-storage.md)               | Accepted | Preserve originals in private file storage behind a validated ingestion boundary |
 | [0004](adr/0004-processing-provenance-and-ocr-boundary.md) | Accepted | Validate OCR output and persist reviewable provenance without raw errors         |
 | [0005](adr/0005-apple-vision-local-ocr.md)                 | Accepted | Use a local Apple Vision adapter and reject telemetry-bearing OCR SDKs           |
+| [0006](adr/0006-deterministic-receipt-parser.md)           | Accepted | Parse validated OCR deterministically into reviewable local field evidence       |
+| [0007](adr/0007-local-category-and-tag-storage.md)         | Accepted | Store versioned local categories, tags, and explicit assignment tombstones       |

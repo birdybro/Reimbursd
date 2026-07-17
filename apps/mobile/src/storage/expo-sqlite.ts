@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import {
   migrateDatabase,
+  SqliteCategoryRepository,
   SqliteFieldEvidenceRepository,
   SqliteProcessingHistoryRepository,
   SqliteReceiptDocumentRepository,
   SqliteReceiptRepository,
   SqliteReceiptReviewRepository,
+  SqliteTagRepository,
+  type CategoryRepository,
   type FieldEvidenceRepository,
   type ProcessingHistoryRepository,
   type ReceiptDocumentRepository,
@@ -14,17 +17,20 @@ import {
   type SqliteConnection,
   type SqliteRunResult,
   type SqliteValue,
+  type TagRepository,
 } from '@reimbursd/database';
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 
 const databaseName = 'reimbursd.db';
 
 export interface LocalRepositories {
+  readonly categories: CategoryRepository;
   readonly documents: ReceiptDocumentRepository;
   readonly evidence: FieldEvidenceRepository;
   readonly processingHistory: ProcessingHistoryRepository;
   readonly receipts: ReceiptRepository;
   readonly reviews: ReceiptReviewRepository;
+  readonly tags: TagRepository;
 }
 
 let repositoryPromise: Promise<LocalRepositories> | undefined;
@@ -47,11 +53,13 @@ async function initializeRepositories(): Promise<LocalRepositories> {
   await connection.exec('PRAGMA journal_mode = WAL;');
   await migrateDatabase(connection);
   return {
+    categories: new SqliteCategoryRepository(connection),
     documents: new SqliteReceiptDocumentRepository(connection),
     evidence: new SqliteFieldEvidenceRepository(connection),
     processingHistory: new SqliteProcessingHistoryRepository(connection),
     receipts: new SqliteReceiptRepository(connection),
     reviews: new SqliteReceiptReviewRepository(connection),
+    tags: new SqliteTagRepository(connection),
   };
 }
 

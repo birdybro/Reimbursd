@@ -54,3 +54,17 @@ export {
   type ProcessingReviewStatus,
   type ProcessingStatus,
 } from './processing.js';
+export {
+  assertValidCategory,
+  assertValidTag,
+  createCategory,
+  createTag,
+  normalizeClassificationName,
+  ClassificationValidationError,
+  validateCategory,
+  validateTag,
+  type Category,
+  type ClassificationValidationIssue,
+  type CreateClassificationInput,
+  type Tag,
+} from './classification.js';

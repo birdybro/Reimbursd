@@ -16,9 +16,11 @@ authoritative user corrections, the versioned receipt update, and parser review 
 ## Active direction
 
 Use npm workspaces, strict TypeScript, Expo SDK 57, and framework-independent domain/database
-packages. Milestone 4 is active. The next work is a backward-compatible category/tag domain and
-SQLite slice before reporting or export. Keep existing receipts valid and local, preserve imported
-originals exactly, and do not add hosted processing, synchronization, or generative AI.
+packages. Milestone 4 is active. Category/tag domain records, migration 6, and local repositories are
+implemented with UUIDs, normalized unique names, optimistic versions, tombstones, and explicit
+in-use deletion errors. The next work is atomic receipt assignment and the corresponding expense UI.
+Keep existing receipts valid and local, preserve imported originals exactly, and do not add hosted
+processing, synchronization, or generative AI.
 
 ## Resume steps
 

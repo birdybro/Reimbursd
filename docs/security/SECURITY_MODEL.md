@@ -34,6 +34,9 @@
 - Receipt review uses optimistic versions and one SQLite transaction for the structured update,
   evidence acceptance/correction markers, authoritative user-correction evidence, and processing
   review status. Any conflict or persistence failure rolls back the complete review.
+- Category and tag boundaries validate UUIDs, normalized bounded names, timestamps, and versions.
+  Normalized duplicates are rejected, tombstones remain reserved, and assigned records cannot be
+  deleted silently.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls

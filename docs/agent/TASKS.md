@@ -96,8 +96,9 @@
 
 ## Milestone 4: Categories, reporting, and exports
 
-- [ ] Define category and tag domain models plus migration implications.
-- [ ] Add local category/tag persistence and receipt assignment.
+- [x] Define category and tag domain models plus migration implications.
+- [x] Add local category/tag persistence with versions, tombstones, and duplicate protection.
+- [ ] Add atomic receipt category/tag assignment and unassignment.
 - [ ] Expand filters for date, merchant, category, tag, and amount.
 - [ ] Add monthly and category totals.
 - [ ] Add CSV and complete structured export with attachment checksums.

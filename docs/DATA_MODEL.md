@@ -2,16 +2,17 @@
 
 ## Current implementation
 
-The domain package defines money parsing, formatting, receipt construction, date normalization, and
-receipt validation. Persisted monetary values use nonnegative safe integer minor units;
-floating-point values are not accepted at the persistence boundary.
+The domain package defines money parsing, formatting, receipt construction, date normalization,
+receipt validation, and category/tag identity rules. Persisted monetary values use nonnegative safe
+integer minor units; floating-point values are not accepted at the persistence boundary.
 
 ## Local SQLite schema
 
 Migration `1` creates `schema_migrations`, `merchants`, and `receipts`. Migration `2` creates
 `receipt_documents`, migration `3` adds explicit document capture/import provenance, and migration
 `4` adds durable attachment-deletion state. Migration `5` adds field evidence and processing
-history.
+history. Migration `6` adds local categories, tags, and versioned receipt-tag relationships without
+rewriting existing receipt rows.
 
 `merchants` stores a stable UUID, display and normalized names, optional website and phone columns,
 and creation/update timestamps. The normalized name is unique so repeated manual entries can reuse
@@ -76,6 +77,13 @@ a bounded machine code, not raw provider errors or receipt text. A running row c
 completed state exactly once. Successful parser rows move from `pending` to `accepted` or
 `corrected` during the same transaction as the reviewed receipt values.
 
-Later schemas will add locations, categories, tags, optional line items, and delete-all tracking
-without weakening the local-only workflow. The current nullable category and location references
-are reserved fields, not complete features.
+`categories` and `tags` store stable UUIDs, whitespace-normalized display names, case-normalized
+unique names, timestamps, optimistic versions, and deletion tombstones. Active reads exclude
+tombstones. Names remain reserved after deletion to prevent silent identity reuse. Assigned records
+must be explicitly unassigned before deletion.
+
+`receipt_tags` uses the receipt/tag UUID pair as its stable relationship key and stores assignment,
+update, version, and deletion state for future offline synchronization. Receipt assignment APIs and
+UI are not implemented yet. Later schemas will add locations, optional line items, and delete-all
+tracking without weakening the local-only workflow. The current nullable location reference remains
+a reserved field, not a complete feature.

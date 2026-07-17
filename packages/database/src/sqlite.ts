@@ -190,6 +190,51 @@ const migrations: readonly Migration[] = [
     `,
     version: 5,
   },
+  {
+    name: 'local_categories_and_tags',
+    sql: `
+      CREATE TABLE categories (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
+        normalized_name TEXT NOT NULL UNIQUE CHECK (length(normalized_name) BETWEEN 1 AND 80),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        version INTEGER NOT NULL CHECK (version >= 1),
+        deleted_at TEXT
+      );
+
+      CREATE INDEX categories_active_name_idx
+        ON categories(deleted_at, normalized_name, id);
+
+      CREATE TABLE tags (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
+        normalized_name TEXT NOT NULL UNIQUE CHECK (length(normalized_name) BETWEEN 1 AND 80),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        version INTEGER NOT NULL CHECK (version >= 1),
+        deleted_at TEXT
+      );
+
+      CREATE INDEX tags_active_name_idx ON tags(deleted_at, normalized_name, id);
+
+      CREATE TABLE receipt_tags (
+        receipt_id TEXT NOT NULL REFERENCES receipts(id),
+        tag_id TEXT NOT NULL REFERENCES tags(id),
+        assigned_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        version INTEGER NOT NULL CHECK (version >= 1),
+        deleted_at TEXT,
+        PRIMARY KEY (receipt_id, tag_id)
+      );
+
+      CREATE INDEX receipt_tags_active_receipt_idx
+        ON receipt_tags(receipt_id, deleted_at, tag_id);
+      CREATE INDEX receipt_tags_active_tag_idx
+        ON receipt_tags(tag_id, deleted_at, receipt_id);
+    `,
+    version: 6,
+  },
 ];
 
 export const schemaVersion = migrations.at(-1)?.version ?? 0;

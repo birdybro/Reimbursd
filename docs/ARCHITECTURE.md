@@ -26,6 +26,12 @@ The receipt repository uses transactions for multi-table writes, parameterized s
 optimistic record versions, and deletion tombstones. UI code depends on the repository interface,
 not Expo SQLite directly.
 
+Milestone 4 category and tag records are framework-independent, UUID-backed, versioned, and
+tombstoned. Shared SQLite repositories validate them on every read and write, reject normalized name
+collisions, and prevent deletion while an active receipt assignment exists. Migration 6 leaves
+existing nullable receipt categories unchanged and creates versioned receipt-tag relationships for
+the later assignment flow.
+
 Receipt bytes cross a framework-independent ingestion boundary that validates decoded JPEG, PNG,
 or PDF content, applies configurable resource limits, calculates SHA-256, detects duplicate
 originals, and coordinates immutable file creation with metadata persistence. Native files use the
@@ -84,4 +90,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0003](architecture/adr/0003-local-attachment-storage.md), and
 [ADR-0004](architecture/adr/0004-processing-provenance-and-ocr-boundary.md), and
 [ADR-0005](architecture/adr/0005-apple-vision-local-ocr.md), and
-[ADR-0006](architecture/adr/0006-deterministic-receipt-parser.md) for accepted decisions.
+[ADR-0006](architecture/adr/0006-deterministic-receipt-parser.md), and
+[ADR-0007](architecture/adr/0007-local-category-and-tag-storage.md) for accepted decisions.

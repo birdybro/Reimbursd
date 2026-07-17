@@ -26,6 +26,10 @@ committed atomically. Reviewed evidence remains authoritative over later automat
 unavailable on Android, web, and Expo Go until a compatible local engine is implemented. Receipt
 text is not sent to a Reimbursd or third-party service.
 
+Milestone 4 is underway. The local schema and repositories now support validated, versioned,
+tombstoned categories and tags while keeping existing receipts valid. Receipt assignment, reporting,
+export, restore, and delete-all workflows are still pending.
+
 ## Requirements
 
 - Node.js 22 or newer

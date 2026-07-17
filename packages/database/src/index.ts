@@ -38,3 +38,14 @@ export {
   type FieldEvidenceRepository,
   type ProcessingHistoryRepository,
 } from './processing-repository.js';
+export {
+  ClassificationConflictError,
+  ClassificationDuplicateNameError,
+  ClassificationInUseError,
+  ClassificationNotFoundError,
+  SqliteCategoryRepository,
+  SqliteTagRepository,
+  type CategoryRepository,
+  type TagRepository,
+  type UpdateClassificationInput,
+} from './classification-repository.js';
