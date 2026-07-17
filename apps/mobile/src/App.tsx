@@ -11,6 +11,7 @@ import {
   ReceiptDeletionCoordinator,
 } from '@reimbursd/attachments';
 import type { Receipt } from '@reimbursd/domain';
+import { DeterministicReceiptParser, type DateOrder } from '@reimbursd/extraction';
 
 import { AppHeader } from './components/AppHeader';
 import { LegalModal } from './components/LegalModal';
@@ -98,7 +99,9 @@ function AppContent() {
             storage,
           });
           const ocr = new LocalReceiptOcrProcessor({
+            evidence: repositories.evidence,
             history: repositories.processingHistory,
+            parser: new DeterministicReceiptParser(),
             provider: new AppleVisionOcrProvider(),
             storage,
           });
@@ -163,7 +166,14 @@ function AppContent() {
       setImporting(true);
       const imported = await repositoryState.capture.import(selection);
       await repositoryState.ocr
-        .process(imported.preview ?? imported.document)
+        .process({
+          document: imported.preview ?? imported.document,
+          parserContext: {
+            dateOrder: getLocalDateOrder(),
+            defaultCurrencyCode: imported.receipt.currencyCode,
+            timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+          },
+        })
         .catch(() => 'failed');
       setRoute({ name: 'detail', receipt: imported.receipt });
     } catch (error) {
@@ -249,6 +259,7 @@ function AppContent() {
             attachmentStorage={repositoryState.storage}
             deletionCoordinator={repositoryState.deletion}
             documentRepository={repositoryState.repositories.documents}
+            evidenceRepository={repositoryState.repositories.evidence}
             processingHistoryRepository={repositoryState.repositories.processingHistory}
             onDeleted={() => setRoute({ name: 'list' })}
             onCleanupNeeded={() =>
@@ -271,6 +282,18 @@ function AppContent() {
       <LegalModal onClose={() => setLegalVisible(false)} visible={legalVisible} />
     </SafeAreaView>
   );
+}
+
+function getLocalDateOrder(): DateOrder {
+  const parts = new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
+  }).formatToParts(new Date(2001, 10, 22));
+  const dayIndex = parts.findIndex(({ type }) => type === 'day');
+  const monthIndex = parts.findIndex(({ type }) => type === 'month');
+
+  return dayIndex >= 0 && monthIndex >= 0 && dayIndex < monthIndex ? 'dmy' : 'mdy';
 }
 
 function getCleanupIssue(failures: readonly unknown[] | null): string | null {

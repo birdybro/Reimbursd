@@ -72,10 +72,11 @@
 - [x] Add versioned local persistence for evidence and processing history.
 - [x] Define the OCR provider contract and deterministic test provider.
 - [x] Add an offline-capable Apple Vision provider for iOS development and release builds.
-- [ ] Parse receipt text into candidate merchant, date, subtotal, tax, tip, and total fields.
-- [ ] Add review UI with confidence and local/remote provenance.
+- [x] Parse receipt text into candidate merchant, date, currency, subtotal, tax, tip, and total
+      fields.
+- [x] Add review UI with confidence and local/remote provenance.
 - [ ] Preserve accepted user corrections across later processing runs.
-- [ ] Highlight source regions when bounding boxes are available.
+- [x] Highlight source regions when bounding boxes and a local image preview are available.
 
 ### Acceptance criteria for the current milestone
 
@@ -85,5 +86,7 @@
 - Processing attempts record local/remote execution, processor version, timing, status, and redacted
   failures without storing receipt text in logs.
 - Suggested values remain distinct from confirmed receipt fields until the user accepts them.
+- Parser candidates are validated and persisted atomically as unaccepted evidence after OCR history
+  completes; parser or evidence failures do not change the successful OCR result.
 - Supported iOS builds run OCR through an operating-system framework without a hosted service;
   Android, web, and Expo Go fail gracefully without reading bytes or invoking a remote fallback.

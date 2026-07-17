@@ -64,6 +64,8 @@ confidence, optional page number and normalized page rectangle, processing time,
 correction time. Bounding-box coordinates are constrained to the inclusive 0-to-1 page space so
 they remain independent of display size. Repository precedence ranks user corrections, manual
 values, and accepted suggestions above unreviewed automated output.
+Candidate sets from one parser run are inserted in a single transaction so a constraint failure
+cannot leave partial extraction evidence.
 
 `processing_history` stores processor/provider identity, local or remote execution, optional model
 version, start/completion time, lifecycle status, affected fields, and review status. Failures store

@@ -9,6 +9,7 @@ apps/mobile       Expo and React Native client
 packages/attachments File inspection and attachment-ingestion coordination
 packages/domain   Framework-independent business rules
 packages/database SQLite ports, migrations, and local repositories
+packages/extraction Validated deterministic receipt-field parsing
 packages/ocr      Validated OCR provider contract and deterministic test provider
 ```
 
@@ -60,6 +61,15 @@ and processing history contains only bounded status codes. The module is optiona
 and Expo Go keep the receipt usable and record that OCR is unavailable without loading a remote
 fallback.
 
+Validated OCR output is passed to a separate deterministic parser in `packages/extraction`. Parser
+context supplies an explicit default currency, locale date order, and timezone offset. Both context
+and parser output cross validation boundaries; instruction-like receipt lines are treated only as
+untrusted data and are excluded from merchant candidates. Candidate evidence is written in one
+SQLite transaction after successful OCR, while parsing and persistence have their own processing
+history result. The detail screen keeps unaccepted suggestions separate from saved receipt values,
+shows confidence and execution provenance, and maps normalized page rectangles onto a contained
+image preview when a user selects a sourced field.
+
 ## Intended growth
 
 Future work may add `apps/web`, `apps/api`, `apps/worker`, and focused packages for schemas,
@@ -70,4 +80,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0002](architecture/adr/0002-local-sqlite-repository.md), and
 [ADR-0003](architecture/adr/0003-local-attachment-storage.md), and
 [ADR-0004](architecture/adr/0004-processing-provenance-and-ocr-boundary.md), and
-[ADR-0005](architecture/adr/0005-apple-vision-local-ocr.md) for accepted decisions.
+[ADR-0005](architecture/adr/0005-apple-vision-local-ocr.md), and
+[ADR-0006](architecture/adr/0006-deterministic-receipt-parser.md) for accepted decisions.

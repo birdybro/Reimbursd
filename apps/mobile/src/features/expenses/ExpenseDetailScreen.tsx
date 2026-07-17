@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { FileImage, FileText, Pencil, ShieldCheck, Trash2 } from 'lucide-react-native';
+import { Crosshair, FileImage, FileText, Pencil, ShieldCheck, Trash2 } from 'lucide-react-native';
 import {
   ActivityIndicator,
   Image,
+  type LayoutChangeEvent,
   Modal,
   Pressable,
   ScrollView,
@@ -13,9 +14,17 @@ import {
 import { useEffect, useState } from 'react';
 
 import type { AttachmentCleanupFailure, ReceiptDeletionCoordinator } from '@reimbursd/attachments';
-import type { ProcessingHistoryRepository, ReceiptDocumentRepository } from '@reimbursd/database';
+import type {
+  FieldEvidenceRepository,
+  ProcessingHistoryRepository,
+  ReceiptDocumentRepository,
+} from '@reimbursd/database';
 import {
+  canSupersedeFieldEvidence,
+  evidenceFieldNames,
   formatMinorUnits,
+  isSupportedCurrencyCode,
+  type FieldEvidence,
   type ProcessingHistory,
   type Receipt,
   type ReceiptDocument,
@@ -32,6 +41,7 @@ interface ExpenseDetailScreenProps {
     'cleanupDocuments' | 'deleteReceipt'
   >;
   readonly documentRepository: ReceiptDocumentRepository;
+  readonly evidenceRepository: FieldEvidenceRepository;
   readonly onCleanupNeeded: () => void;
   readonly onDeleted: () => void;
   readonly onEdit: () => void;
@@ -49,6 +59,7 @@ export function ExpenseDetailScreen({
   attachmentStorage,
   deletionCoordinator,
   documentRepository,
+  evidenceRepository,
   onCleanupNeeded,
   onDeleted,
   onEdit,
@@ -63,8 +74,12 @@ export function ExpenseDetailScreen({
   const [documents, setDocuments] = useState<readonly ReceiptDocument[]>([]);
   const [documentsError, setDocumentsError] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [evidence, setEvidence] = useState<readonly FieldEvidence[]>([]);
+  const [evidenceError, setEvidenceError] = useState(false);
   const [previewDisplay, setPreviewDisplay] = useState<PreviewDisplayState>(null);
+  const [previewLayout, setPreviewLayout] = useState<PreviewLayout | null>(null);
   const [processingHistory, setProcessingHistory] = useState<readonly ProcessingHistory[]>([]);
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -89,6 +104,28 @@ export function ExpenseDetailScreen({
       active = false;
     };
   }, [documentRepository, receipt.id]);
+
+  useEffect(() => {
+    let active = true;
+
+    evidenceRepository
+      .listByReceiptId(receipt.id)
+      .then((result) => {
+        if (active) {
+          setEvidence(result);
+          setEvidenceError(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setEvidenceError(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [evidenceRepository, receipt.id]);
 
   useEffect(() => {
     let active = true;
@@ -155,7 +192,17 @@ export function ExpenseDetailScreen({
   const latestOcrHistory = processingHistory
     .filter((history) => history.processorName === 'reimbursd-receipt-ocr')
     .at(-1);
-  const processingSummary = getProcessingSummary(hasOriginal, latestOcrHistory);
+  const latestParserHistory = processingHistory
+    .filter((history) => history.processorName === 'reimbursd-deterministic-parser')
+    .at(-1);
+  const suggestions = getPreferredSuggestions(evidence);
+  const suggestedCurrencyCode = getSuggestedCurrencyCode(suggestions, receipt.currencyCode);
+  const processingSummary = getProcessingSummary(
+    hasOriginal,
+    latestOcrHistory,
+    latestParserHistory,
+    suggestions.length,
+  );
   const hasImageOriginal = documents.some(
     (document) => document.isOriginal && document.mimeType !== 'application/pdf',
   );
@@ -166,6 +213,8 @@ export function ExpenseDetailScreen({
   const previewError = currentPreviewDisplay?.status === 'error';
   const previewLoading = previewDocument !== undefined && currentPreviewDisplay === null;
   const previewUri = currentPreviewDisplay?.status === 'ready' ? currentPreviewDisplay.uri : null;
+  const selectedEvidence = suggestions.find(({ id }) => id === selectedEvidenceId);
+  const highlightStyle = getHighlightStyle(selectedEvidence, previewDocument, previewLayout);
 
   const deleteReceipt = async () => {
     setDeleting(true);
@@ -244,6 +293,12 @@ export function ExpenseDetailScreen({
       ) : previewUri !== null && previewDocument !== undefined ? (
         <View
           accessibilityLabel="Generated local receipt preview"
+          onLayout={(event: LayoutChangeEvent) => {
+            setPreviewLayout({
+              height: event.nativeEvent.layout.height,
+              width: event.nativeEvent.layout.width,
+            });
+          }}
           style={[
             styles.previewFrame,
             {
@@ -257,12 +312,46 @@ export function ExpenseDetailScreen({
             source={{ uri: previewUri }}
             style={styles.previewImage}
           />
+          {highlightStyle === null ? null : (
+            <View
+              accessibilityLabel="Receipt source highlight"
+              pointerEvents="none"
+              style={[styles.sourceHighlight, highlightStyle]}
+            />
+          )}
         </View>
       ) : previewError || (!documentsLoading && !documentsError && hasImageOriginal) ? (
         <Text accessibilityLiveRegion="polite" style={styles.previewError}>
           A display preview is unavailable. The original receipt file remains preserved locally.
         </Text>
       ) : null}
+
+      {evidenceError ? (
+        <Text accessibilityLiveRegion="polite" style={styles.documentError}>
+          Suggested values could not be loaded. Saved expense values remain available.
+        </Text>
+      ) : suggestions.length === 0 ? null : (
+        <View style={styles.suggestionsSection}>
+          <Text style={styles.sectionLabel}>Suggested values</Text>
+          <View style={styles.suggestionRows}>
+            {suggestions.map((suggestion) => (
+              <SuggestionRow
+                currencyCode={suggestedCurrencyCode}
+                evidence={suggestion}
+                highlightAvailable={
+                  previewUri !== null &&
+                  previewDocument?.widthPixels !== null &&
+                  previewDocument?.widthPixels !== undefined &&
+                  previewDocument.heightPixels !== null
+                }
+                key={suggestion.id}
+                onSelect={() => setSelectedEvidenceId(suggestion.id)}
+                selected={suggestion.id === selectedEvidenceId}
+              />
+            ))}
+          </View>
+        </View>
+      )}
 
       {documentsLoading ? (
         <View accessibilityLabel="Loading receipt files" style={styles.documentLoading}>
@@ -281,6 +370,7 @@ export function ExpenseDetailScreen({
         </View>
       )}
 
+      <Text style={styles.savedValuesLabel}>Saved values</Text>
       <View style={styles.amounts}>
         <AmountRow
           label="Subtotal"
@@ -397,40 +487,237 @@ export function ExpenseDetailScreen({
 
 function getProcessingSummary(
   hasOriginal: boolean,
-  history: ProcessingHistory | undefined,
+  ocrHistory: ProcessingHistory | undefined,
+  parserHistory: ProcessingHistory | undefined,
+  suggestionCount: number,
 ): { readonly detail: string; readonly title: string } {
   if (!hasOriginal) {
     return { detail: 'Saved and processed locally', title: 'Manual entry' };
   }
 
-  if (history?.status === 'succeeded') {
+  if (parserHistory?.status === 'succeeded' && suggestionCount > 0) {
+    return {
+      detail: `${suggestionCount} local ${suggestionCount === 1 ? 'field' : 'fields'} to verify`,
+      title: 'Suggested values ready',
+    };
+  }
+
+  if (ocrHistory?.status === 'succeeded') {
     return { detail: 'Text recognized on this device', title: 'Local OCR complete' };
   }
 
   if (
-    history?.status === 'failed' &&
+    ocrHistory?.status === 'failed' &&
     [
       'development_build_required',
       'device_unsupported',
       'native_module_unavailable',
       'unsupported_platform',
-    ].includes(history.failureCode ?? '')
+    ].includes(ocrHistory.failureCode ?? '')
   ) {
     return { detail: 'Original preserved. Enter values manually.', title: 'Local OCR unavailable' };
   }
 
-  if (history?.status === 'failed' || history?.status === 'cancelled') {
+  if (ocrHistory?.status === 'failed' || ocrHistory?.status === 'cancelled') {
     return {
       detail: 'Original preserved. Enter values manually.',
       title: 'Local OCR did not finish',
     };
   }
 
-  if (history?.status === 'running') {
+  if (ocrHistory?.status === 'running') {
     return { detail: 'Original preserved on this device', title: 'Local OCR in progress' };
   }
 
   return { detail: 'Original preserved on this device', title: 'Local receipt file' };
+}
+
+interface PreviewLayout {
+  readonly height: number;
+  readonly width: number;
+}
+
+function getPreferredSuggestions(evidence: readonly FieldEvidence[]): readonly FieldEvidence[] {
+  const automatedSuggestions = evidence.filter(
+    (item) =>
+      item.acceptedAt === null &&
+      item.correctedAt === null &&
+      item.sourceType !== 'manual' &&
+      item.sourceType !== 'user_correction',
+  );
+
+  return evidenceFieldNames.flatMap((fieldName) => {
+    const preferred = automatedSuggestions
+      .filter((item) => item.fieldName === fieldName)
+      .reduce<FieldEvidence | null>((current, candidate) => {
+        if (current === null || canSupersedeFieldEvidence(candidate, current)) {
+          return candidate;
+        }
+
+        return current;
+      }, null);
+
+    return preferred === null ? [] : [preferred];
+  });
+}
+
+interface SuggestionRowProps {
+  readonly currencyCode: Receipt['currencyCode'];
+  readonly evidence: FieldEvidence;
+  readonly highlightAvailable: boolean;
+  readonly onSelect: () => void;
+  readonly selected: boolean;
+}
+
+function SuggestionRow({
+  currencyCode,
+  evidence,
+  highlightAvailable,
+  onSelect,
+  selected,
+}: SuggestionRowProps) {
+  const label = getEvidenceFieldLabel(evidence.fieldName);
+  const value = formatEvidenceValue(evidence, currencyCode);
+  const confidence = `${Math.round(evidence.confidence * 100)}% confidence`;
+  const source = getEvidenceSourceLabel(evidence);
+  const content = (
+    <>
+      <View style={styles.suggestionCopy}>
+        <Text style={styles.suggestionLabel}>{label}</Text>
+        <Text style={styles.suggestionValue}>{value}</Text>
+        <Text style={styles.suggestionMeta}>
+          {source.label} | {confidence}
+        </Text>
+      </View>
+      {!highlightAvailable || evidence.boundingBox === null || evidence.pageNumber !== 1 ? null : (
+        <Crosshair color={selected ? colors.coral : colors.muted} size={20} strokeWidth={2} />
+      )}
+    </>
+  );
+
+  if (!highlightAvailable || evidence.boundingBox === null || evidence.pageNumber !== 1) {
+    return <View style={styles.suggestionRow}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      accessibilityLabel={`Suggested ${label}, ${value}, ${confidence}, processed ${source.location}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onSelect}
+      style={({ pressed }) => [
+        styles.suggestionRow,
+        selected && styles.suggestionSelected,
+        pressed && styles.pressed,
+      ]}
+    >
+      {content}
+    </Pressable>
+  );
+}
+
+function getEvidenceFieldLabel(fieldName: FieldEvidence['fieldName']): string {
+  return {
+    currency_code: 'Currency',
+    discount_minor: 'Discount',
+    merchant_name: 'Merchant',
+    purchased_at: 'Purchase date',
+    subtotal_minor: 'Subtotal',
+    tax_minor: 'Tax',
+    tip_minor: 'Tip',
+    total_minor: 'Total',
+  }[fieldName];
+}
+
+function formatEvidenceValue(
+  evidence: FieldEvidence,
+  currencyCode: Receipt['currencyCode'],
+): string {
+  if (evidence.fieldName === 'purchased_at') {
+    return formatPurchaseDate(evidence.normalizedValue);
+  }
+
+  if (evidence.fieldName.endsWith('_minor')) {
+    const minorUnits = Number(evidence.normalizedValue);
+
+    if (Number.isSafeInteger(minorUnits)) {
+      return formatMinorUnits(minorUnits, currencyCode);
+    }
+  }
+
+  return evidence.normalizedValue;
+}
+
+function getSuggestedCurrencyCode(
+  suggestions: readonly FieldEvidence[],
+  fallback: Receipt['currencyCode'],
+): Receipt['currencyCode'] {
+  const currency = suggestions.find(({ fieldName }) => fieldName === 'currency_code');
+
+  return currency !== undefined && isSupportedCurrencyCode(currency.normalizedValue)
+    ? currency.normalizedValue
+    : fallback;
+}
+
+function getEvidenceSourceLabel(evidence: FieldEvidence): {
+  readonly label: string;
+  readonly location: 'locally' | 'remotely';
+} {
+  if (evidence.sourceType === 'hosted_ai') {
+    return { label: 'Remote AI extraction', location: 'remotely' };
+  }
+
+  if (evidence.sourceType === 'hosted_ocr') {
+    return { label: 'Remote OCR', location: 'remotely' };
+  }
+
+  if (evidence.sourceType === 'deterministic_parser') {
+    return { label: 'Local deterministic parser', location: 'locally' };
+  }
+
+  if (evidence.sourceType === 'local_ocr') {
+    return { label: 'Local OCR', location: 'locally' };
+  }
+
+  return { label: 'Imported structured data', location: 'locally' };
+}
+
+function getHighlightStyle(
+  evidence: FieldEvidence | undefined,
+  previewDocument: ReceiptDocument | undefined,
+  previewLayout: PreviewLayout | null,
+) {
+  if (
+    evidence?.boundingBox === null ||
+    evidence?.boundingBox === undefined ||
+    evidence.pageNumber !== 1 ||
+    previewDocument?.widthPixels === null ||
+    previewDocument?.widthPixels === undefined ||
+    previewDocument.heightPixels === null ||
+    previewLayout === null
+  ) {
+    return null;
+  }
+
+  const imageAspectRatio = previewDocument.widthPixels / previewDocument.heightPixels;
+  const frameAspectRatio = previewLayout.width / previewLayout.height;
+  const imageWidth =
+    imageAspectRatio > frameAspectRatio
+      ? previewLayout.width
+      : previewLayout.height * imageAspectRatio;
+  const imageHeight =
+    imageAspectRatio > frameAspectRatio
+      ? previewLayout.width / imageAspectRatio
+      : previewLayout.height;
+  const horizontalOffset = (previewLayout.width - imageWidth) / 2;
+  const verticalOffset = (previewLayout.height - imageHeight) / 2;
+
+  return {
+    height: evidence.boundingBox.height * imageHeight,
+    left: horizontalOffset + evidence.boundingBox.x * imageWidth,
+    top: verticalOffset + evidence.boundingBox.y * imageHeight,
+    width: evidence.boundingBox.width * imageWidth,
+  };
 }
 
 function DocumentRow({ document }: { readonly document: ReceiptDocument }) {
@@ -749,6 +1036,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 180,
+  },
+  savedValuesLabel: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 9,
+    textTransform: 'uppercase',
+  },
+  sourceHighlight: {
+    backgroundColor: 'rgba(201, 78, 56, 0.14)',
+    borderColor: colors.coral,
+    borderRadius: 3,
+    borderWidth: 2,
+    position: 'absolute',
+  },
+  suggestionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  suggestionLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  suggestionMeta: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  suggestionRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 70,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  suggestionRows: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 9,
+  },
+  suggestionSelected: {
+    backgroundColor: colors.softGreen,
+  },
+  suggestionsSection: {
+    marginBottom: 22,
+  },
+  suggestionValue: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 4,
   },
   notes: {
     color: colors.ink,

@@ -18,8 +18,12 @@ project does not claim production readiness.
 
 Milestone 3 foundations now include durable field evidence and processing history, a validated OCR
 provider contract, a deterministic test provider, and on-device Apple Vision OCR in iOS development
-or release builds. OCR is unavailable on Android, web, and Expo Go until a compatible local engine
-is implemented. Receipt text is not sent to a Reimbursd or third-party service.
+or release builds. Validated OCR text is parsed locally into merchant, purchase date, currency, and
+amount suggestions. The review surface keeps suggestions separate from saved values, shows
+confidence and provenance, and can highlight source rectangles on image previews. Accepting or
+correcting suggestions is not yet implemented. OCR is unavailable on Android, web, and Expo Go
+until a compatible local engine is implemented. Receipt text is not sent to a Reimbursd or
+third-party service.
 
 ## Requirements
 

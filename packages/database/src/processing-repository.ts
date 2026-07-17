@@ -16,6 +16,7 @@ import type { SqliteConnection, SqliteValue } from './sqlite.js';
 
 export interface FieldEvidenceRepository {
   create(evidence: FieldEvidence): Promise<FieldEvidence>;
+  createMany(evidence: readonly FieldEvidence[]): Promise<readonly FieldEvidence[]>;
   getPreferred(receiptId: string, fieldName: EvidenceFieldName): Promise<FieldEvidence | null>;
   listByReceiptId(
     receiptId: string,
@@ -121,22 +122,49 @@ export class SqliteFieldEvidenceRepository implements FieldEvidenceRepository {
   }
 
   async create(evidence: FieldEvidence): Promise<FieldEvidence> {
-    assertValidFieldEvidence(evidence);
+    const created = await this.createMany([evidence]);
+    const result = created[0];
+
+    if (result === undefined) {
+      throw new Error('Field evidence creation returned no record.');
+    }
+
+    return result;
+  }
+
+  async createMany(evidence: readonly FieldEvidence[]): Promise<readonly FieldEvidence[]> {
+    if (evidence.length === 0) {
+      return [];
+    }
+
+    for (const item of evidence) {
+      assertValidFieldEvidence(item);
+    }
+
+    const receiptId = evidence[0]?.receiptId;
+
+    if (receiptId === undefined || evidence.some((item) => item.receiptId !== receiptId)) {
+      throw new TypeError('A field evidence batch must belong to one receipt.');
+    }
 
     return this.#connection.transaction(async () => {
-      await assertActiveReceipt(this.#connection, evidence.receiptId);
-      await this.#connection.run(
-        `
-          INSERT INTO field_evidence (
-            id, receipt_id, field_name, extracted_value, normalized_value, source_type,
-            processor_name, processor_version, confidence, page_number, bounding_box_x,
-            bounding_box_y, bounding_box_width, bounding_box_height, processed_at,
-            accepted_at, corrected_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-        `,
-        evidenceParameters(evidence),
-      );
-      return evidence;
+      await assertActiveReceipt(this.#connection, receiptId);
+
+      for (const item of evidence) {
+        await this.#connection.run(
+          `
+            INSERT INTO field_evidence (
+              id, receipt_id, field_name, extracted_value, normalized_value, source_type,
+              processor_name, processor_version, confidence, page_number, bounding_box_x,
+              bounding_box_y, bounding_box_width, bounding_box_height, processed_at,
+              accepted_at, corrected_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          `,
+          evidenceParameters(item),
+        );
+      }
+
+      return [...evidence];
     });
   }
 

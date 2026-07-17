@@ -106,6 +106,41 @@ describe('SQLite processing provenance repositories', () => {
     connection.close();
   });
 
+  it('creates a candidate set atomically', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipts = new SqliteReceiptRepository(connection);
+    const receipt = makeReceipt();
+    await receipts.create(receipt);
+    const repository = new SqliteFieldEvidenceRepository(connection);
+    const total = makeEvidence(receipt.id);
+    const tax = makeEvidence(receipt.id, {
+      fieldName: 'tax_minor',
+      id: randomUUID(),
+      normalizedValue: '100',
+    });
+
+    await expect(repository.createMany([tax, total])).resolves.toEqual([tax, total]);
+    const persisted = await repository.listByReceiptId(receipt.id);
+    expect(persisted).toHaveLength(2);
+    expect(persisted).toEqual(expect.arrayContaining([tax, total]));
+    connection.close();
+  });
+
+  it('rolls back every candidate when a batch insert fails', async () => {
+    const connection = new NodeSqliteConnection(':memory:');
+    await migrateDatabase(connection);
+    const receipts = new SqliteReceiptRepository(connection);
+    const receipt = makeReceipt();
+    await receipts.create(receipt);
+    const repository = new SqliteFieldEvidenceRepository(connection);
+    const duplicate = makeEvidence(receipt.id);
+
+    await expect(repository.createMany([duplicate, duplicate])).rejects.toThrow();
+    await expect(repository.listByReceiptId(receipt.id)).resolves.toEqual([]);
+    connection.close();
+  });
+
   it('rejects new provenance after its receipt is tombstoned', async () => {
     const connection = new NodeSqliteConnection(':memory:');
     await migrateDatabase(connection);

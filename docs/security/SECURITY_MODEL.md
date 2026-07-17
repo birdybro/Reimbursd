@@ -28,6 +28,9 @@
 - iOS OCR uses a GPL-licensed local Expo adapter around the operating-system Vision framework.
   Validated bytes are copied to a unique private cache file, the file is removed after success or
   failure, and malformed native output is rejected before typed use.
+- Deterministic extraction validates locale context and parser output, bounds candidate text, treats
+  instruction-like receipt lines as data rather than commands, and atomically persists only typed
+  field evidence. Suggestions remain separate from saved receipt values.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -45,8 +48,8 @@
 
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available, and
   complete data deletion.
-- An Android-compatible offline OCR adapter, deterministic parsing, evidence review UI, and
-  source-region highlighting.
+- An Android-compatible offline OCR adapter and accept/correct review actions that keep user
+  corrections authoritative across later processing runs.
 - Secure platform key storage and authenticated encrypted backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
 - Cross-user isolation, backup restoration, provider-contract, and synchronization-conflict tests.

@@ -7,17 +7,19 @@ decoded content validation, configurable limits, local SHA-256, global duplicate
 immutable private file storage, versioned document metadata, original-file provenance UI, and
 durable attachment cleanup after receipt deletion. JPEG and PNG imports also receive bounded,
 separately stored local previews. The web runtime loads both the application and Expo SQLite's WASM
-worker successfully.
+worker successfully. Milestone 3 now has durable processing provenance, a bounded Apple Vision OCR
+adapter for supported iOS builds, deterministic local receipt-field parsing, atomic unaccepted
+evidence persistence, and a review surface with confidence, provenance, and image source-region
+highlighting.
 
 ## Active direction
 
 Use npm workspaces, strict TypeScript, Expo SDK 57, and framework-independent domain/database
-packages. Milestone 3 is active. A GPL-licensed Expo local module now invokes Apple Vision OCR in
-iOS development and release builds; Android, web, and Expo Go record an unavailable outcome without
-reading receipt bytes or using a remote fallback. The native response is bounded and validated, and
-processing history stores only lifecycle metadata and redacted codes. The next work is deterministic
-receipt parsing into field evidence. Preserve imported originals exactly and do not add hosted
-processing, synchronization, or generative AI.
+packages. Milestone 3 is active. OCR and deterministic parsing have separate validated boundaries
+and lifecycle records. Parser output is persisted atomically as unaccepted evidence and remains
+visibly separate from saved values. The next work is accepting or correcting suggestions while
+keeping user decisions authoritative across later processing runs. Preserve imported originals
+exactly and do not add hosted processing, synchronization, or generative AI.
 
 ## Resume steps
 

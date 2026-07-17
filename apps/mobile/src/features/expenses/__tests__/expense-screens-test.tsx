@@ -4,6 +4,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReceiptDeletionCoordinator } from '@reimbursd/attachments';
 import {
   ReceiptConflictError,
+  type FieldEvidenceRepository,
   type ProcessingHistoryRepository,
   type ReceiptDocumentRepository,
   type ReceiptRepository,
@@ -23,6 +24,7 @@ jest.mock('lucide-react-native', () => {
   return {
     Check: MockIcon,
     Camera: MockIcon,
+    Crosshair: MockIcon,
     FileImage: MockIcon,
     FileText: MockIcon,
     Filter: MockIcon,
@@ -95,6 +97,15 @@ function createProcessingHistoryRepository(): jest.Mocked<ProcessingHistoryRepos
     complete: jest.fn(),
     create: jest.fn(),
     getById: jest.fn(),
+    listByReceiptId: jest.fn().mockResolvedValue([]),
+  };
+}
+
+function createEvidenceRepository(): jest.Mocked<FieldEvidenceRepository> {
+  return {
+    create: jest.fn(),
+    createMany: jest.fn(),
+    getPreferred: jest.fn(),
     listByReceiptId: jest.fn().mockResolvedValue([]),
   };
 }
@@ -232,6 +243,7 @@ describe('manual expense screens', () => {
         attachmentStorage={createAttachmentStorage()}
         deletionCoordinator={deletionCoordinator}
         documentRepository={createDocumentRepository()}
+        evidenceRepository={createEvidenceRepository()}
         onCleanupNeeded={jest.fn()}
         onDeleted={onDeleted}
         onEdit={jest.fn()}
@@ -269,6 +281,7 @@ describe('manual expense screens', () => {
         attachmentStorage={createAttachmentStorage()}
         deletionCoordinator={deletionCoordinator}
         documentRepository={createDocumentRepository()}
+        evidenceRepository={createEvidenceRepository()}
         onCleanupNeeded={onCleanupNeeded}
         onDeleted={onDeleted}
         onEdit={jest.fn()}
@@ -302,6 +315,7 @@ describe('manual expense screens', () => {
         attachmentStorage={createAttachmentStorage()}
         deletionCoordinator={createDeletionCoordinator()}
         documentRepository={documentRepository}
+        evidenceRepository={createEvidenceRepository()}
         onCleanupNeeded={jest.fn()}
         onDeleted={jest.fn()}
         onEdit={jest.fn()}
@@ -343,8 +357,27 @@ describe('manual expense screens', () => {
     };
     const attachmentStorage = createAttachmentStorage();
     const documentRepository = createDocumentRepository();
+    const evidenceRepository = createEvidenceRepository();
     const processingHistoryRepository = createProcessingHistoryRepository();
     documentRepository.listByReceiptId.mockResolvedValue([imageOriginal, preview]);
+    evidenceRepository.listByReceiptId.mockResolvedValue([
+      {
+        acceptedAt: null,
+        boundingBox: { height: 0.04, width: 0.18, x: 0.7, y: 0.82 },
+        confidence: 0.91,
+        correctedAt: null,
+        extractedValue: '$14.34',
+        fieldName: 'total_minor',
+        id: '77777777-7777-4777-8777-777777777777',
+        normalizedValue: '1434',
+        pageNumber: 1,
+        processedAt: '2026-07-15T12:00:02.000Z',
+        processorName: 'reimbursd-deterministic-parser',
+        processorVersion: '1.0.0',
+        receiptId: receipt.id,
+        sourceType: 'deterministic_parser',
+      },
+    ]);
     processingHistoryRepository.listByReceiptId.mockResolvedValue([
       {
         affectedFields: [],
@@ -361,12 +394,28 @@ describe('manual expense screens', () => {
         startedAt: '2026-07-15T12:00:00.000Z',
         status: 'succeeded',
       },
+      {
+        affectedFields: ['total_minor'],
+        completedAt: '2026-07-15T12:00:02.000Z',
+        executionLocation: 'local',
+        failureCode: null,
+        id: '88888888-8888-4888-8888-888888888888',
+        modelVersion: null,
+        processorName: 'reimbursd-deterministic-parser',
+        processorVersion: '1.0.0',
+        providerName: 'reimbursd-local-parser',
+        receiptId: receipt.id,
+        reviewStatus: 'pending',
+        startedAt: '2026-07-15T12:00:01.000Z',
+        status: 'succeeded',
+      },
     ]);
     const screen = await render(
       <ExpenseDetailScreen
         attachmentStorage={attachmentStorage}
         deletionCoordinator={createDeletionCoordinator()}
         documentRepository={documentRepository}
+        evidenceRepository={evidenceRepository}
         onCleanupNeeded={jest.fn()}
         onDeleted={jest.fn()}
         onEdit={jest.fn()}
@@ -377,11 +426,24 @@ describe('manual expense screens', () => {
     );
 
     expect(await screen.findByLabelText('Generated local receipt preview')).toBeTruthy();
-    expect(await screen.findByText('Local OCR complete')).toBeTruthy();
-    expect(screen.getByText('Text recognized on this device')).toBeTruthy();
+    expect(await screen.findByText('Suggested values ready')).toBeTruthy();
+    expect(screen.getByText('1 local field to verify')).toBeTruthy();
+    expect(screen.getByText('Suggested values')).toBeTruthy();
+    expect(screen.getByText('Local deterministic parser | 91% confidence')).toBeTruthy();
+    expect(screen.getByText('Saved values')).toBeTruthy();
+    expect(screen.getByText('$14.34')).toBeTruthy();
+    expect(screen.getAllByText('$13.34')).toHaveLength(2);
     expect(attachmentStorage.openForDisplay).toHaveBeenCalledWith(preview.storageReference);
     expect(screen.getByText('Original')).toBeTruthy();
     expect(screen.getByText('Derived')).toBeTruthy();
+
+    await fireEvent(screen.getByLabelText('Generated local receipt preview'), 'layout', {
+      nativeEvent: { layout: { height: 400, width: 300 } },
+    });
+    await fireEvent.press(
+      screen.getByLabelText('Suggested Total, $14.34, 91% confidence, processed locally'),
+    );
+    await waitFor(() => expect(screen.getByLabelText('Receipt source highlight')).toBeTruthy());
   });
 
   test('explains how to recover from a stale edit conflict', async () => {
