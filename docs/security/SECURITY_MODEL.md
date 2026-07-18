@@ -43,6 +43,8 @@
 - Receipt-list date, currency, amount, category, tag, and merchant filters are validated before use
   and composed only through parameterized SQL. Amount bounds require a currency, preventing
   misleading cross-currency comparisons.
+- Local report aggregates run over active SQLite rows and validate safe integer sums, counts,
+  currencies, months, and category identities before display. Different currencies remain separate.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls

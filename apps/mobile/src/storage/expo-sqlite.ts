@@ -3,6 +3,7 @@ import {
   migrateDatabase,
   SqliteCategoryRepository,
   SqliteFieldEvidenceRepository,
+  SqliteExpenseReportRepository,
   SqliteProcessingHistoryRepository,
   SqliteReceiptDocumentRepository,
   SqliteReceiptClassificationRepository,
@@ -11,6 +12,7 @@ import {
   SqliteTagRepository,
   type CategoryRepository,
   type FieldEvidenceRepository,
+  type ExpenseReportRepository,
   type ProcessingHistoryRepository,
   type ReceiptDocumentRepository,
   type ReceiptClassificationRepository,
@@ -32,6 +34,7 @@ export interface LocalRepositories {
   readonly processingHistory: ProcessingHistoryRepository;
   readonly receiptClassifications: ReceiptClassificationRepository;
   readonly receipts: ReceiptRepository;
+  readonly reports: ExpenseReportRepository;
   readonly reviews: ReceiptReviewRepository;
   readonly tags: TagRepository;
 }
@@ -62,6 +65,7 @@ async function initializeRepositories(): Promise<LocalRepositories> {
     processingHistory: new SqliteProcessingHistoryRepository(connection),
     receiptClassifications: new SqliteReceiptClassificationRepository(connection),
     receipts: new SqliteReceiptRepository(connection),
+    reports: new SqliteExpenseReportRepository(connection),
     reviews: new SqliteReceiptReviewRepository(connection),
     tags: new SqliteTagRepository(connection),
   };

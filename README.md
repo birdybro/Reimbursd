@@ -29,8 +29,9 @@ text is not sent to a Reimbursd or third-party service.
 Milestone 4 is underway. The local schema and repositories support validated, versioned, tombstoned
 categories and tags while keeping existing receipts valid. Expense details can create and assign one
 category plus multiple tags through an atomic local workflow. The list filters locally by merchant,
-purchase date, currency-specific amount range, category, and tag. Reporting, export, restore, and
-delete-all workflows are still pending.
+purchase date, currency-specific amount range, category, and tag. Local reports show monthly and
+category totals without combining currencies. Export, restore, and delete-all workflows are still
+pending.
 
 ## Requirements
 

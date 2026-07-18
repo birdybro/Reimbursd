@@ -37,6 +37,9 @@ tests cover reopening a file database, rollback, literal merchant search, combin
 optimistic conflicts, and deletion behavior. Receipt filters compare the local `YYYY-MM-DD` prefix
 of `purchased_at`, raw integer totals only within one explicit currency, nullable categories, and
 active receipt-tag relationships. Every filter value is validated and bound as a SQL parameter.
+Reporting groups the same active rows by local purchase month plus currency and by category plus
+currency. SQLite sums integer minor units, and the repository rejects non-safe totals, invalid
+counts, unsupported currencies, invalid months, and unavailable category records before UI use.
 
 `receipt_documents` stores:
 

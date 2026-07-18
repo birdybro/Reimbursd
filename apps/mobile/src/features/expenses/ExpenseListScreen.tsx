@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import {
+  ChartColumn,
   Camera,
   FileImage,
   FileText,
@@ -49,6 +50,7 @@ interface ExpenseListScreenProps {
   readonly onImportImage: () => void;
   readonly onImportPdf: () => void;
   readonly onOpen: (receipt: Receipt) => void;
+  readonly onOpenReports: () => void;
   readonly onRetryCleanup: () => void;
   readonly repository: ReceiptRepository;
   readonly retryingCleanup: boolean;
@@ -65,6 +67,7 @@ export function ExpenseListScreen({
   onImportImage,
   onImportPdf,
   onOpen,
+  onOpenReports,
   onRetryCleanup,
   repository,
   retryingCleanup,
@@ -172,9 +175,19 @@ export function ExpenseListScreen({
         <Text accessibilityRole="header" style={styles.heading}>
           Expenses
         </Text>
-        <Text style={styles.count}>
-          {receipts.length} {receipts.length === 1 ? 'record' : 'records'}
-        </Text>
+        <View style={styles.sectionActions}>
+          <Text style={styles.count}>
+            {receipts.length} {receipts.length === 1 ? 'record' : 'records'}
+          </Text>
+          <Pressable
+            accessibilityLabel="View expense reports"
+            accessibilityRole="button"
+            onPress={onOpenReports}
+            style={({ pressed }) => [styles.reportButton, pressed && styles.pressed]}
+          >
+            <ChartColumn color={colors.green} size={20} strokeWidth={2.2} />
+          </Pressable>
+        </View>
       </View>
 
       {loading ? (
@@ -568,6 +581,15 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  reportButton: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
   searchBox: {
     alignItems: 'center',
     borderColor: colors.border,
@@ -596,6 +618,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 22,
   },
+  sectionActions: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   toolbar: {
     flexDirection: 'row',
     gap: 10,

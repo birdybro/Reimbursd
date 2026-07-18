@@ -32,6 +32,7 @@ jest.mock('lucide-react-native', () => {
   return {
     Check: MockIcon,
     Camera: MockIcon,
+    ChartColumn: MockIcon,
     Circle: MockIcon,
     Crosshair: MockIcon,
     FileImage: MockIcon,
@@ -192,6 +193,7 @@ describe('manual expense screens', () => {
   test('lists local expenses and exposes the primary create action', async () => {
     const onCreate = jest.fn();
     const onOpen = jest.fn();
+    const onOpenReports = jest.fn();
     const repository = createRepository();
     const onCapture = jest.fn();
     const onImportImage = jest.fn();
@@ -207,6 +209,7 @@ describe('manual expense screens', () => {
         onImportImage={onImportImage}
         onImportPdf={onImportPdf}
         onOpen={onOpen}
+        onOpenReports={onOpenReports}
         onRetryCleanup={jest.fn()}
         repository={repository}
         retryingCleanup={false}
@@ -222,6 +225,9 @@ describe('manual expense screens', () => {
 
     await fireEvent.press(screen.getByLabelText('Corner Market, $13.34'));
     expect(onOpen).toHaveBeenCalledWith(receipt);
+
+    await fireEvent.press(screen.getByLabelText('View expense reports'));
+    expect(onOpenReports).toHaveBeenCalledTimes(1);
 
     await fireEvent.press(screen.getByLabelText('Scan receipt with camera'));
     await fireEvent.press(screen.getByLabelText('Import receipt image'));
@@ -258,6 +264,7 @@ describe('manual expense screens', () => {
         onImportImage={jest.fn()}
         onImportPdf={jest.fn()}
         onOpen={jest.fn()}
+        onOpenReports={jest.fn()}
         onRetryCleanup={jest.fn()}
         repository={repository}
         retryingCleanup={false}
@@ -329,6 +336,7 @@ describe('manual expense screens', () => {
         onImportImage={jest.fn()}
         onImportPdf={jest.fn()}
         onOpen={jest.fn()}
+        onOpenReports={jest.fn()}
         onRetryCleanup={onRetryCleanup}
         repository={createRepository()}
         retryingCleanup={false}

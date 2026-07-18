@@ -101,7 +101,7 @@
 - [x] Add atomic receipt category/tag assignment and unassignment.
 - [x] Add accessible local category/tag creation and assignment UI on expense details.
 - [x] Expand filters for date, merchant, category, tag, and amount.
-- [ ] Add monthly and category totals.
+- [x] Add monthly and category totals.
 - [ ] Add CSV and complete structured export with attachment checksums.
 - [ ] Add clean-install restore and round-trip coverage.
 - [ ] Add complete local data deletion with attachment cleanup.
@@ -109,7 +109,8 @@
 
 ### Acceptance criteria for the next slice
 
-- Monthly totals use the receipt purchase date and never combine different currencies.
-- Category totals include an explicit uncategorized group and exclude deleted receipts.
-- Reporting remains local, works without an account, and reads integer minor-unit values.
-- Repository, domain, and UI tests cover empty data, multiple months, categories, and currencies.
+- CSV export covers common active-expense fields and renders money without floating-point math.
+- A versioned manifest identifies the export format, schema, creation time, and application version.
+- Complete structured export uses the documented JSON file names and includes attachment checksums.
+- Original attachments are optional, remain byte-identical, and require no account or network path.
+- Export validation and tests cover empty data, multiple currencies, attachments, and write failure.

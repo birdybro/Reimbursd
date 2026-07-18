@@ -20,6 +20,7 @@ import { StatusPanel } from './components/StatusPanel';
 import { ExpenseDetailScreen } from './features/expenses/ExpenseDetailScreen';
 import { ExpenseFormScreen } from './features/expenses/ExpenseFormScreen';
 import { ExpenseListScreen } from './features/expenses/ExpenseListScreen';
+import { ExpenseReportScreen } from './features/expenses/ExpenseReportScreen';
 import type { ExpenseFormSubmission } from './features/expenses/expense-form';
 import { buildReceiptReviewInput } from './features/expenses/expense-review';
 import {
@@ -44,6 +45,7 @@ type Route =
   | { readonly name: 'list' }
   | { readonly name: 'detail'; readonly receipt: Receipt }
   | { readonly name: 'new' }
+  | { readonly name: 'reports' }
   | {
       readonly name: 'edit';
       readonly processingHistoryIds: readonly string[];
@@ -230,7 +232,9 @@ function AppContent() {
         ? 'Edit expense'
         : route.name === 'detail'
           ? 'Expense details'
-          : undefined;
+          : route.name === 'reports'
+            ? 'Reports'
+            : undefined;
   const showBack = route.name !== 'list';
 
   return (
@@ -268,11 +272,14 @@ function AppContent() {
             onImportImage={() => importReceipt(selectImageReceipt)}
             onImportPdf={() => importReceipt(selectPdfReceipt)}
             onOpen={(receipt) => setRoute({ name: 'detail', receipt })}
+            onOpenReports={() => setRoute({ name: 'reports' })}
             onRetryCleanup={retryPendingCleanup}
             repository={repositoryState.repositories.receipts}
             retryingCleanup={retryingCleanup}
             tagRepository={repositoryState.repositories.tags}
           />
+        ) : route.name === 'reports' ? (
+          <ExpenseReportScreen repository={repositoryState.repositories.reports} />
         ) : route.name === 'detail' ? (
           <ExpenseDetailScreen
             attachmentStorage={repositoryState.storage}

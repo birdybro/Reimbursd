@@ -41,6 +41,11 @@ prefix. Amount ranges require an explicit currency so values from different curr
 compared as though they were equivalent. Category filters support uncategorized receipts, and tag
 filters require an active assignment to an active tag.
 
+A read-only reporting repository calculates monthly and category aggregates from active receipt
+rows in one SQLite transaction. Every result crosses a validation boundary for month, currency,
+positive count, safe integer total, and active category identity. The reports screen groups and
+formats each currency independently and labels null category IDs as uncategorized.
+
 Receipt bytes cross a framework-independent ingestion boundary that validates decoded JPEG, PNG,
 or PDF content, applies configurable resource limits, calculates SHA-256, detects duplicate
 originals, and coordinates immutable file creation with metadata persistence. Native files use the

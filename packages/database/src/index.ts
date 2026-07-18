@@ -53,3 +53,10 @@ export {
   type UpdateClassificationInput,
   type UpdateReceiptClassificationInput,
 } from './classification-repository.js';
+export {
+  SqliteExpenseReportRepository,
+  type CategoryExpenseTotal,
+  type ExpenseReportRepository,
+  type ExpenseTotals,
+  type MonthlyExpenseTotal,
+} from './reporting-repository.js';
