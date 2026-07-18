@@ -35,6 +35,7 @@ jest.mock('lucide-react-native', () => {
     ChartColumn: MockIcon,
     Circle: MockIcon,
     Crosshair: MockIcon,
+    Download: MockIcon,
     FileImage: MockIcon,
     FileText: MockIcon,
     Filter: MockIcon,
@@ -194,6 +195,7 @@ describe('manual expense screens', () => {
     const onCreate = jest.fn();
     const onOpen = jest.fn();
     const onOpenReports = jest.fn();
+    const onExportCsv = jest.fn().mockResolvedValue(undefined);
     const repository = createRepository();
     const onCapture = jest.fn();
     const onImportImage = jest.fn();
@@ -206,6 +208,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={onCapture}
         onCreate={onCreate}
+        onExportCsv={onExportCsv}
         onImportImage={onImportImage}
         onImportPdf={onImportPdf}
         onOpen={onOpen}
@@ -228,6 +231,10 @@ describe('manual expense screens', () => {
 
     await fireEvent.press(screen.getByLabelText('View expense reports'));
     expect(onOpenReports).toHaveBeenCalledTimes(1);
+
+    await fireEvent.press(screen.getByLabelText('Export all expenses as CSV'));
+    await waitFor(() => expect(onExportCsv).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('CSV export is ready.')).toBeTruthy();
 
     await fireEvent.press(screen.getByLabelText('Scan receipt with camera'));
     await fireEvent.press(screen.getByLabelText('Import receipt image'));
@@ -261,6 +268,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={jest.fn()}
         onCreate={jest.fn()}
+        onExportCsv={jest.fn().mockResolvedValue(undefined)}
         onImportImage={jest.fn()}
         onImportPdf={jest.fn()}
         onOpen={jest.fn()}
@@ -333,6 +341,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={jest.fn()}
         onCreate={jest.fn()}
+        onExportCsv={jest.fn().mockResolvedValue(undefined)}
         onImportImage={jest.fn()}
         onImportPdf={jest.fn()}
         onOpen={jest.fn()}
@@ -346,6 +355,42 @@ describe('manual expense screens', () => {
 
     await fireEvent.press(screen.getByLabelText('Retry receipt file deletion'));
     expect(onRetryCleanup).toHaveBeenCalledTimes(1);
+  });
+
+  test('recovers after a CSV export failure', async () => {
+    const onExportCsv = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('synthetic export failure'))
+      .mockResolvedValueOnce(undefined);
+    const screen = await render(
+      <ExpenseListScreen
+        categoryRepository={createCategoryRepository()}
+        cleanupIssue={null}
+        importError={null}
+        importing={false}
+        onCapture={jest.fn()}
+        onCreate={jest.fn()}
+        onExportCsv={onExportCsv}
+        onImportImage={jest.fn()}
+        onImportPdf={jest.fn()}
+        onOpen={jest.fn()}
+        onOpenReports={jest.fn()}
+        onRetryCleanup={jest.fn()}
+        repository={createRepository()}
+        retryingCleanup={false}
+        tagRepository={createTagRepository()}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Corner Market')).toBeTruthy());
+    await fireEvent.press(screen.getByLabelText('Export all expenses as CSV'));
+    expect(
+      await screen.findByText('CSV export could not be created. Try the export button again.'),
+    ).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Export all expenses as CSV'));
+    await waitFor(() => expect(onExportCsv).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('CSV export is ready.')).toBeTruthy();
   });
 
   test('keeps invalid entries visible with a recoverable message', async () => {

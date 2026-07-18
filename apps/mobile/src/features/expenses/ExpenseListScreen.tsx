@@ -2,6 +2,7 @@
 import {
   ChartColumn,
   Camera,
+  Download,
   FileImage,
   FileText,
   Filter,
@@ -47,6 +48,7 @@ interface ExpenseListScreenProps {
   readonly importing: boolean;
   readonly onCapture: () => void;
   readonly onCreate: () => void;
+  readonly onExportCsv: () => Promise<void>;
   readonly onImportImage: () => void;
   readonly onImportPdf: () => void;
   readonly onOpen: (receipt: Receipt) => void;
@@ -64,6 +66,7 @@ export function ExpenseListScreen({
   importing,
   onCapture,
   onCreate,
+  onExportCsv,
   onImportImage,
   onImportPdf,
   onOpen,
@@ -74,6 +77,9 @@ export function ExpenseListScreen({
   tagRepository,
 }: ExpenseListScreenProps) {
   const [error, setError] = useState(false);
+  const [exportStatus, setExportStatus] = useState<'error' | 'exporting' | 'idle' | 'success'>(
+    'idle',
+  );
   const [filterOptions, setFilterOptions] = useState<ReceiptListOptions>({});
   const [filterVisible, setFilterVisible] = useState(false);
   const [filterValues, setFilterValues] = useState<ExpenseFilterValues>(emptyExpenseFilters);
@@ -108,6 +114,21 @@ export function ExpenseListScreen({
 
   const activeFilterCount = countActiveExpenseFilters(filterValues);
   const filtering = search.trim().length > 0 || activeFilterCount > 0;
+
+  const exportCsv = async () => {
+    if (exportStatus === 'exporting') {
+      return;
+    }
+
+    setExportStatus('exporting');
+
+    try {
+      await onExportCsv();
+      setExportStatus('success');
+    } catch {
+      setExportStatus('error');
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -180,15 +201,44 @@ export function ExpenseListScreen({
             {receipts.length} {receipts.length === 1 ? 'record' : 'records'}
           </Text>
           <Pressable
+            accessibilityLabel={
+              exportStatus === 'exporting'
+                ? 'Exporting all expenses as CSV'
+                : 'Export all expenses as CSV'
+            }
+            accessibilityHint="Exports every active expense, regardless of search or filters."
+            accessibilityRole="button"
+            accessibilityState={{ disabled: exportStatus === 'exporting' }}
+            disabled={exportStatus === 'exporting'}
+            onPress={() => void exportCsv()}
+            style={({ pressed }) => [
+              styles.sectionIconButton,
+              exportStatus === 'exporting' && styles.disabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Download color={colors.green} size={20} strokeWidth={2.2} />
+          </Pressable>
+          <Pressable
             accessibilityLabel="View expense reports"
             accessibilityRole="button"
             onPress={onOpenReports}
-            style={({ pressed }) => [styles.reportButton, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.sectionIconButton, pressed && styles.pressed]}
           >
             <ChartColumn color={colors.green} size={20} strokeWidth={2.2} />
           </Pressable>
         </View>
       </View>
+
+      {exportStatus === 'success' ? (
+        <Text accessibilityLiveRegion="polite" style={styles.exportSuccess}>
+          CSV export is ready.
+        </Text>
+      ) : exportStatus === 'error' ? (
+        <Text accessibilityLiveRegion="assertive" style={styles.exportError}>
+          CSV export could not be created. Try the export button again.
+        </Text>
+      ) : null}
 
       {loading ? (
         <View accessibilityLabel="Loading expenses" style={styles.centerState}>
@@ -439,6 +489,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 16,
   },
+  exportError: {
+    backgroundColor: colors.dangerSoft,
+    color: colors.danger,
+    fontSize: 13,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+  },
+  exportSuccess: {
+    backgroundColor: colors.softGreen,
+    color: colors.green,
+    fontSize: 13,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+  },
   filterButton: {
     alignItems: 'center',
     borderColor: colors.border,
@@ -581,7 +645,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  reportButton: {
+  sectionIconButton: {
     alignItems: 'center',
     borderColor: colors.border,
     borderRadius: 6,
@@ -590,6 +654,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 44,
   },
+  disabled: { opacity: 0.55 },
   searchBox: {
     alignItems: 'center',
     borderColor: colors.border,

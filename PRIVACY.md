@@ -20,6 +20,12 @@ synchronization, hosted processing, or telemetry integration. Camera and photo-l
 are requested only after the corresponding local import action. PDF selection does not request
 camera, photo, or location access.
 
+CSV export is an explicit local action. Web creates a browser download without uploading the file.
+Native builds write the CSV to private cache, open the operating-system share sheet, and remove the
+temporary cache file after the share attempt. A destination selected in the browser or share sheet
+is outside Reimbursd's private storage and follows that destination's retention behavior. CSV is
+plain text and is not described as encrypted.
+
 Deleting an expense retains a metadata tombstone for future synchronization semantics, then removes
 its local receipt bytes. If byte removal fails or the application closes between these operations,
 the durable document state is retried at startup and can be retried from the expense list. A

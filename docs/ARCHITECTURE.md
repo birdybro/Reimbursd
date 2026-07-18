@@ -46,6 +46,12 @@ rows in one SQLite transaction. Every result crosses a validation boundary for m
 positive count, safe integer total, and active category identity. The reports screen groups and
 formats each currency independently and labels null category IDs as uncategorized.
 
+CSV serialization is framework-independent domain logic over validated receipt records. It exports
+active receipts in deterministic order, renders currency decimals from integer minor units, escapes
+CSV structure, and neutralizes spreadsheet formula prefixes in user-entered text. A mobile adapter
+downloads a Blob directly on web or shares a private temporary cache file on native. Native cache
+cleanup runs after both successful and failed share attempts.
+
 Receipt bytes cross a framework-independent ingestion boundary that validates decoded JPEG, PNG,
 or PDF content, applies configurable resource limits, calculates SHA-256, detects duplicate
 originals, and coordinates immutable file creation with metadata persistence. Native files use the
@@ -105,4 +111,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0004](architecture/adr/0004-processing-provenance-and-ocr-boundary.md), and
 [ADR-0005](architecture/adr/0005-apple-vision-local-ocr.md), and
 [ADR-0006](architecture/adr/0006-deterministic-receipt-parser.md), and
-[ADR-0007](architecture/adr/0007-local-category-and-tag-storage.md) for accepted decisions.
+[ADR-0007](architecture/adr/0007-local-category-and-tag-storage.md), and
+[ADR-0008](architecture/adr/0008-local-csv-export-delivery.md) for accepted decisions.

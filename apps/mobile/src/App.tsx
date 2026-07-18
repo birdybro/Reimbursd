@@ -21,6 +21,7 @@ import { ExpenseDetailScreen } from './features/expenses/ExpenseDetailScreen';
 import { ExpenseFormScreen } from './features/expenses/ExpenseFormScreen';
 import { ExpenseListScreen } from './features/expenses/ExpenseListScreen';
 import { ExpenseReportScreen } from './features/expenses/ExpenseReportScreen';
+import { exportExpenseCsv } from './features/expenses/expense-csv-export';
 import type { ExpenseFormSubmission } from './features/expenses/expense-form';
 import { buildReceiptReviewInput } from './features/expenses/expense-review';
 import {
@@ -39,6 +40,7 @@ import {
 } from './features/receipts/receipt-pickers';
 import { getLocalRepositories, type LocalRepositories } from './storage/expo-sqlite';
 import { ExpoAttachmentHasher, LocalAttachmentStorage } from './storage/local-attachments';
+import { PlatformCsvExportWriter } from './storage/local-csv-export';
 import { colors } from './theme';
 
 type Route =
@@ -269,6 +271,12 @@ function AppContent() {
             importing={importing}
             onCapture={() => importReceipt(selectCameraReceipt)}
             onCreate={() => setRoute({ name: 'new' })}
+            onExportCsv={async () => {
+              await exportExpenseCsv({
+                repository: repositoryState.repositories.receipts,
+                writer: new PlatformCsvExportWriter(),
+              });
+            }}
             onImportImage={() => importReceipt(selectImageReceipt)}
             onImportPdf={() => importReceipt(selectPdfReceipt)}
             onOpen={(receipt) => setRoute({ name: 'detail', receipt })}

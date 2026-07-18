@@ -69,3 +69,4 @@ export {
   type CreateClassificationInput,
   type Tag,
 } from './classification.js';
+export { createExpenseCsv } from './expense-csv.js';

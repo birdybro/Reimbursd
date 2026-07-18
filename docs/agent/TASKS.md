@@ -102,15 +102,15 @@
 - [x] Add accessible local category/tag creation and assignment UI on expense details.
 - [x] Expand filters for date, merchant, category, tag, and amount.
 - [x] Add monthly and category totals.
-- [ ] Add CSV and complete structured export with attachment checksums.
+- [x] Add account-free CSV export for common active-expense fields.
+- [ ] Add complete structured export with attachment checksums.
 - [ ] Add clean-install restore and round-trip coverage.
 - [ ] Add complete local data deletion with attachment cleanup.
 - [ ] Document the open export format.
 
 ### Acceptance criteria for the next slice
 
-- CSV export covers common active-expense fields and renders money without floating-point math.
 - A versioned manifest identifies the export format, schema, creation time, and application version.
 - Complete structured export uses the documented JSON file names and includes attachment checksums.
 - Original attachments are optional, remain byte-identical, and require no account or network path.
-- Export validation and tests cover empty data, multiple currencies, attachments, and write failure.
+- Export validation and tests cover empty data, attachments, duplicate paths, and write failure.

@@ -45,14 +45,17 @@
   misleading cross-currency comparisons.
 - Local report aggregates run over active SQLite rows and validate safe integer sums, counts,
   currencies, months, and category identities before display. Different currencies remain separate.
+- CSV export revalidates receipt records, formats integer minor units without floating-point math,
+  quotes CSV metacharacters, and prefixes formula-like merchant and note cells. Native exports use a
+  validated filename and delete their private temporary cache file after success or failure.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
 
-- Dependency security is checked through npm advisories. Expo SDK 57 currently brings ten moderate
+- Dependency security is checked through npm advisories. Expo SDK 57 currently brings eleven moderate
   build-tool advisories through Expo configuration and `xcode`; no high or critical advisory is
-  present, and npm's proposed remediation is an invalid downgrade to Expo SDK 46. Automated secret
-  scanning and a generated SBOM will be added to CI as tooling is selected.
+  present, and npm's proposed remediation includes an incompatible Expo Sharing downgrade. Automated
+  secret scanning and a generated SBOM will be added to CI as tooling is selected.
 - Local SQLite and original attachments rely on the mobile application sandbox or the browser's
   origin/profile isolation. They are not application-layer encrypted, and this milestone has no
   secure key storage or encrypted backup. Android/iOS storage behavior has not yet been exercised

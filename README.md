@@ -13,8 +13,8 @@ delete manual expenses, and it can capture JPEG/PNG receipts or import JPEG, PNG
 originals into private local storage. Import validates content and limits, records SHA-256 and
 provenance, and requires no account or network service. Deleting an expense removes its local
 receipt bytes with durable retry after interruption. JPEG and PNG imports receive separate bounded
-local previews. Cross-platform OCR, PDF page previews, delete-all, export, and backup are not complete, and the
-project does not claim production readiness.
+local previews. Cross-platform OCR, PDF page previews, delete-all, complete structured export, and
+backup are not complete, and the project does not claim production readiness.
 
 Milestone 3 includes durable field evidence and processing history, a validated OCR
 provider contract, a deterministic test provider, and on-device Apple Vision OCR in iOS development
@@ -30,8 +30,9 @@ Milestone 4 is underway. The local schema and repositories support validated, ve
 categories and tags while keeping existing receipts valid. Expense details can create and assign one
 category plus multiple tags through an atomic local workflow. The list filters locally by merchant,
 purchase date, currency-specific amount range, category, and tag. Local reports show monthly and
-category totals without combining currencies. Export, restore, and delete-all workflows are still
-pending.
+category totals without combining currencies. Active expenses can be exported to a local CSV file
+through a browser download or native share sheet. Complete structured export, restore, and
+delete-all workflows are still pending.
 
 ## Requirements
 

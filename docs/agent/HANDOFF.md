@@ -21,10 +21,12 @@ implemented with UUIDs, normalized unique names, optimistic versions, tombstones
 in-use deletion errors. Expense details can create and atomically assign one category plus multiple
 tags; removed relationships are tombstoned and re-addition revives the stable key. The expense list
 now composes validated local merchant, date, currency-specific amount, category, and active-tag
-filters through parameterized queries. A transactional read repository and accessible reports route show monthly and category
-totals while keeping currencies separate and deleted receipts excluded. The next work is the open
-CSV and complete structured export. Keep existing receipts valid and local, preserve imported
-originals exactly, and do not add hosted processing, synchronization, or generative AI.
+filters through parameterized queries. A transactional read repository and accessible reports route
+show monthly and category totals while keeping currencies separate and deleted receipts excluded.
+CSV export is implemented through deterministic domain serialization, direct web download, and
+native temporary-file sharing with cleanup. The next work is the complete structured export. Keep
+existing receipts valid and local, preserve imported originals exactly, and do not add hosted
+processing, synchronization, or generative AI.
 
 ## Resume steps
 

@@ -16,9 +16,11 @@ copyright Expo and contributors, under the 0BSD license. Its complete notice is 
 No third-party source code or personal receipt fixtures are vendored in the repository. Expo
 SQLite, Crypto, FileSystem, ImagePicker, ImageManipulator, DocumentPicker, Jest Expo, and React
 Native Testing Library are installed through the locked npm dependency graph under their published
-permissive licenses. `pdf-lib` 1.17.1 is installed under the MIT license to decode supported images,
-validate PDFs, and obtain PDF page counts. Its self-contained ESM distribution includes TypeScript
-helper code under the Apache-2.0 license; the installed package preserves its notices.
+permissive licenses. Expo Sharing is installed under the MIT license to hand locally generated CSV
+files to the native operating-system share sheet. `pdf-lib` 1.17.1 is installed under the MIT
+license to decode supported images, validate PDFs, and obtain PDF page counts. Its self-contained
+ESM distribution includes TypeScript helper code under the Apache-2.0 license; the installed package
+preserves its notices.
 
 ## Development license data
 
