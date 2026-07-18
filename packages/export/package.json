@@ -1,5 +1,5 @@
 {
-  "name": "@reimbursd/database",
+  "name": "@reimbursd/export",
   "version": "0.1.0",
   "private": true,
   "license": "GPL-3.0-only",
@@ -15,11 +15,11 @@
   ],
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --root ../.. packages/database/src"
+    "test": "vitest run --root ../.. packages/export/src",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@reimbursd/domain": "*",
-    "@reimbursd/export": "*"
+    "fflate": "^0.8.3"
   }
 }

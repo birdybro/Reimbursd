@@ -9,3 +9,5 @@
 | [0005](adr/0005-apple-vision-local-ocr.md)                 | Accepted | Use a local Apple Vision adapter and reject telemetry-bearing OCR SDKs           |
 | [0006](adr/0006-deterministic-receipt-parser.md)           | Accepted | Parse validated OCR deterministically into reviewable local field evidence       |
 | [0007](adr/0007-local-category-and-tag-storage.md)         | Accepted | Store versioned local categories, tags, and explicit assignment tombstones       |
+| [0008](adr/0008-local-csv-export-delivery.md)              | Accepted | Serialize exact local CSV and deliver it through platform-controlled files       |
+| [0009](adr/0009-structured-export-archive.md)              | Accepted | Validate an atomic snapshot into a versioned plain ZIP with optional originals   |

@@ -48,6 +48,11 @@
 - CSV export revalidates receipt records, formats integer minor units without floating-point math,
   quotes CSV metacharacters, and prefixes formula-like merchant and note cells. Native exports use a
   validated filename and delete their private temporary cache file after success or failure.
+- Complete export reads active SQLite records in one transaction, rejects incomplete relationship
+  graphs and duplicate identifiers, revalidates domain records, and verifies every selected original
+  attachment against both byte size and SHA-256 metadata before archive creation. Archive paths are
+  derived from validated UUIDs and MIME types rather than user filenames. Native temporary ZIP files
+  are removed after successful or failed sharing.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -66,14 +71,15 @@
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available, and
   complete data deletion.
 - An Android-compatible offline OCR adapter.
-- Secure platform key storage and authenticated encrypted backups.
+- Structured-export restore validation, secure platform key storage, and authenticated encrypted
+  backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
 - Cross-user isolation, backup restoration, provider-contract, and synchronization-conflict tests.
 
 ## Unsupported claims
 
-Reimbursd does not currently provide encrypted backups, end-to-end encryption, authentication,
-hosted storage, synchronization, complete data deletion, secure deletion guarantees, Android/web
-OCR, or remote AI processing. iOS OCR has not been exercised on Apple hardware in this Linux
-environment. Local receipt storage is not described as encrypted. Product surfaces and
-documentation must not imply otherwise.
+Reimbursd does not currently provide structured-export restore, encrypted backups, end-to-end
+encryption, authentication, hosted storage, synchronization, complete data deletion, secure
+deletion guarantees, Android/web OCR, or remote AI processing. iOS OCR has not been exercised on
+Apple hardware in this Linux environment. Local receipt storage and plain exports are not described
+as encrypted. Product surfaces and documentation must not imply otherwise.

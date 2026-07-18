@@ -26,6 +26,13 @@ temporary cache file after the share attempt. A destination selected in the brow
 is outside Reimbursd's private storage and follows that destination's retention behavior. CSV is
 plain text and is not described as encrypted.
 
+Complete structured export is also an explicit local action. The application reads one active-data
+snapshot from SQLite and includes original receipt files only when the user leaves that option
+enabled. Each included original is read from private local storage, verified against its recorded
+byte size and SHA-256, and copied byte-for-byte into a plain ZIP. Web downloads the ZIP locally;
+native builds remove the private temporary ZIP after the share attempt. The destination controls
+the exported copy's retention. The ZIP is not encrypted, and restore is not implemented yet.
+
 Deleting an expense retains a metadata tombstone for future synchronization semantics, then removes
 its local receipt bytes. If byte removal fails or the application closes between these operations,
 the durable document state is retried at startup and can be retried from the expense list. A

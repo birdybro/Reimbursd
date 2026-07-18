@@ -103,14 +103,19 @@
 - [x] Expand filters for date, merchant, category, tag, and amount.
 - [x] Add monthly and category totals.
 - [x] Add account-free CSV export for common active-expense fields.
-- [ ] Add complete structured export with attachment checksums.
+- [x] Add complete structured export with attachment checksums.
 - [ ] Add clean-install restore and round-trip coverage.
 - [ ] Add complete local data deletion with attachment cleanup.
-- [ ] Document the open export format.
+- [x] Document the open export format.
 
-### Acceptance criteria for the next slice
+### Acceptance criteria for the restore slice
 
-- A versioned manifest identifies the export format, schema, creation time, and application version.
-- Complete structured export uses the documented JSON file names and includes attachment checksums.
-- Original attachments are optional, remain byte-identical, and require no account or network path.
-- Export validation and tests cover empty data, attachments, duplicate paths, and write failure.
+- ZIP parsing rejects traversal, duplicate, oversized, unsupported, and malformed archive entries.
+- Manifest, schema, JSON record, relationship, byte-size, and SHA-256 validation completes before
+  any local write begins.
+- Restore is limited to a clean local database and private attachment store, with no silent merge or
+  overwrite behavior.
+- Structured records commit atomically and attachment writes are rolled back or durably recoverable
+  after failure.
+- Export, local deletion, restore, and reload preserve corrected values, provenance, classifications,
+  document metadata, and byte-identical selected originals in a round-trip test.

@@ -20,7 +20,8 @@ permissive licenses. Expo Sharing is installed under the MIT license to hand loc
 files to the native operating-system share sheet. `pdf-lib` 1.17.1 is installed under the MIT
 license to decode supported images, validate PDFs, and obtain PDF page counts. Its self-contained
 ESM distribution includes TypeScript helper code under the Apache-2.0 license; the installed package
-preserves its notices.
+preserves its notices. `fflate` 0.8.3 is installed under the MIT license to create local ZIP archives
+without a network service; the installed package preserves its license metadata.
 
 ## Development license data
 

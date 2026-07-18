@@ -60,3 +60,7 @@ export {
   type ExpenseTotals,
   type MonthlyExpenseTotal,
 } from './reporting-repository.js';
+export {
+  SqliteStructuredExportSnapshotRepository,
+  type StructuredExportSnapshotRepository,
+} from './structured-export-snapshot-repository.js';

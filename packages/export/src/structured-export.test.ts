@@ -1,0 +1,317 @@
+// SPDX-License-Identifier: GPL-3.0-only
+import { strFromU8, unzipSync } from 'fflate';
+import { describe, expect, it } from 'vitest';
+
+import {
+  createCategory,
+  createManualReceipt,
+  createTag,
+  type FieldEvidence,
+  type ProcessingHistory,
+  type ReceiptDocument,
+} from '@reimbursd/domain';
+
+import {
+  createStructuredExport,
+  StructuredExportValidationError,
+  type StructuredExportHasher,
+  type StructuredExportRecords,
+} from './structured-export.js';
+
+const createdAt = '2026-07-18T07:00:00-06:00';
+const receiptId = '22222222-2222-4222-8222-222222222222';
+const merchantId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const categoryId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const tagId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const documentId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const attachmentBytes = Uint8Array.from([137, 80, 78, 71]);
+
+const hasher: StructuredExportHasher = {
+  async sha256(bytes) {
+    let accumulator = 0;
+
+    for (const byte of bytes) {
+      accumulator = (accumulator + byte) % 256;
+    }
+
+    return accumulator.toString(16).padStart(64, '0');
+  },
+};
+
+const emptyRecords: StructuredExportRecords = {
+  categories: [],
+  fieldEvidence: [],
+  merchants: [],
+  processingHistory: [],
+  receiptDocuments: [],
+  receiptTags: [],
+  receipts: [],
+  tags: [],
+};
+
+describe('structured export archive', () => {
+  it('creates a deterministic versioned archive with every required record file', async () => {
+    const first = await createStructuredExport({
+      applicationVersion: '0.1.0',
+      attachments: [],
+      createdAt,
+      hasher,
+      includeOriginalAttachments: false,
+      records: emptyRecords,
+      schemaVersion: 6,
+    });
+    const second = await createStructuredExport({
+      applicationVersion: '0.1.0',
+      attachments: [],
+      createdAt,
+      hasher,
+      includeOriginalAttachments: false,
+      records: emptyRecords,
+      schemaVersion: 6,
+    });
+    const files = unzipSync(first.bytes);
+
+    expect(first.filename).toBe('reimbursd-export-2026-07-18.zip');
+    expect(first.bytes).toEqual(second.bytes);
+    expect(Object.keys(files).sort()).toEqual([
+      'categories.json',
+      'checksums.txt',
+      'field-evidence.json',
+      'line-items.json',
+      'locations.json',
+      'manifest.json',
+      'merchants.json',
+      'processing-history.json',
+      'receipt-documents.json',
+      'receipt-tags.json',
+      'receipts.json',
+      'tags.json',
+    ]);
+    expect(readJson(files, 'locations.json')).toEqual([]);
+    expect(readJson(files, 'line-items.json')).toEqual([]);
+    expect(readJson(files, 'manifest.json')).toEqual(first.manifest);
+    expect(first.manifest).toMatchObject({
+      applicationVersion: '0.1.0',
+      createdAt,
+      format: 'reimbursd-export',
+      formatVersion: 1,
+      includesOriginalAttachments: false,
+      schemaVersion: 6,
+    });
+    expect(first.manifest.files).toHaveLength(10);
+    expect(first.manifest.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'records',
+          path: 'receipts.json',
+          recordCount: 0,
+        }),
+      ]),
+    );
+  });
+
+  it('preserves original attachment bytes and records their verified checksum', async () => {
+    const records = populatedRecords();
+    const archive = await createStructuredExport({
+      applicationVersion: '0.1.0',
+      attachments: [{ bytes: attachmentBytes, documentId }],
+      createdAt,
+      hasher,
+      includeOriginalAttachments: true,
+      records,
+      schemaVersion: 6,
+    });
+    const files = unzipSync(archive.bytes);
+    const attachmentPath = `attachments/${documentId}.png`;
+    const receiptDocuments = readJson(files, 'receipt-documents.json') as readonly Record<
+      string,
+      unknown
+    >[];
+
+    expect(files[attachmentPath]).toEqual(attachmentBytes);
+    expect(receiptDocuments).toEqual([
+      expect.objectContaining({ attachmentPath, id: documentId, originalFilename: 'receipt.png' }),
+    ]);
+    expect(strFromU8(requiredFile(files, 'checksums.txt'))).toContain(
+      `${hashFor(attachmentBytes)}  ${attachmentPath}\n`,
+    );
+    expect(archive.manifest.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          byteSize: attachmentBytes.byteLength,
+          documentId,
+          kind: 'attachment',
+          path: attachmentPath,
+          sha256: hashFor(attachmentBytes),
+        }),
+      ]),
+    );
+  });
+
+  it('rejects incomplete, duplicate, and corrupted attachment input', async () => {
+    const records = populatedRecords();
+    const baseInput = {
+      applicationVersion: '0.1.0',
+      createdAt,
+      hasher,
+      includeOriginalAttachments: true,
+      records,
+      schemaVersion: 6,
+    } as const;
+
+    await expect(createStructuredExport({ ...baseInput, attachments: [] })).rejects.toThrow(
+      'Every original receipt document must have attachment bytes',
+    );
+    await expect(
+      createStructuredExport({
+        ...baseInput,
+        attachments: [
+          { bytes: attachmentBytes, documentId },
+          { bytes: attachmentBytes, documentId },
+        ],
+      }),
+    ).rejects.toThrow('Export attachment document IDs must be unique.');
+    await expect(
+      createStructuredExport({
+        ...baseInput,
+        attachments: [{ bytes: Uint8Array.from([1, 2, 3, 4]), documentId }],
+      }),
+    ).rejects.toThrow('Export attachment checksum does not match');
+  });
+
+  it('rejects snapshots whose active records do not form a complete relationship graph', async () => {
+    const records = populatedRecords();
+
+    await expect(
+      createStructuredExport({
+        applicationVersion: '0.1.0',
+        attachments: [],
+        createdAt,
+        hasher,
+        includeOriginalAttachments: false,
+        records: { ...records, categories: [] },
+        schemaVersion: 6,
+      }),
+    ).rejects.toBeInstanceOf(StructuredExportValidationError);
+  });
+});
+
+function populatedRecords(): StructuredExportRecords {
+  const receipt = {
+    ...createManualReceipt({
+      capturedAt: createdAt,
+      currencyCode: 'USD',
+      id: receiptId,
+      merchantId,
+      merchantName: 'Corner Market',
+      purchasedAt: '2026-07-17T12:00:00-06:00',
+      subtotalMinor: 1_000,
+      taxMinor: 80,
+      tipMinor: 0,
+      totalMinor: 1_080,
+    }),
+    categoryId,
+  };
+  const document: ReceiptDocument = {
+    byteSize: attachmentBytes.byteLength,
+    createdAt,
+    heightPixels: 1,
+    id: documentId,
+    isOriginal: true,
+    mimeType: 'image/png',
+    originalFilename: 'receipt.png',
+    pageCount: 1,
+    parentDocumentId: null,
+    receiptId,
+    sha256: hashFor(attachmentBytes),
+    sourceType: 'image_import',
+    storageDeletedAt: null,
+    storageReference: `receipts/${receiptId}/originals/${documentId}.png`,
+    widthPixels: 1,
+  };
+  const evidence: FieldEvidence = {
+    acceptedAt: null,
+    boundingBox: { height: 0.04, width: 0.18, x: 0.7, y: 0.82 },
+    confidence: 0.94,
+    correctedAt: null,
+    extractedValue: '$10.80',
+    fieldName: 'total_minor',
+    id: '11111111-1111-4111-8111-111111111111',
+    normalizedValue: '1080',
+    pageNumber: 1,
+    processedAt: createdAt,
+    processorName: 'deterministic-receipt-parser',
+    processorVersion: '1.0.0',
+    receiptId,
+    sourceType: 'deterministic_parser',
+  };
+  const history: ProcessingHistory = {
+    affectedFields: ['total_minor'],
+    completedAt: '2026-07-18T07:00:01-06:00',
+    executionLocation: 'local',
+    failureCode: null,
+    id: '33333333-3333-4333-8333-333333333333',
+    modelVersion: null,
+    processorName: 'deterministic-receipt-parser',
+    processorVersion: '1.0.0',
+    providerName: 'reimbursd-local',
+    receiptId,
+    reviewStatus: 'pending',
+    startedAt: createdAt,
+    status: 'succeeded',
+  };
+
+  return {
+    categories: [createCategory({ createdAt, id: categoryId, name: 'Meals' })],
+    fieldEvidence: [evidence],
+    merchants: [
+      {
+        createdAt,
+        displayName: 'Corner Market',
+        id: merchantId,
+        normalizedName: 'corner market',
+        phone: null,
+        updatedAt: createdAt,
+        website: null,
+      },
+    ],
+    processingHistory: [history],
+    receiptDocuments: [document],
+    receiptTags: [
+      {
+        assignedAt: createdAt,
+        deletedAt: null,
+        receiptId,
+        tagId,
+        updatedAt: createdAt,
+        version: 1,
+      },
+    ],
+    receipts: [receipt],
+    tags: [createTag({ createdAt, id: tagId, name: 'Client visit' })],
+  };
+}
+
+function readJson(files: Record<string, Uint8Array>, path: string): unknown {
+  return JSON.parse(strFromU8(requiredFile(files, path)));
+}
+
+function requiredFile(files: Record<string, Uint8Array>, path: string): Uint8Array {
+  const file = files[path];
+
+  if (file === undefined) {
+    throw new Error(`Archive is missing ${path}.`);
+  }
+
+  return file;
+}
+
+function hashFor(bytes: Uint8Array): string {
+  let accumulator = 0;
+
+  for (const byte of bytes) {
+    accumulator = (accumulator + byte) % 256;
+  }
+
+  return accumulator.toString(16).padStart(64, '0');
+}

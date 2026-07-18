@@ -23,7 +23,8 @@ services may add web access, synchronization, storage, and explicitly authorized
 
 ## Current scope
 
-Milestone 0 establishes a launchable mobile shell, domain boundary, quality gate, and project
-documentation. Milestone 1 will deliver locally persisted manual expenses with integer minor-unit
-money values, editing, deletion, search, and basic filters. OCR, synchronization, billing, remote
-AI, and location enrichment are intentionally later milestones.
+Milestones 0 through 3 provide the repository foundation, local manual expenses, immutable receipt
+ingestion, local OCR boundaries, deterministic extraction, provenance, and review. Milestone 4 is
+active with local categories, tags, filtering, reports, CSV export, and a versioned complete-data
+ZIP export with optional originals. Restore and complete local deletion remain the next local data
+control work. Synchronization, billing, remote AI, and location enrichment remain later milestones.

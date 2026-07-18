@@ -19,6 +19,7 @@
     "@reimbursd/attachments": "*",
     "@reimbursd/database": "*",
     "@reimbursd/domain": "*",
+    "@reimbursd/export": "*",
     "@reimbursd/extraction": "*",
     "@reimbursd/ocr": "*",
     "expo": "~57.0.7",

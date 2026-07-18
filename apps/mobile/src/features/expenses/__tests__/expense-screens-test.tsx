@@ -30,6 +30,7 @@ jest.mock('expo-crypto', () => ({
 jest.mock('lucide-react-native', () => {
   const MockIcon = () => null;
   return {
+    Archive: MockIcon,
     Check: MockIcon,
     Camera: MockIcon,
     ChartColumn: MockIcon,
@@ -37,6 +38,7 @@ jest.mock('lucide-react-native', () => {
     Crosshair: MockIcon,
     Download: MockIcon,
     FileImage: MockIcon,
+    FileSpreadsheet: MockIcon,
     FileText: MockIcon,
     Filter: MockIcon,
     Pencil: MockIcon,
@@ -195,6 +197,7 @@ describe('manual expense screens', () => {
     const onCreate = jest.fn();
     const onOpen = jest.fn();
     const onOpenReports = jest.fn();
+    const onExportArchive = jest.fn().mockResolvedValue(undefined);
     const onExportCsv = jest.fn().mockResolvedValue(undefined);
     const repository = createRepository();
     const onCapture = jest.fn();
@@ -208,6 +211,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={onCapture}
         onCreate={onCreate}
+        onExportArchive={onExportArchive}
         onExportCsv={onExportCsv}
         onImportImage={onImportImage}
         onImportPdf={onImportPdf}
@@ -232,9 +236,15 @@ describe('manual expense screens', () => {
     await fireEvent.press(screen.getByLabelText('View expense reports'));
     expect(onOpenReports).toHaveBeenCalledTimes(1);
 
-    await fireEvent.press(screen.getByLabelText('Export all expenses as CSV'));
+    await fireEvent.press(screen.getByLabelText('Export data'));
+    await fireEvent.press(screen.getByLabelText('Export expenses as CSV'));
     await waitFor(() => expect(onExportCsv).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('CSV export is ready.')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Export data'));
+    await fireEvent.press(screen.getByLabelText('Export complete data archive'));
+    await waitFor(() => expect(onExportArchive).toHaveBeenCalledWith(true));
+    expect(await screen.findByText('Complete export is ready.')).toBeTruthy();
 
     await fireEvent.press(screen.getByLabelText('Scan receipt with camera'));
     await fireEvent.press(screen.getByLabelText('Import receipt image'));
@@ -268,6 +278,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={jest.fn()}
         onCreate={jest.fn()}
+        onExportArchive={jest.fn().mockResolvedValue(undefined)}
         onExportCsv={jest.fn().mockResolvedValue(undefined)}
         onImportImage={jest.fn()}
         onImportPdf={jest.fn()}
@@ -341,6 +352,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={jest.fn()}
         onCreate={jest.fn()}
+        onExportArchive={jest.fn().mockResolvedValue(undefined)}
         onExportCsv={jest.fn().mockResolvedValue(undefined)}
         onImportImage={jest.fn()}
         onImportPdf={jest.fn()}
@@ -370,6 +382,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={jest.fn()}
         onCreate={jest.fn()}
+        onExportArchive={jest.fn().mockResolvedValue(undefined)}
         onExportCsv={onExportCsv}
         onImportImage={jest.fn()}
         onImportPdf={jest.fn()}
@@ -383,12 +396,15 @@ describe('manual expense screens', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Corner Market')).toBeTruthy());
-    await fireEvent.press(screen.getByLabelText('Export all expenses as CSV'));
+    await fireEvent.press(screen.getByLabelText('Export data'));
+    await fireEvent.press(screen.getByLabelText('Export expenses as CSV'));
     expect(
-      await screen.findByText('CSV export could not be created. Try the export button again.'),
+      await screen.findByText(
+        'Export could not be created. Check local file access and try again.',
+      ),
     ).toBeTruthy();
 
-    await fireEvent.press(screen.getByLabelText('Export all expenses as CSV'));
+    await fireEvent.press(screen.getByLabelText('Export expenses as CSV'));
     await waitFor(() => expect(onExportCsv).toHaveBeenCalledTimes(2));
     expect(await screen.findByText('CSV export is ready.')).toBeTruthy();
   });

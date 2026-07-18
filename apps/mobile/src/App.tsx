@@ -11,6 +11,7 @@ import {
   PdfLibAttachmentInspector,
   ReceiptDeletionCoordinator,
 } from '@reimbursd/attachments';
+import { schemaVersion } from '@reimbursd/database';
 import type { FieldEvidence, Receipt } from '@reimbursd/domain';
 import { DeterministicReceiptParser, type DateOrder } from '@reimbursd/extraction';
 
@@ -22,6 +23,7 @@ import { ExpenseFormScreen } from './features/expenses/ExpenseFormScreen';
 import { ExpenseListScreen } from './features/expenses/ExpenseListScreen';
 import { ExpenseReportScreen } from './features/expenses/ExpenseReportScreen';
 import { exportExpenseCsv } from './features/expenses/expense-csv-export';
+import { exportStructuredData } from './features/expenses/structured-export';
 import type { ExpenseFormSubmission } from './features/expenses/expense-form';
 import { buildReceiptReviewInput } from './features/expenses/expense-review';
 import {
@@ -41,7 +43,9 @@ import {
 import { getLocalRepositories, type LocalRepositories } from './storage/expo-sqlite';
 import { ExpoAttachmentHasher, LocalAttachmentStorage } from './storage/local-attachments';
 import { PlatformCsvExportWriter } from './storage/local-csv-export';
+import { PlatformStructuredExportWriter } from './storage/local-structured-export';
 import { colors } from './theme';
+import appConfig from '../app.json';
 
 type Route =
   | { readonly name: 'list' }
@@ -271,6 +275,17 @@ function AppContent() {
             importing={importing}
             onCapture={() => importReceipt(selectCameraReceipt)}
             onCreate={() => setRoute({ name: 'new' })}
+            onExportArchive={async (includeOriginalAttachments) => {
+              await exportStructuredData({
+                applicationVersion: appConfig.expo.version,
+                hasher: new ExpoAttachmentHasher(),
+                includeOriginalAttachments,
+                repository: repositoryState.repositories.structuredExports,
+                schemaVersion,
+                storage: repositoryState.storage,
+                writer: new PlatformStructuredExportWriter(),
+              });
+            }}
             onExportCsv={async () => {
               await exportExpenseCsv({
                 repository: repositoryState.repositories.receipts,

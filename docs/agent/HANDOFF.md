@@ -24,8 +24,14 @@ now composes validated local merchant, date, currency-specific amount, category,
 filters through parameterized queries. A transactional read repository and accessible reports route
 show monthly and category totals while keeping currencies separate and deleted receipts excluded.
 CSV export is implemented through deterministic domain serialization, direct web download, and
-native temporary-file sharing with cleanup. The next work is the complete structured export. Keep
-existing receipts valid and local, preserve imported originals exactly, and do not add hosted
+native temporary-file sharing with cleanup. Complete structured export is also implemented: one
+SQLite transaction reads the active record graph, a framework-independent package validates
+relationships and deterministic JSON, record files receive SHA-256 manifest entries, and selected
+originals must match stored byte-size and hash metadata before being copied into the plain ZIP. The
+mobile export menu offers complete ZIP or CSV, with an explicit originals toggle, direct web
+download, native temporary sharing, and failure cleanup. Format version 1 is documented in
+`docs/DATA_EXPORT_FORMAT.md`; restore is not implemented and is the next work. Keep existing receipts
+valid and local, validate the entire untrusted archive before writes, and do not add hosted
 processing, synchronization, or generative AI.
 
 ## Resume steps

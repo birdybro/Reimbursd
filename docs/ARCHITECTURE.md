@@ -9,6 +9,7 @@ apps/mobile       Expo and React Native client
 packages/attachments File inspection and attachment-ingestion coordination
 packages/domain   Framework-independent business rules
 packages/database SQLite ports, migrations, and local repositories
+packages/export   Validated deterministic structured archive creation
 packages/extraction Validated deterministic receipt-field parsing
 packages/ocr      Validated OCR provider contract and deterministic test provider
 ```
@@ -51,6 +52,15 @@ active receipts in deterministic order, renders currency decimals from integer m
 CSV structure, and neutralizes spreadsheet formula prefixes in user-entered text. A mobile adapter
 downloads a Blob directly on web or shares a private temporary cache file on native. Native cache
 cleanup runs after both successful and failed share attempts.
+
+Complete export uses a separate framework-independent package. A database adapter reads the active
+receipt graph in one SQLite transaction, including classifications, document metadata, evidence,
+and processing history. The archive boundary revalidates records and relationships, writes
+deterministic JSON, hashes each record file, and optionally verifies original attachment bytes
+against stored size and SHA-256 metadata. ZIP paths come from validated UUID and MIME metadata,
+never user filenames. Web downloads the plain ZIP directly; native platforms share a validated
+private cache file and remove it afterward. Restore is not implemented, so archive parsing and
+transactional import remain separate work.
 
 Receipt bytes cross a framework-independent ingestion boundary that validates decoded JPEG, PNG,
 or PDF content, applies configurable resource limits, calculates SHA-256, detects duplicate
@@ -112,4 +122,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0005](architecture/adr/0005-apple-vision-local-ocr.md), and
 [ADR-0006](architecture/adr/0006-deterministic-receipt-parser.md), and
 [ADR-0007](architecture/adr/0007-local-category-and-tag-storage.md), and
-[ADR-0008](architecture/adr/0008-local-csv-export-delivery.md) for accepted decisions.
+[ADR-0008](architecture/adr/0008-local-csv-export-delivery.md), and
+[ADR-0009](architecture/adr/0009-structured-export-archive.md) for accepted decisions.

@@ -34,6 +34,7 @@ import { formatMinorUnits, type Receipt } from '@reimbursd/domain';
 import { StatusPanel } from '../../components/StatusPanel';
 import { colors } from '../../theme';
 import { formatPurchaseDate } from './display';
+import { ExpenseExportModal } from './ExpenseExportModal';
 import { ExpenseFilterModal } from './ExpenseFilterModal';
 import {
   countActiveExpenseFilters,
@@ -48,6 +49,7 @@ interface ExpenseListScreenProps {
   readonly importing: boolean;
   readonly onCapture: () => void;
   readonly onCreate: () => void;
+  readonly onExportArchive: (includeOriginalAttachments: boolean) => Promise<void>;
   readonly onExportCsv: () => Promise<void>;
   readonly onImportImage: () => void;
   readonly onImportPdf: () => void;
@@ -66,6 +68,7 @@ export function ExpenseListScreen({
   importing,
   onCapture,
   onCreate,
+  onExportArchive,
   onExportCsv,
   onImportImage,
   onImportPdf,
@@ -80,6 +83,8 @@ export function ExpenseListScreen({
   const [exportStatus, setExportStatus] = useState<'error' | 'exporting' | 'idle' | 'success'>(
     'idle',
   );
+  const [exportKind, setExportKind] = useState<'archive' | 'csv'>('csv');
+  const [exportVisible, setExportVisible] = useState(false);
   const [filterOptions, setFilterOptions] = useState<ReceiptListOptions>({});
   const [filterVisible, setFilterVisible] = useState(false);
   const [filterValues, setFilterValues] = useState<ExpenseFilterValues>(emptyExpenseFilters);
@@ -115,16 +120,21 @@ export function ExpenseListScreen({
   const activeFilterCount = countActiveExpenseFilters(filterValues);
   const filtering = search.trim().length > 0 || activeFilterCount > 0;
 
-  const exportCsv = async () => {
+  const exportData = async (
+    kind: 'archive' | 'csv',
+    action: () => Promise<void>,
+  ): Promise<void> => {
     if (exportStatus === 'exporting') {
       return;
     }
 
+    setExportKind(kind);
     setExportStatus('exporting');
 
     try {
-      await onExportCsv();
+      await action();
       setExportStatus('success');
+      setExportVisible(false);
     } catch {
       setExportStatus('error');
     }
@@ -201,16 +211,14 @@ export function ExpenseListScreen({
             {receipts.length} {receipts.length === 1 ? 'record' : 'records'}
           </Text>
           <Pressable
-            accessibilityLabel={
-              exportStatus === 'exporting'
-                ? 'Exporting all expenses as CSV'
-                : 'Export all expenses as CSV'
-            }
-            accessibilityHint="Exports every active expense, regardless of search or filters."
+            accessibilityLabel={exportStatus === 'exporting' ? 'Exporting data' : 'Export data'}
             accessibilityRole="button"
             accessibilityState={{ disabled: exportStatus === 'exporting' }}
             disabled={exportStatus === 'exporting'}
-            onPress={() => void exportCsv()}
+            onPress={() => {
+              setExportStatus('idle');
+              setExportVisible(true);
+            }}
             style={({ pressed }) => [
               styles.sectionIconButton,
               exportStatus === 'exporting' && styles.disabled,
@@ -232,11 +240,11 @@ export function ExpenseListScreen({
 
       {exportStatus === 'success' ? (
         <Text accessibilityLiveRegion="polite" style={styles.exportSuccess}>
-          CSV export is ready.
+          {exportKind === 'archive' ? 'Complete export is ready.' : 'CSV export is ready.'}
         </Text>
-      ) : exportStatus === 'error' ? (
+      ) : exportStatus === 'error' && !exportVisible ? (
         <Text accessibilityLiveRegion="assertive" style={styles.exportError}>
-          CSV export could not be created. Try the export button again.
+          Export could not be created. Try the export button again.
         </Text>
       ) : null}
 
@@ -347,6 +355,16 @@ export function ExpenseListScreen({
           }}
           onClose={() => setFilterVisible(false)}
           tags={tagRepository}
+        />
+      ) : null}
+      {exportVisible ? (
+        <ExpenseExportModal
+          onClose={() => setExportVisible(false)}
+          onExportArchive={(includeOriginalAttachments) =>
+            void exportData('archive', () => onExportArchive(includeOriginalAttachments))
+          }
+          onExportCsv={() => void exportData('csv', onExportCsv)}
+          status={exportStatus === 'success' ? 'idle' : exportStatus}
         />
       ) : null}
     </View>
