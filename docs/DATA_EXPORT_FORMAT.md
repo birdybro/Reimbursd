@@ -48,11 +48,12 @@ not implemented; keeping the files present reserves their documented names witho
 features exist.
 
 Only active receipts are exported. Categories and tags include active records. Merchants,
-receipt-tag relationships, documents, field evidence, and processing history are included only when
-they belong to active receipts; storage-deleted documents are excluded. Tombstones are not part of
-format version 1. `receipt-documents.json` adds `attachmentPath`: the archive path for an included
-original, or `null` when its bytes are not included. The original filename remains metadata and is
-never used as an archive path.
+receipt-tag relationships, original document metadata, field evidence, and processing history are
+included only when they belong to active receipts; storage-deleted documents and regenerable
+derivatives are excluded. Tombstones are not part of format version 1.
+`receipt-documents.json` adds `attachmentPath`: the archive path for an included original, or `null`
+when its bytes are not included. The original filename remains metadata and is never used as an
+archive path.
 
 ### Manifest
 
@@ -114,12 +115,41 @@ line per record file and included attachment, sorted by path:
 `manifest.json` and `checksums.txt` are not self-listed. Consumers must treat all archive paths and
 record contents as untrusted and validate them before restore.
 
+### Restore validation
+
+Reimbursd restores only format version 1 archives whose database schema version exactly matches the
+running application. Before any local write, the parser rejects invalid ZIP data, duplicate or
+unknown paths, absolute or traversal paths, unsupported compression, malformed or non-UTF-8 JSON,
+unknown object properties, missing files, manifest/archive disagreement, unsupported location or
+line-item records, invalid domain relationships, and any count, byte-size, or SHA-256 mismatch.
+
+Default parse limits are 1 GiB for the archive and total expanded contents, 25 MiB per attachment,
+32 MiB per record file, 10,012 entries, and 200 characters per path. These are defensive parser
+ceilings, not a promise that every device can process an archive near the maximum.
+
+Restore requires an empty local database and never merges with or overwrites existing structured
+records. If document metadata is present, the export must include every original attachment;
+record-only exports containing documents remain valid for inspection but cannot be restored.
+Archives without any receipt documents do not require an `attachments/` directory. Structured
+records are inserted in one SQLite transaction with their stable IDs, timestamps, versions,
+classifications, evidence, and processing history intact.
+
+The mobile coordinator also verifies before writing that each opaque document storage reference is
+the canonical private target derived from its receipt UUID, document UUID, and validated MIME type.
+This metadata is not allowed to redirect attachment writes to another local path.
+
+Attachment bytes are written through immutable storage before the database transaction. If a later
+write or transaction fails, files created by that attempt are removed in reverse order. A retry
+after interrupted cleanup can reuse an existing target only when its bytes are identical; any
+conflicting file fails closed. This provides recoverable local coordination without claiming one
+atomic transaction across SQLite and platform file storage.
+
 ### Delivery and limitations
 
 Web creates a local browser download. Native builds use a private temporary cache file and the
 operating-system share sheet, then remove the cache file after the share attempt. No account or
 network service is required by Reimbursd, although a user-selected share destination may use one.
 
-The ZIP is plain and is not encrypted. Restore is not implemented yet, so format version 1 currently
-supports inspection and data portability only. Encrypted backups are a separate Milestone 5
-capability requiring tested authenticated encryption.
+The ZIP is plain and is not encrypted. Format version 1 supports inspection, data portability, and
+clean-install restore in the current application schema. Encrypted backups are a separate
+Milestone 5 capability requiring tested authenticated encryption.

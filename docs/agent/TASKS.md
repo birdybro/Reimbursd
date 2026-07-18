@@ -104,7 +104,7 @@
 - [x] Add monthly and category totals.
 - [x] Add account-free CSV export for common active-expense fields.
 - [x] Add complete structured export with attachment checksums.
-- [ ] Add clean-install restore and round-trip coverage.
+- [x] Add clean-install restore and round-trip coverage.
 - [ ] Add complete local data deletion with attachment cleanup.
 - [x] Document the open export format.
 
@@ -117,5 +117,5 @@
   overwrite behavior.
 - Structured records commit atomically and attachment writes are rolled back or durably recoverable
   after failure.
-- Export, local deletion, restore, and reload preserve corrected values, provenance, classifications,
-  document metadata, and byte-identical selected originals in a round-trip test.
+- Complete export, parse, clean-database restore, and reload preserve corrected values, provenance,
+  classifications, document metadata, and byte-identical selected originals in round-trip coverage.

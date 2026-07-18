@@ -25,7 +25,7 @@ import {
 import { SqliteStructuredExportSnapshotRepository } from './structured-export-snapshot-repository.js';
 
 describe('SQLite structured export snapshot repository', () => {
-  it('reads every active export record in one transaction and excludes tombstoned data', async () => {
+  it('reads active restorable records in one transaction and excludes tombstones and derivatives', async () => {
     const connection = new NodeSqliteConnection();
     await migrateDatabase(connection);
     const receipts = new SqliteReceiptRepository(connection);
@@ -66,6 +66,17 @@ describe('SQLite structured export snapshot repository', () => {
       storageDeletedAt: null,
       storageReference: `receipts/${active.id}/active.png`,
       widthPixels: 1,
+    });
+    await documents.create({
+      ...activeDocument,
+      id: randomUUID(),
+      isOriginal: false,
+      mimeType: 'image/jpeg',
+      originalFilename: 'active-preview.jpg',
+      parentDocumentId: activeDocument.id,
+      sha256: 'c'.repeat(64),
+      sourceType: 'derivative',
+      storageReference: `receipts/${active.id}/active-preview.jpg`,
     });
     const activeEvidence = await evidence.create({
       acceptedAt: null,

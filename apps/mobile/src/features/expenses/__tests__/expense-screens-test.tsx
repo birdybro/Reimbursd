@@ -52,6 +52,7 @@ jest.mock('lucide-react-native', () => {
     Square: MockIcon,
     Tags: MockIcon,
     Trash2: MockIcon,
+    Upload: MockIcon,
     X: MockIcon,
   };
 });
@@ -199,6 +200,7 @@ describe('manual expense screens', () => {
     const onOpenReports = jest.fn();
     const onExportArchive = jest.fn().mockResolvedValue(undefined);
     const onExportCsv = jest.fn().mockResolvedValue(undefined);
+    const onRestoreArchive = jest.fn().mockResolvedValue(true);
     const repository = createRepository();
     const onCapture = jest.fn();
     const onImportImage = jest.fn();
@@ -217,6 +219,7 @@ describe('manual expense screens', () => {
         onImportPdf={onImportPdf}
         onOpen={onOpen}
         onOpenReports={onOpenReports}
+        onRestoreArchive={onRestoreArchive}
         onRetryCleanup={jest.fn()}
         repository={repository}
         retryingCleanup={false}
@@ -242,9 +245,15 @@ describe('manual expense screens', () => {
     expect(await screen.findByText('CSV export is ready.')).toBeTruthy();
 
     await fireEvent.press(screen.getByLabelText('Export data'));
+    await fireEvent(screen.getByLabelText('Include original receipt files'), 'valueChange', false);
     await fireEvent.press(screen.getByLabelText('Export complete data archive'));
-    await waitFor(() => expect(onExportArchive).toHaveBeenCalledWith(true));
+    await waitFor(() => expect(onExportArchive).toHaveBeenCalledWith(false));
     expect(await screen.findByText('Complete export is ready.')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Export data'));
+    await fireEvent.press(screen.getByLabelText('Restore complete data archive'));
+    await waitFor(() => expect(onRestoreArchive).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Restore completed.')).toBeTruthy();
 
     await fireEvent.press(screen.getByLabelText('Scan receipt with camera'));
     await fireEvent.press(screen.getByLabelText('Import receipt image'));
@@ -284,6 +293,7 @@ describe('manual expense screens', () => {
         onImportPdf={jest.fn()}
         onOpen={jest.fn()}
         onOpenReports={jest.fn()}
+        onRestoreArchive={jest.fn().mockResolvedValue(false)}
         onRetryCleanup={jest.fn()}
         repository={repository}
         retryingCleanup={false}
@@ -358,6 +368,7 @@ describe('manual expense screens', () => {
         onImportPdf={jest.fn()}
         onOpen={jest.fn()}
         onOpenReports={jest.fn()}
+        onRestoreArchive={jest.fn().mockResolvedValue(false)}
         onRetryCleanup={onRetryCleanup}
         repository={createRepository()}
         retryingCleanup={false}
@@ -388,6 +399,7 @@ describe('manual expense screens', () => {
         onImportPdf={jest.fn()}
         onOpen={jest.fn()}
         onOpenReports={jest.fn()}
+        onRestoreArchive={jest.fn().mockResolvedValue(false)}
         onRetryCleanup={jest.fn()}
         repository={createRepository()}
         retryingCleanup={false}

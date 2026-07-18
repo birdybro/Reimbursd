@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 export {
+  assertValidStructuredExportRecords,
   createStructuredExport,
   structuredExportFormatVersion,
   StructuredExportValidationError,
@@ -14,3 +15,9 @@ export {
   type StructuredExportRecordFile,
   type StructuredExportRecords,
 } from './structured-export.js';
+export {
+  defaultStructuredExportParseLimits,
+  parseStructuredExport,
+  type ParsedStructuredExport,
+  type StructuredExportParseLimits,
+} from './structured-import.js';

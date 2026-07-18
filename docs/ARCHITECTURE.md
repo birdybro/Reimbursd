@@ -9,7 +9,7 @@ apps/mobile       Expo and React Native client
 packages/attachments File inspection and attachment-ingestion coordination
 packages/domain   Framework-independent business rules
 packages/database SQLite ports, migrations, and local repositories
-packages/export   Validated deterministic structured archive creation
+packages/export   Validated deterministic structured archive creation and parsing
 packages/extraction Validated deterministic receipt-field parsing
 packages/ocr      Validated OCR provider contract and deterministic test provider
 ```
@@ -59,8 +59,18 @@ and processing history. The archive boundary revalidates records and relationshi
 deterministic JSON, hashes each record file, and optionally verifies original attachment bytes
 against stored size and SHA-256 metadata. ZIP paths come from validated UUID and MIME metadata,
 never user filenames. Web downloads the plain ZIP directly; native platforms share a validated
-private cache file and remove it afterward. Restore is not implemented, so archive parsing and
-transactional import remain separate work.
+private cache file and remove it afterward.
+
+The same export package treats selected ZIPs as untrusted input. It bounds archive and expanded
+sizes, filters paths before decompression, strictly parses the current manifest and record schemas,
+verifies the complete file graph and checksums, and reapplies domain relationship validation before
+returning typed records or attachment bytes. The mobile restore coordinator requires every exported
+document to be an original with included bytes. It writes through the immutable attachment port,
+then asks a dedicated SQLite repository to verify that every application table is empty and insert
+the complete graph in one transaction. Database failure removes files created by the attempt;
+byte-identical leftovers can be reused after interrupted cleanup, while conflicts fail closed.
+Format version 1 deliberately excludes derivative metadata and bytes because those previews are
+regenerable and restoring metadata without bytes would create invalid references.
 
 Receipt bytes cross a framework-independent ingestion boundary that validates decoded JPEG, PNG,
 or PDF content, applies configurable resource limits, calculates SHA-256, detects duplicate
@@ -123,4 +133,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0006](architecture/adr/0006-deterministic-receipt-parser.md), and
 [ADR-0007](architecture/adr/0007-local-category-and-tag-storage.md), and
 [ADR-0008](architecture/adr/0008-local-csv-export-delivery.md), and
-[ADR-0009](architecture/adr/0009-structured-export-archive.md) for accepted decisions.
+[ADR-0009](architecture/adr/0009-structured-export-archive.md), and
+[ADR-0010](architecture/adr/0010-clean-local-archive-restore.md) for accepted decisions.

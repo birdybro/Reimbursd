@@ -53,6 +53,12 @@
   attachment against both byte size and SHA-256 metadata before archive creation. Archive paths are
   derived from validated UUIDs and MIME types rather than user filenames. Native temporary ZIP files
   are removed after successful or failed sharing.
+- Structured restore filters untrusted ZIP entries for exact known paths, traversal, duplication,
+  compression method, entry count, and bounded expanded size before accepting decompressed content.
+  It strictly validates the current manifest and record schemas, domain relationships, file graph,
+  byte sizes, and SHA-256 checksums before any local write. Restore never merges into a nonempty
+  database or overwrites a conflicting file. Structured inserts are transactional, and files created
+  before a failed database commit receive compensating cleanup with byte-identical retry recovery.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -71,15 +77,14 @@
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available, and
   complete data deletion.
 - An Android-compatible offline OCR adapter.
-- Structured-export restore validation, secure platform key storage, and authenticated encrypted
-  backups.
+- Secure platform key storage and authenticated encrypted backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
 - Cross-user isolation, backup restoration, provider-contract, and synchronization-conflict tests.
 
 ## Unsupported claims
 
-Reimbursd does not currently provide structured-export restore, encrypted backups, end-to-end
-encryption, authentication, hosted storage, synchronization, complete data deletion, secure
-deletion guarantees, Android/web OCR, or remote AI processing. iOS OCR has not been exercised on
-Apple hardware in this Linux environment. Local receipt storage and plain exports are not described
-as encrypted. Product surfaces and documentation must not imply otherwise.
+Reimbursd does not currently provide encrypted backups, end-to-end encryption, authentication,
+hosted storage, synchronization, complete data deletion, secure deletion guarantees, Android/web
+OCR, or remote AI processing. iOS OCR has not been exercised on Apple hardware in this Linux
+environment. Local receipt storage, plain exports, and clean-install restore are not described as
+encrypted. Product surfaces and documentation must not imply otherwise.

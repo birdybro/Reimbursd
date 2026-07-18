@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@reimbursd/domain": "*",
-    "fflate": "^0.8.3"
+    "fflate": "^0.8.3",
+    "zod": "^3.25.76"
   }
 }

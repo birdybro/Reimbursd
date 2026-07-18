@@ -13,8 +13,9 @@ delete manual expenses, and it can capture JPEG/PNG receipts or import JPEG, PNG
 originals into private local storage. Import validates content and limits, records SHA-256 and
 provenance, and requires no account or network service. Deleting an expense removes its local
 receipt bytes with durable retry after interruption. JPEG and PNG imports receive separate bounded
-local previews. Cross-platform OCR, PDF page previews, restore, delete-all, and encrypted backup are
-not complete, and the project does not claim production readiness.
+local previews. Current-schema complete ZIP exports can be restored into a clean local installation.
+Cross-platform OCR, PDF page previews, delete-all, and encrypted backup are not complete, and the
+project does not claim production readiness.
 
 Milestone 3 includes durable field evidence and processing history, a validated OCR
 provider contract, a deterministic test provider, and on-device Apple Vision OCR in iOS development
@@ -33,7 +34,8 @@ purchase date, currency-specific amount range, category, and tag. Local reports 
 category totals without combining currencies. Active expenses can be exported to a local CSV file
 through a browser download or native share sheet. A versioned plain ZIP export contains the active
 structured dataset, per-file SHA-256 checksums, and optional byte-identical receipt originals.
-Restore and delete-all workflows are still pending.
+The application strictly validates a complete ZIP and can restore it without an account into an
+empty local database. Delete-all is still pending.
 
 ## Requirements
 

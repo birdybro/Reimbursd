@@ -21,7 +21,10 @@ files to the native operating-system share sheet. `pdf-lib` 1.17.1 is installed 
 license to decode supported images, validate PDFs, and obtain PDF page counts. Its self-contained
 ESM distribution includes TypeScript helper code under the Apache-2.0 license; the installed package
 preserves its notices. `fflate` 0.8.3 is installed under the MIT license to create local ZIP archives
-without a network service; the installed package preserves its license metadata.
+and strictly extract selected archives without a network service; the installed package preserves
+its license metadata. `zod` 3.25.76 is installed under the MIT license to strictly validate untrusted
+structured-export manifests and record files before restore; the installed package preserves its
+license metadata.
 
 ## Development license data
 

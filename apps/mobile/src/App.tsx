@@ -24,6 +24,8 @@ import { ExpenseListScreen } from './features/expenses/ExpenseListScreen';
 import { ExpenseReportScreen } from './features/expenses/ExpenseReportScreen';
 import { exportExpenseCsv } from './features/expenses/expense-csv-export';
 import { exportStructuredData } from './features/expenses/structured-export';
+import { restoreStructuredData } from './features/expenses/structured-restore';
+import { selectStructuredExport } from './features/expenses/structured-restore-picker';
 import type { ExpenseFormSubmission } from './features/expenses/expense-form';
 import { buildReceiptReviewInput } from './features/expenses/expense-review';
 import {
@@ -41,7 +43,11 @@ import {
   type SelectedReceiptFile,
 } from './features/receipts/receipt-pickers';
 import { getLocalRepositories, type LocalRepositories } from './storage/expo-sqlite';
-import { ExpoAttachmentHasher, LocalAttachmentStorage } from './storage/local-attachments';
+import {
+  ExpoAttachmentHasher,
+  LocalAttachmentStorage,
+  readPickedLocalFile,
+} from './storage/local-attachments';
 import { PlatformCsvExportWriter } from './storage/local-csv-export';
 import { PlatformStructuredExportWriter } from './storage/local-structured-export';
 import { colors } from './theme';
@@ -296,6 +302,22 @@ function AppContent() {
             onImportPdf={() => importReceipt(selectPdfReceipt)}
             onOpen={(receipt) => setRoute({ name: 'detail', receipt })}
             onOpenReports={() => setRoute({ name: 'reports' })}
+            onRestoreArchive={async () => {
+              const selection = await selectStructuredExport();
+
+              if (selection === null) {
+                return false;
+              }
+
+              await restoreStructuredData({
+                bytes: await readPickedLocalFile(selection),
+                hasher: new ExpoAttachmentHasher(),
+                repository: repositoryState.repositories.structuredImports,
+                storage: repositoryState.storage,
+                supportedSchemaVersion: schemaVersion,
+              });
+              return true;
+            }}
             onRetryCleanup={retryPendingCleanup}
             repository={repositoryState.repositories.receipts}
             retryingCleanup={retryingCleanup}

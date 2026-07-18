@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { strFromU8, unzipSync } from 'fflate';
+import { strFromU8, strToU8, unzipSync, Zip, zipSync, ZipPassThrough } from 'fflate';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -11,6 +11,7 @@ import {
   type ReceiptDocument,
 } from '@reimbursd/domain';
 
+import { defaultStructuredExportParseLimits, parseStructuredExport } from './structured-import.js';
 import {
   createStructuredExport,
   StructuredExportValidationError,
@@ -196,6 +197,140 @@ describe('structured export archive', () => {
   });
 });
 
+describe('structured export archive parsing', () => {
+  it('validates and owns a complete archive with byte-identical originals', async () => {
+    const records = populatedRecords();
+    const archive = await createStructuredExport({
+      applicationVersion: '0.1.0',
+      attachments: [{ bytes: attachmentBytes, documentId }],
+      createdAt,
+      hasher,
+      includeOriginalAttachments: true,
+      records,
+      schemaVersion: 6,
+    });
+
+    const parsed = await parseStructuredExport({
+      bytes: archive.bytes,
+      hasher,
+      supportedSchemaVersion: 6,
+    });
+
+    expect(parsed.manifest).toEqual(archive.manifest);
+    expect(parsed.records).toEqual(records);
+    expect(parsed.attachments).toEqual([{ bytes: attachmentBytes, documentId }]);
+  });
+
+  it('accepts an empty archive whose originals option was enabled', async () => {
+    const archive = await createStructuredExport({
+      applicationVersion: '0.1.0',
+      attachments: [],
+      createdAt,
+      hasher,
+      includeOriginalAttachments: true,
+      records: emptyRecords,
+      schemaVersion: 6,
+    });
+
+    await expect(
+      parseStructuredExport({ bytes: archive.bytes, hasher, supportedSchemaVersion: 6 }),
+    ).resolves.toMatchObject({ attachments: [], records: emptyRecords });
+  });
+
+  it('rejects traversal paths, malformed manifests, and unsupported schema versions', async () => {
+    const archive = await createStructuredExport({
+      applicationVersion: '0.1.0',
+      attachments: [],
+      createdAt,
+      hasher,
+      includeOriginalAttachments: false,
+      records: emptyRecords,
+      schemaVersion: 6,
+    });
+    const traversal = rewriteArchive(archive.bytes, (files) => {
+      files['../escape.txt'] = strToU8('unsafe');
+    });
+    const malformedManifest = rewriteArchive(archive.bytes, (files) => {
+      files['manifest.json'] = strToU8('{');
+    });
+    const futureSchema = rewriteManifest(archive.bytes, (manifest) => {
+      manifest.schemaVersion = 7;
+    });
+
+    await expect(parseArchive(traversal)).rejects.toThrow('unsafe ZIP entry');
+    await expect(parseArchive(malformedManifest)).rejects.toThrow('manifest.json is invalid');
+    await expect(parseArchive(futureSchema)).rejects.toThrow(
+      'database schema version is not supported',
+    );
+  });
+
+  it('rejects duplicate manifest paths and record checksum changes', async () => {
+    const archive = await createStructuredExport({
+      applicationVersion: '0.1.0',
+      attachments: [],
+      createdAt,
+      hasher,
+      includeOriginalAttachments: false,
+      records: emptyRecords,
+      schemaVersion: 6,
+    });
+    const duplicatePath = rewriteManifest(archive.bytes, (manifest) => {
+      const first = manifest.files[0];
+
+      if (first !== undefined) {
+        manifest.files.push(first);
+      }
+    });
+    const corruptedRecord = rewriteArchive(archive.bytes, (files) => {
+      files['receipts.json'] = strToU8('[ ]');
+    });
+
+    await expect(parseArchive(duplicatePath)).rejects.toThrow('file entries are invalid');
+    await expect(parseArchive(corruptedRecord)).rejects.toThrow(
+      'checksum does not match the manifest',
+    );
+  });
+
+  it('rejects duplicate physical ZIP entries', async () => {
+    const archive = await createStructuredExport({
+      applicationVersion: '0.1.0',
+      attachments: [],
+      createdAt,
+      hasher,
+      includeOriginalAttachments: false,
+      records: emptyRecords,
+      schemaVersion: 6,
+    });
+    const duplicate = await duplicateArchiveEntry(archive.bytes, 'manifest.json');
+
+    await expect(parseArchive(duplicate)).rejects.toThrow('unsafe ZIP entry');
+  });
+
+  it('applies configured archive and expanded-entry limits before restore', async () => {
+    const archive = await createStructuredExport({
+      applicationVersion: '0.1.0',
+      attachments: [],
+      createdAt,
+      hasher,
+      includeOriginalAttachments: false,
+      records: emptyRecords,
+      schemaVersion: 6,
+    });
+
+    await expect(
+      parseStructuredExport({
+        bytes: archive.bytes,
+        hasher,
+        limits: {
+          ...defaultStructuredExportParseLimits,
+          maxArchiveByteSize: archive.bytes.byteLength - 1,
+        },
+        supportedSchemaVersion: 6,
+      }),
+    ).rejects.toThrow('archive size is invalid');
+  });
+});
+
 function populatedRecords(): StructuredExportRecords {
   const receipt = {
     ...createManualReceipt({
@@ -314,4 +449,71 @@ function hashFor(bytes: Uint8Array): string {
   }
 
   return accumulator.toString(16).padStart(64, '0');
+}
+
+function parseArchive(bytes: Uint8Array) {
+  return parseStructuredExport({ bytes, hasher, supportedSchemaVersion: 6 });
+}
+
+function rewriteArchive(
+  bytes: Uint8Array,
+  update: (files: Record<string, Uint8Array>) => void,
+): Uint8Array {
+  const files = unzipSync(bytes);
+  update(files);
+  return zipSync(files);
+}
+
+function rewriteManifest(
+  bytes: Uint8Array,
+  update: (manifest: { files: unknown[]; schemaVersion: number }) => void,
+): Uint8Array {
+  return rewriteArchive(bytes, (files) => {
+    const manifest = readJson(files, 'manifest.json') as {
+      files: unknown[];
+      schemaVersion: number;
+    };
+    update(manifest);
+    files['manifest.json'] = strToU8(`${JSON.stringify(manifest)}\n`);
+  });
+}
+
+function duplicateArchiveEntry(bytes: Uint8Array, path: string): Promise<Uint8Array> {
+  const files = unzipSync(bytes);
+  const duplicate = requiredFile(files, path);
+
+  return new Promise((resolve, reject) => {
+    const chunks: Uint8Array[] = [];
+    const archive = new Zip((error, chunk, final) => {
+      if (error !== null) {
+        reject(error);
+        return;
+      }
+
+      chunks.push(Uint8Array.from(chunk));
+
+      if (final) {
+        const result = new Uint8Array(chunks.reduce((total, item) => total + item.byteLength, 0));
+        let offset = 0;
+
+        for (const item of chunks) {
+          result.set(item, offset);
+          offset += item.byteLength;
+        }
+
+        resolve(result);
+      }
+    });
+
+    for (const [filename, contents] of Object.entries(files)) {
+      const file = new ZipPassThrough(filename);
+      archive.add(file);
+      file.push(contents, true);
+    }
+
+    const duplicateFile = new ZipPassThrough(path);
+    archive.add(duplicateFile);
+    duplicateFile.push(duplicate, true);
+    archive.end();
+  });
 }

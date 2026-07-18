@@ -9,6 +9,7 @@ import {
   SqliteReceiptClassificationRepository,
   SqliteReceiptRepository,
   SqliteReceiptReviewRepository,
+  SqliteStructuredImportRepository,
   SqliteStructuredExportSnapshotRepository,
   SqliteTagRepository,
   type CategoryRepository,
@@ -19,6 +20,7 @@ import {
   type ReceiptClassificationRepository,
   type ReceiptRepository,
   type ReceiptReviewRepository,
+  type StructuredImportRepository,
   type StructuredExportSnapshotRepository,
   type SqliteConnection,
   type SqliteRunResult,
@@ -39,6 +41,7 @@ export interface LocalRepositories {
   readonly reports: ExpenseReportRepository;
   readonly reviews: ReceiptReviewRepository;
   readonly structuredExports: StructuredExportSnapshotRepository;
+  readonly structuredImports: StructuredImportRepository;
   readonly tags: TagRepository;
 }
 
@@ -71,6 +74,7 @@ async function initializeRepositories(): Promise<LocalRepositories> {
     reports: new SqliteExpenseReportRepository(connection),
     reviews: new SqliteReceiptReviewRepository(connection),
     structuredExports: new SqliteStructuredExportSnapshotRepository(connection),
+    structuredImports: new SqliteStructuredImportRepository(connection),
     tags: new SqliteTagRepository(connection),
   };
 }

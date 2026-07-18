@@ -41,6 +41,7 @@ import {
   emptyExpenseFilters,
   type ExpenseFilterValues,
 } from './expense-filter';
+import { getStructuredRestoreErrorMessage } from './structured-restore';
 
 interface ExpenseListScreenProps {
   readonly categoryRepository: CategoryRepository;
@@ -55,6 +56,7 @@ interface ExpenseListScreenProps {
   readonly onImportPdf: () => void;
   readonly onOpen: (receipt: Receipt) => void;
   readonly onOpenReports: () => void;
+  readonly onRestoreArchive: () => Promise<boolean>;
   readonly onRetryCleanup: () => void;
   readonly repository: ReceiptRepository;
   readonly retryingCleanup: boolean;
@@ -74,6 +76,7 @@ export function ExpenseListScreen({
   onImportPdf,
   onOpen,
   onOpenReports,
+  onRestoreArchive,
   onRetryCleanup,
   repository,
   retryingCleanup,
@@ -83,7 +86,8 @@ export function ExpenseListScreen({
   const [exportStatus, setExportStatus] = useState<'error' | 'exporting' | 'idle' | 'success'>(
     'idle',
   );
-  const [exportKind, setExportKind] = useState<'archive' | 'csv'>('csv');
+  const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
+  const [exportKind, setExportKind] = useState<'archive' | 'csv' | 'restore'>('csv');
   const [exportVisible, setExportVisible] = useState(false);
   const [filterOptions, setFilterOptions] = useState<ReceiptListOptions>({});
   const [filterVisible, setFilterVisible] = useState(false);
@@ -121,21 +125,37 @@ export function ExpenseListScreen({
   const filtering = search.trim().length > 0 || activeFilterCount > 0;
 
   const exportData = async (
-    kind: 'archive' | 'csv',
-    action: () => Promise<void>,
+    kind: 'archive' | 'csv' | 'restore',
+    action: () => Promise<boolean | void>,
   ): Promise<void> => {
     if (exportStatus === 'exporting') {
       return;
     }
 
     setExportKind(kind);
+    setExportErrorMessage(null);
     setExportStatus('exporting');
 
     try {
-      await action();
+      const completed = await action();
+
+      if (completed === false) {
+        setExportStatus('idle');
+        setExportVisible(false);
+        return;
+      }
+
       setExportStatus('success');
       setExportVisible(false);
-    } catch {
+      if (kind === 'restore') {
+        setRefreshKey((value) => value + 1);
+      }
+    } catch (error) {
+      setExportErrorMessage(
+        kind === 'restore'
+          ? getStructuredRestoreErrorMessage(error)
+          : 'Export could not be created. Check local file access and try again.',
+      );
       setExportStatus('error');
     }
   };
@@ -217,6 +237,7 @@ export function ExpenseListScreen({
             disabled={exportStatus === 'exporting'}
             onPress={() => {
               setExportStatus('idle');
+              setExportErrorMessage(null);
               setExportVisible(true);
             }}
             style={({ pressed }) => [
@@ -240,11 +261,15 @@ export function ExpenseListScreen({
 
       {exportStatus === 'success' ? (
         <Text accessibilityLiveRegion="polite" style={styles.exportSuccess}>
-          {exportKind === 'archive' ? 'Complete export is ready.' : 'CSV export is ready.'}
+          {exportKind === 'archive'
+            ? 'Complete export is ready.'
+            : exportKind === 'restore'
+              ? 'Restore completed.'
+              : 'CSV export is ready.'}
         </Text>
       ) : exportStatus === 'error' && !exportVisible ? (
         <Text accessibilityLiveRegion="assertive" style={styles.exportError}>
-          Export could not be created. Try the export button again.
+          {exportErrorMessage ?? 'Data operation could not be completed. Try again.'}
         </Text>
       ) : null}
 
@@ -359,11 +384,13 @@ export function ExpenseListScreen({
       ) : null}
       {exportVisible ? (
         <ExpenseExportModal
+          errorMessage={exportErrorMessage}
           onClose={() => setExportVisible(false)}
           onExportArchive={(includeOriginalAttachments) =>
             void exportData('archive', () => onExportArchive(includeOriginalAttachments))
           }
           onExportCsv={() => void exportData('csv', onExportCsv)}
+          onRestoreArchive={() => void exportData('restore', onRestoreArchive)}
           status={exportStatus === 'success' ? 'idle' : exportStatus}
         />
       ) : null}

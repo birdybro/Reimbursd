@@ -8,7 +8,8 @@ Expense fields and receipt-file metadata are stored in local SQLite. Original JP
 bytes are stored separately in private application documents on mobile or origin-private browser
 file storage on web. Originals are hashed and copied without modification. JPEG and PNG previews
 are resized and encoded locally as separate derivatives in the same private storage boundary.
-These stores are not application-layer encrypted, and backup and restore are not implemented yet.
+These stores are not application-layer encrypted. Plain structured export and clean-install restore
+are implemented; authenticated encrypted backup is not.
 
 The application does not request location, use analytics, display advertising, transmit expense
 or receipt data to a Reimbursd service, or require an account. On iOS development and release
@@ -31,7 +32,16 @@ snapshot from SQLite and includes original receipt files only when the user leav
 enabled. Each included original is read from private local storage, verified against its recorded
 byte size and SHA-256, and copied byte-for-byte into a plain ZIP. Web downloads the ZIP locally;
 native builds remove the private temporary ZIP after the share attempt. The destination controls
-the exported copy's retention. The ZIP is not encrypted, and restore is not implemented yet.
+the exported copy's retention. The ZIP is not encrypted.
+
+Structured restore is an explicit local action. Reimbursd receives the user-selected ZIP through the
+platform picker, validates its format, schema, paths, record relationships, limits, byte sizes, and
+SHA-256 checksums before writing application data, and makes no Reimbursd network request. Restore
+accepts only an empty local database and a complete export containing every referenced original.
+Original bytes are written immutably; a failed structured-data transaction removes files created by
+that attempt, while an interrupted retry may reuse only an existing byte-identical file. The source
+selected through the browser or operating-system picker follows that source's own storage and
+network behavior.
 
 Deleting an expense retains a metadata tombstone for future synchronization semantics, then removes
 its local receipt bytes. If byte removal fails or the application closes between these operations,

@@ -195,7 +195,7 @@ export class SqliteStructuredExportSnapshotRepository implements StructuredExpor
                d.created_at, d.storage_deleted_at
         FROM receipt_documents d
         INNER JOIN receipts r ON r.id = d.receipt_id
-        WHERE r.deleted_at IS NULL AND d.storage_deleted_at IS NULL
+        WHERE r.deleted_at IS NULL AND d.storage_deleted_at IS NULL AND d.is_original = 1
         ORDER BY d.receipt_id, d.is_original DESC, d.created_at, d.id;
       `);
       const evidenceRows = await this.#connection.getAll<EvidenceRow>(`

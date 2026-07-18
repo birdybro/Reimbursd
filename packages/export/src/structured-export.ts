@@ -105,6 +105,10 @@ export class StructuredExportValidationError extends Error {
   }
 }
 
+export function assertValidStructuredExportRecords(records: StructuredExportRecords): void {
+  validateRecords(records);
+}
+
 export async function createStructuredExport({
   applicationVersion,
   attachments,
@@ -307,6 +311,19 @@ function validateRecords(records: StructuredExportRecords): void {
   const categoryIds = uniqueIds(records.categories, ({ id }) => id, 'Category');
   const tagIds = uniqueIds(records.tags, ({ id }) => id, 'Tag');
   const documentIds = uniqueIds(records.receiptDocuments, ({ id }) => id, 'Receipt document');
+  uniqueValues(records.merchants, ({ normalizedName }) => normalizedName, 'Merchant names');
+  uniqueValues(records.categories, ({ normalizedName }) => normalizedName, 'Category names');
+  uniqueValues(records.tags, ({ normalizedName }) => normalizedName, 'Tag names');
+  uniqueValues(
+    records.receiptDocuments,
+    ({ storageReference }) => storageReference,
+    'Receipt document storage references',
+  );
+  uniqueValues(
+    records.receiptDocuments.filter(({ isOriginal }) => isOriginal),
+    ({ receiptId, sha256 }) => `${receiptId}:${sha256}`,
+    'Original receipt document hashes',
+  );
   uniqueIds(records.fieldEvidence, ({ id }) => id, 'Field evidence');
   uniqueIds(records.processingHistory, ({ id }) => id, 'Processing history');
 
@@ -317,6 +334,12 @@ function validateRecords(records: StructuredExportRecords): void {
 
     if (!merchantIds.has(receipt.merchantId)) {
       throw new StructuredExportValidationError('Receipt references an unavailable merchant.');
+    }
+
+    const merchant = records.merchants.find(({ id }) => id === receipt.merchantId);
+
+    if (merchant?.displayName !== receipt.merchantName) {
+      throw new StructuredExportValidationError('Receipt merchant display data is inconsistent.');
     }
 
     if (receipt.categoryId !== null && !categoryIds.has(receipt.categoryId)) {
@@ -497,6 +520,24 @@ function uniqueIds<Record>(
   }
 
   return ids;
+}
+
+function uniqueValues<Record>(
+  records: readonly Record[],
+  getValue: (record: Record) => string,
+  label: string,
+): void {
+  const values = new Set<string>();
+
+  for (const record of records) {
+    const value = getValue(record);
+
+    if (values.has(value)) {
+      throw new StructuredExportValidationError(`${label} must be unique.`);
+    }
+
+    values.add(value);
+  }
 }
 
 async function hashBytes(hasher: StructuredExportHasher, bytes: Uint8Array): Promise<string> {

@@ -1,21 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { Archive, FileSpreadsheet, X } from 'lucide-react-native';
+import { Archive, FileSpreadsheet, Upload, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { colors } from '../../theme';
 
 interface ExpenseExportModalProps {
+  readonly errorMessage: string | null;
   readonly onClose: () => void;
   readonly onExportArchive: (includeOriginalAttachments: boolean) => void;
   readonly onExportCsv: () => void;
+  readonly onRestoreArchive: () => void;
   readonly status: 'error' | 'exporting' | 'idle';
 }
 
 export function ExpenseExportModal({
+  errorMessage,
   onClose,
   onExportArchive,
   onExportCsv,
+  onRestoreArchive,
   status,
 }: ExpenseExportModalProps) {
   const [includeOriginalAttachments, setIncludeOriginalAttachments] = useState(true);
@@ -27,10 +31,10 @@ export function ExpenseExportModal({
         <View accessibilityViewIsModal style={styles.panel}>
           <View style={styles.header}>
             <Text accessibilityRole="header" style={styles.title}>
-              Export data
+              Export and restore
             </Text>
             <Pressable
-              accessibilityLabel="Close data export"
+              accessibilityLabel="Close export and restore"
               accessibilityRole="button"
               accessibilityState={{ disabled }}
               disabled={disabled}
@@ -55,9 +59,9 @@ export function ExpenseExportModal({
               />
             </View>
 
-            {status === 'error' ? (
+            {status === 'error' && errorMessage !== null ? (
               <Text accessibilityLiveRegion="assertive" style={styles.error}>
-                Export could not be created. Check local file access and try again.
+                {errorMessage}
               </Text>
             ) : null}
 
@@ -74,9 +78,7 @@ export function ExpenseExportModal({
               ]}
             >
               <Archive color={colors.paper} size={19} strokeWidth={2.2} />
-              <Text style={styles.primaryText}>
-                {disabled ? 'Exporting...' : 'Complete archive'}
-              </Text>
+              <Text style={styles.primaryText}>{disabled ? 'Working...' : 'Complete archive'}</Text>
             </Pressable>
 
             <Pressable
@@ -93,6 +95,24 @@ export function ExpenseExportModal({
             >
               <FileSpreadsheet color={colors.green} size={19} strokeWidth={2.2} />
               <Text style={styles.secondaryText}>Expense CSV</Text>
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <Pressable
+              accessibilityLabel="Restore complete data archive"
+              accessibilityRole="button"
+              accessibilityState={{ disabled }}
+              disabled={disabled}
+              onPress={onRestoreArchive}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                disabled && styles.disabled,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Upload color={colors.green} size={19} strokeWidth={2.2} />
+              <Text style={styles.secondaryText}>Restore archive</Text>
             </Pressable>
           </View>
         </View>
@@ -111,6 +131,11 @@ const styles = StyleSheet.create({
   },
   content: { gap: 14, padding: 20 },
   disabled: { opacity: 0.55 },
+  divider: {
+    backgroundColor: colors.border,
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 2,
+  },
   error: {
     backgroundColor: colors.dangerSoft,
     borderRadius: 6,

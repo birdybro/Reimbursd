@@ -64,3 +64,10 @@ export {
   SqliteStructuredExportSnapshotRepository,
   type StructuredExportSnapshotRepository,
 } from './structured-export-snapshot-repository.js';
+export {
+  SqliteStructuredImportRepository,
+  StructuredImportTargetNotEmptyError,
+  StructuredImportUnsupportedRecordsError,
+  type StructuredImportRepository,
+  type StructuredImportResult,
+} from './structured-import-repository.js';

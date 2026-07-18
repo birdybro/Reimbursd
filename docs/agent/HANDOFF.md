@@ -30,9 +30,14 @@ relationships and deterministic JSON, record files receive SHA-256 manifest entr
 originals must match stored byte-size and hash metadata before being copied into the plain ZIP. The
 mobile export menu offers complete ZIP or CSV, with an explicit originals toggle, direct web
 download, native temporary sharing, and failure cleanup. Format version 1 is documented in
-`docs/DATA_EXPORT_FORMAT.md`; restore is not implemented and is the next work. Keep existing receipts
-valid and local, validate the entire untrusted archive before writes, and do not add hosted
-processing, synchronization, or generative AI.
+`docs/DATA_EXPORT_FORMAT.md`. Clean-install restore is implemented: the framework-independent parser
+rejects unsafe or unsupported ZIPs and validates the complete current-schema graph and checksums
+before writes; the mobile coordinator requires all original bytes, uses immutable storage with
+conflict detection and compensating cleanup, and inserts exact records through one SQLite
+transaction only when every local application table is empty. Derivative previews are excluded from
+format version 1 and can be regenerated later. Complete local data deletion is the next Milestone 4
+task. Keep existing receipts valid and local, and do not add hosted processing, synchronization, or
+generative AI.
 
 ## Resume steps
 
