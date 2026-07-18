@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { Archive, FileSpreadsheet, Upload, X } from 'lucide-react-native';
+import { Archive, FileSpreadsheet, Trash2, Upload, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
@@ -8,6 +8,7 @@ import { colors } from '../../theme';
 interface ExpenseExportModalProps {
   readonly errorMessage: string | null;
   readonly onClose: () => void;
+  readonly onDeleteAllData: () => void;
   readonly onExportArchive: (includeOriginalAttachments: boolean) => void;
   readonly onExportCsv: () => void;
   readonly onRestoreArchive: () => void;
@@ -17,6 +18,7 @@ interface ExpenseExportModalProps {
 export function ExpenseExportModal({
   errorMessage,
   onClose,
+  onDeleteAllData,
   onExportArchive,
   onExportCsv,
   onRestoreArchive,
@@ -31,10 +33,10 @@ export function ExpenseExportModal({
         <View accessibilityViewIsModal style={styles.panel}>
           <View style={styles.header}>
             <Text accessibilityRole="header" style={styles.title}>
-              Export and restore
+              Manage local data
             </Text>
             <Pressable
-              accessibilityLabel="Close export and restore"
+              accessibilityLabel="Close local data management"
               accessibilityRole="button"
               accessibilityState={{ disabled }}
               disabled={disabled}
@@ -114,6 +116,24 @@ export function ExpenseExportModal({
               <Upload color={colors.green} size={19} strokeWidth={2.2} />
               <Text style={styles.secondaryText}>Restore archive</Text>
             </Pressable>
+
+            <View style={styles.divider} />
+
+            <Pressable
+              accessibilityLabel="Delete all local data"
+              accessibilityRole="button"
+              accessibilityState={{ disabled }}
+              disabled={disabled}
+              onPress={onDeleteAllData}
+              style={({ pressed }) => [
+                styles.dangerButton,
+                disabled && styles.disabled,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Trash2 color={colors.danger} size={19} strokeWidth={2.2} />
+              <Text style={styles.dangerText}>Delete all local data</Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -131,6 +151,18 @@ const styles = StyleSheet.create({
   },
   content: { gap: 14, padding: 20 },
   disabled: { opacity: 0.55 },
+  dangerButton: {
+    alignItems: 'center',
+    borderColor: colors.danger,
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 16,
+  },
+  dangerText: { color: colors.danger, fontSize: 15, fontWeight: '700' },
   divider: {
     backgroundColor: colors.border,
     height: StyleSheet.hairlineWidth,

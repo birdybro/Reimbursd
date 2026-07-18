@@ -84,7 +84,7 @@ archive path.
   "format": "reimbursd-export",
   "formatVersion": 1,
   "includesOriginalAttachments": true,
-  "schemaVersion": 6
+  "schemaVersion": 7
 }
 ```
 
@@ -117,11 +117,14 @@ record contents as untrusted and validate them before restore.
 
 ### Restore validation
 
-Reimbursd restores only format version 1 archives whose database schema version exactly matches the
-running application. Before any local write, the parser rejects invalid ZIP data, duplicate or
-unknown paths, absolute or traversal paths, unsupported compression, malformed or non-UTF-8 JSON,
-unknown object properties, missing files, manifest/archive disagreement, unsupported location or
-line-item records, invalid domain relationships, and any count, byte-size, or SHA-256 mismatch.
+Reimbursd restores only format version 1 archives whose database schema version is explicitly listed
+as record-compatible by the running application. Schema 7 currently accepts schema 6 and 7 archives
+because migration 7 adds only local deletion-operation state and does not change exported records;
+other schema versions fail closed. Before any local write, the parser rejects invalid ZIP data,
+duplicate or unknown paths, absolute or traversal paths, unsupported compression, malformed or
+non-UTF-8 JSON, unknown object properties, missing files, manifest/archive disagreement, unsupported
+location or line-item records, invalid domain relationships, and any count, byte-size, or SHA-256
+mismatch.
 
 Default parse limits are 1 GiB for the archive and total expanded contents, 25 MiB per attachment,
 32 MiB per record file, 10,012 entries, and 200 characters per path. These are defensive parser
@@ -151,5 +154,5 @@ operating-system share sheet, then remove the cache file after the share attempt
 network service is required by Reimbursd, although a user-selected share destination may use one.
 
 The ZIP is plain and is not encrypted. Format version 1 supports inspection, data portability, and
-clean-install restore in the current application schema. Encrypted backups are a separate
-Milestone 5 capability requiring tested authenticated encryption.
+clean-install restore in explicitly compatible application schemas. Encrypted backups are a
+separate Milestone 5 capability requiring tested authenticated encryption.

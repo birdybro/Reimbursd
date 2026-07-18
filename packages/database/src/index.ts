@@ -71,3 +71,11 @@ export {
   type StructuredImportRepository,
   type StructuredImportResult,
 } from './structured-import-repository.js';
+export {
+  LocalDataDeletionAttachmentsPendingError,
+  LocalDataDeletionNotPendingError,
+  SqliteLocalDataDeletionRepository,
+  type LocalDataDeletionRepository,
+  type LocalDataDeletionResult,
+  type LocalDataDeletionState,
+} from './local-data-deletion-repository.js';

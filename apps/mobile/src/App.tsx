@@ -8,6 +8,7 @@ import { randomUUID } from 'expo-crypto';
 import {
   AttachmentIngestor,
   AttachmentPreviewWriter,
+  LocalDataDeletionCoordinator,
   PdfLibAttachmentInspector,
   ReceiptDeletionCoordinator,
 } from '@reimbursd/attachments';
@@ -69,6 +70,7 @@ type RepositoryState =
   | { readonly status: 'loading' }
   | {
       readonly capture: ReceiptCaptureCoordinator;
+      readonly dataDeletion: LocalDataDeletionCoordinator;
       readonly deletion: ReceiptDeletionCoordinator;
       readonly ocr: LocalReceiptOcrProcessor;
       readonly repositories: LocalRepositories;
@@ -83,6 +85,9 @@ function AppContent() {
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [cleanupIssue, setCleanupIssue] = useState<string | null>(null);
+  const [deleteAllIssue, setDeleteAllIssue] = useState('Local receipt files still need removal.');
+  const [deleteAllPending, setDeleteAllPending] = useState(false);
+  const [deleteAllRetrying, setDeleteAllRetrying] = useState(false);
   const [retryingCleanup, setRetryingCleanup] = useState(false);
   const [repositoryState, setRepositoryState] = useState<RepositoryState>({ status: 'loading' });
   const [route, setRoute] = useState<Route>({ name: 'list' });
@@ -119,6 +124,10 @@ function AppContent() {
             receipts: repositories.receipts,
             storage,
           });
+          const dataDeletion = new LocalDataDeletionCoordinator({
+            attachments: deletion,
+            repository: repositories.dataDeletion,
+          });
           const ocr = new LocalReceiptOcrProcessor({
             evidence: repositories.evidence,
             history: repositories.processingHistory,
@@ -126,14 +135,26 @@ function AppContent() {
             provider: new AppleVisionOcrProvider(),
             storage,
           });
-          const cleanupFailures = await deletion.cleanupPending().catch(() => null);
+          const pendingDeletion = await dataDeletion.resumePending();
+          const cleanupFailures =
+            pendingDeletion === null ? await deletion.cleanupPending().catch(() => null) : [];
 
           if (!active) {
             return;
           }
 
-          setCleanupIssue(getCleanupIssue(cleanupFailures));
-          setRepositoryState({ capture, deletion, ocr, repositories, status: 'ready', storage });
+          setCleanupIssue(pendingDeletion === null ? getCleanupIssue(cleanupFailures) : null);
+          setDeleteAllIssue(getDeleteAllIssue(pendingDeletion));
+          setDeleteAllPending(pendingDeletion?.status === 'cleanup_pending');
+          setRepositoryState({
+            capture,
+            dataDeletion,
+            deletion,
+            ocr,
+            repositories,
+            status: 'ready',
+            storage,
+          });
         }
       })
       .catch(() => {
@@ -237,6 +258,31 @@ function AppContent() {
     }
   };
 
+  const retryDeleteAll = async (): Promise<void> => {
+    if (repositoryState.status !== 'ready' || deleteAllRetrying) {
+      return;
+    }
+
+    setDeleteAllRetrying(true);
+
+    try {
+      const result = await repositoryState.dataDeletion.resumePending();
+      setDeleteAllIssue(getDeleteAllIssue(result));
+      setDeleteAllPending(result?.status === 'cleanup_pending');
+
+      if (result === null || result.status === 'completed') {
+        setCleanupIssue(null);
+        setRoute({ name: 'list' });
+      }
+    } catch {
+      setDeleteAllIssue(
+        'Local data deletion could not be checked. Retry without clearing application storage.',
+      );
+    } finally {
+      setDeleteAllRetrying(false);
+    }
+  };
+
   const screenTitle =
     route.name === 'new'
       ? 'New expense'
@@ -273,6 +319,14 @@ function AppContent() {
             }}
             title="Local storage is unavailable"
           />
+        ) : deleteAllPending ? (
+          <StatusPanel
+            actionDisabled={deleteAllRetrying}
+            actionLabel={deleteAllRetrying ? 'Retrying...' : 'Retry deletion'}
+            message={deleteAllIssue}
+            onAction={() => void retryDeleteAll()}
+            title="Finishing local data deletion"
+          />
         ) : route.name === 'list' ? (
           <ExpenseListScreen
             categoryRepository={repositoryState.repositories.categories}
@@ -281,6 +335,12 @@ function AppContent() {
             importing={importing}
             onCapture={() => importReceipt(selectCameraReceipt)}
             onCreate={() => setRoute({ name: 'new' })}
+            onDeleteAllData={async () => {
+              const result = await repositoryState.dataDeletion.deleteAll(new Date().toISOString());
+              setCleanupIssue(null);
+              setDeleteAllIssue(getDeleteAllIssue(result));
+              setDeleteAllPending(result.status === 'cleanup_pending');
+            }}
             onExportArchive={async (includeOriginalAttachments) => {
               await exportStructuredData({
                 applicationVersion: appConfig.expo.version,
@@ -311,6 +371,7 @@ function AppContent() {
 
               await restoreStructuredData({
                 bytes: await readPickedLocalFile(selection),
+                compatibleSchemaVersions: [6],
                 hasher: new ExpoAttachmentHasher(),
                 repository: repositoryState.repositories.structuredImports,
                 storage: repositoryState.storage,
@@ -389,6 +450,22 @@ function getCleanupIssue(failures: readonly unknown[] | null): string | null {
   }
 
   return `${failures.length} local receipt ${failures.length === 1 ? 'file still needs' : 'files still need'} deletion.`;
+}
+
+function getDeleteAllIssue(
+  result: Awaited<ReturnType<LocalDataDeletionCoordinator['resumePending']>>,
+): string {
+  if (result?.status !== 'cleanup_pending') {
+    return 'Local receipt files still need removal.';
+  }
+
+  const failureCount = result.attachmentCleanupFailures?.length;
+
+  if (failureCount === undefined) {
+    return 'Local data deletion is safely pending after an interrupted operation. Retry to finish.';
+  }
+
+  return `${failureCount} local receipt ${failureCount === 1 ? 'file still needs' : 'files still need'} removal before deletion can finish.`;
 }
 
 export default function App() {

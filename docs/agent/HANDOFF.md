@@ -2,7 +2,7 @@
 
 ## Repository state
 
-Milestones 0 through 3 are complete. Receipt ingestion has working camera/image/PDF selection,
+Milestones 0 through 4 are complete. Receipt ingestion has working camera/image/PDF selection,
 decoded content validation, configurable limits, local SHA-256, global duplicate detection,
 immutable private file storage, versioned document metadata, original-file provenance UI, and
 durable attachment cleanup after receipt deletion. JPEG and PNG imports also receive bounded,
@@ -16,7 +16,7 @@ authoritative user corrections, the versioned receipt update, and parser review 
 ## Active direction
 
 Use npm workspaces, strict TypeScript, Expo SDK 57, and framework-independent domain/database
-packages. Milestone 4 is active. Category/tag domain records, migration 6, and local repositories are
+packages. Milestone 5 is active. Category/tag domain records, migration 6, and local repositories are
 implemented with UUIDs, normalized unique names, optimistic versions, tombstones, and explicit
 in-use deletion errors. Expense details can create and atomically assign one category plus multiple
 tags; removed relationships are tombstoned and re-addition revives the stable key. The expense list
@@ -31,17 +31,21 @@ originals must match stored byte-size and hash metadata before being copied into
 mobile export menu offers complete ZIP or CSV, with an explicit originals toggle, direct web
 download, native temporary sharing, and failure cleanup. Format version 1 is documented in
 `docs/DATA_EXPORT_FORMAT.md`. Clean-install restore is implemented: the framework-independent parser
-rejects unsafe or unsupported ZIPs and validates the complete current-schema graph and checksums
+rejects unsafe or unsupported ZIPs and validates an explicitly compatible schema graph and checksums
 before writes; the mobile coordinator requires all original bytes, uses immutable storage with
 conflict detection and compensating cleanup, and inserts exact records through one SQLite
 transaction only when every local application table is empty. Derivative previews are excluded from
-format version 1 and can be regenerated later. Complete local data deletion is the next Milestone 4
-task. Keep existing receipts valid and local, and do not add hosted processing, synchronization, or
-generative AI.
+format version 1 and can be regenerated later. Migration 7 and the delete-all coordinator persist a
+durable intent, block new receipt/document inserts, resume attachment cleanup at startup, and purge
+all user tables transactionally only after files are removed. Application-level deletion is covered
+by export-delete-restore and rollback tests without claiming forensic erasure. The next work is
+Milestone 5 authenticated encrypted backup and secure key storage. Keep existing receipts valid and
+local, use mature compatible cryptographic primitives, and do not add hosted processing,
+synchronization, or generative AI.
 
 ## Resume steps
 
 1. Read `AGENTS.md`, `docs/agent/STATUS.md`, and `docs/agent/TASKS.md`.
 2. Inspect `git status --short` and preserve uncommitted work.
-3. Finish the highest-priority unchecked Milestone 4 task.
+3. Finish the highest-priority unchecked Milestone 5 task.
 4. Run `npm run verify` before committing a logical slice or marking a milestone complete.

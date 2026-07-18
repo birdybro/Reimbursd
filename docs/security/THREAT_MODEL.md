@@ -21,6 +21,8 @@ decoders, operating-system picker, and web browser origin/profile are applicatio
 - Malicious OCR-provider output returning oversized text, invalid coordinates, or unexpected shapes.
 - Raw OCR or provider errors leaking receipt contents into logs or durable failure records.
 - Interrupted database/file operations orphaning receipt bytes or forgetting required cleanup.
+- Concurrent mutation during delete-all introducing new data after attachment cleanup or allowing a
+  partial purge to be represented as complete.
 - Local device, browser-profile, or site-data loss removing unbacked-up expenses.
 - Another process or user with access to an unlocked device or browser profile reading local data.
 - Unsupported privacy or encryption claims creating user risk.
@@ -40,6 +42,8 @@ decoders, operating-system picker, and web browser origin/profile are applicatio
   refusal, compensating cleanup, and byte-identical recovery after interrupted cleanup.
 - Immutable original storage, SHA-256 duplicate detection, compensating failed writes, and durable,
   idempotent attachment-deletion retry.
+- Durable delete-all intent, database insert guards, a restart-blocking retry surface, attachment
+  cleanup gating, transactional user-table purge, and explicit non-forensic-erasure language.
 - Defensive OCR input copies, schema-validated and bounded provider output, normalized boxes, and
   redacted processing failure codes.
 - Honest UI and documentation that local storage is not an encrypted backup.

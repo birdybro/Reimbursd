@@ -12,7 +12,8 @@ Migration `1` creates `schema_migrations`, `merchants`, and `receipts`. Migratio
 `receipt_documents`, migration `3` adds explicit document capture/import provenance, and migration
 `4` adds durable attachment-deletion state. Migration `5` adds field evidence and processing
 history. Migration `6` adds local categories, tags, and versioned receipt-tag relationships without
-rewriting existing receipt rows.
+rewriting existing receipt rows. Migration `7` adds a singleton durable delete-all intent plus
+database guards that reject new receipt and document inserts while that intent exists.
 
 `merchants` stores a stable UUID, display and normalized names, optional website and phone columns,
 and creation/update timestamps. The normalized name is unique so repeated manual entries can reuse
@@ -91,6 +92,12 @@ must be explicitly unassigned before deletion.
 update, version, and deletion state for future offline synchronization. Replacing a receipt's
 category and complete tag set increments the receipt version in the same transaction. Removed tag
 relationships receive tombstones; re-adding a tag revives the same relationship key with a new
-version. Later schemas will add locations, optional line items, and delete-all tracking without
+version.
+
+`local_data_deletion` has at most one row. Beginning delete-all inserts that row and tombstones every
+active receipt in one transaction. Receipt-file cleanup then uses the existing durable
+`storage_deleted_at` markers. Finalization refuses to run while any document is pending physical
+removal and otherwise deletes every user-data table plus the singleton row in one transaction.
+`schema_migrations` remains intact. Later schemas will add locations and optional line items without
 weakening the local-only workflow. The current nullable location reference remains a reserved field,
 not a complete feature.

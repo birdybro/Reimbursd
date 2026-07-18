@@ -45,9 +45,17 @@ network behavior.
 
 Deleting an expense retains a metadata tombstone for future synchronization semantics, then removes
 its local receipt bytes. If byte removal fails or the application closes between these operations,
-the durable document state is retried at startup and can be retried from the expense list. A
-delete-all workflow and secure deletion guarantees are not implemented, so this development build
-must not claim complete data deletion or forensic erasure.
+the durable document state is retried at startup and can be retried from the expense list.
+
+Delete-all requires a separate explicit confirmation. The application first records a durable
+deletion intent and hides every active receipt, then removes each receipt file through the same
+idempotent cleanup path. While deletion is pending, new receipts and documents are blocked and the
+application shows only a retry surface. After every file is reported removed, one SQLite transaction
+purges merchants, receipts, documents, evidence, processing history, categories, tags, and
+relationships. Migration metadata remains so the empty database can still be opened safely. This is
+complete deletion from Reimbursd's active local stores, but it is not a forensic secure-erasure
+guarantee for SQLite pages, flash storage, browser profiles, operating-system backups, exported
+copies, or previously selected share destinations.
 
 ## Product commitments
 

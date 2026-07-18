@@ -21,6 +21,10 @@ export {
   type ReceiptDeletionResult,
 } from './receipt-deletion.js';
 export {
+  LocalDataDeletionCoordinator,
+  type LocalDataDeletionCoordinatorResult,
+} from './local-data-deletion.js';
+export {
   AttachmentPreviewValidationError,
   AttachmentPreviewWriter,
   defaultAttachmentPreviewLimits,

@@ -8,14 +8,15 @@ AI provider.
 
 ## Current status
 
-Milestones 0 through 3 are complete. The Expo application can create, view, edit, search, filter, and
+Milestones 0 through 4 are complete. The Expo application can create, view, edit, search, filter, and
 delete manual expenses, and it can capture JPEG/PNG receipts or import JPEG, PNG, and multi-page PDF
 originals into private local storage. Import validates content and limits, records SHA-256 and
 provenance, and requires no account or network service. Deleting an expense removes its local
 receipt bytes with durable retry after interruption. JPEG and PNG imports receive separate bounded
 local previews. Current-schema complete ZIP exports can be restored into a clean local installation.
-Cross-platform OCR, PDF page previews, delete-all, and encrypted backup are not complete, and the
-project does not claim production readiness.
+An explicitly confirmed delete-all action removes all local structured records and receipt files
+with durable retry after interruption. Cross-platform OCR, PDF page previews, and encrypted backup
+are not complete, and the project does not claim production readiness.
 
 Milestone 3 includes durable field evidence and processing history, a validated OCR
 provider contract, a deterministic test provider, and on-device Apple Vision OCR in iOS development
@@ -27,7 +28,7 @@ committed atomically. Reviewed evidence remains authoritative over later automat
 unavailable on Android, web, and Expo Go until a compatible local engine is implemented. Receipt
 text is not sent to a Reimbursd or third-party service.
 
-Milestone 4 is underway. The local schema and repositories support validated, versioned, tombstoned
+Milestone 4 adds validated, versioned, tombstoned
 categories and tags while keeping existing receipts valid. Expense details can create and assign one
 category plus multiple tags through an atomic local workflow. The list filters locally by merchant,
 purchase date, currency-specific amount range, category, and tag. Local reports show monthly and
@@ -35,7 +36,8 @@ category totals without combining currencies. Active expenses can be exported to
 through a browser download or native share sheet. A versioned plain ZIP export contains the active
 structured dataset, per-file SHA-256 checksums, and optional byte-identical receipt originals.
 The application strictly validates a complete ZIP and can restore it without an account into an
-empty local database. Delete-all is still pending.
+empty local database. Delete-all is local, account-free, restart-recoverable, and covered by an
+export-delete-restore round trip.
 
 ## Requirements
 

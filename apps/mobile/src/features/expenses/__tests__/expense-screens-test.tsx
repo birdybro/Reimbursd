@@ -198,6 +198,7 @@ describe('manual expense screens', () => {
     const onCreate = jest.fn();
     const onOpen = jest.fn();
     const onOpenReports = jest.fn();
+    const onDeleteAllData = jest.fn().mockResolvedValue(undefined);
     const onExportArchive = jest.fn().mockResolvedValue(undefined);
     const onExportCsv = jest.fn().mockResolvedValue(undefined);
     const onRestoreArchive = jest.fn().mockResolvedValue(true);
@@ -213,6 +214,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={onCapture}
         onCreate={onCreate}
+        onDeleteAllData={onDeleteAllData}
         onExportArchive={onExportArchive}
         onExportCsv={onExportCsv}
         onImportImage={onImportImage}
@@ -255,6 +257,18 @@ describe('manual expense screens', () => {
     await waitFor(() => expect(onRestoreArchive).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Restore completed.')).toBeTruthy();
 
+    await fireEvent.press(screen.getByLabelText('Export data'));
+    await fireEvent.press(screen.getByLabelText('Delete all local data'));
+    expect(screen.getByText('Delete all local data?')).toBeTruthy();
+    expect(onDeleteAllData).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByLabelText('Cancel local data deletion'));
+
+    await fireEvent.press(screen.getByLabelText('Export data'));
+    await fireEvent.press(screen.getByLabelText('Delete all local data'));
+    await fireEvent.press(screen.getByLabelText('Confirm delete all local data'));
+    await waitFor(() => expect(onDeleteAllData).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('All local data was deleted.')).toBeTruthy();
+
     await fireEvent.press(screen.getByLabelText('Scan receipt with camera'));
     await fireEvent.press(screen.getByLabelText('Import receipt image'));
     await fireEvent.press(screen.getByLabelText('Import receipt PDF'));
@@ -287,6 +301,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={jest.fn()}
         onCreate={jest.fn()}
+        onDeleteAllData={jest.fn().mockResolvedValue(undefined)}
         onExportArchive={jest.fn().mockResolvedValue(undefined)}
         onExportCsv={jest.fn().mockResolvedValue(undefined)}
         onImportImage={jest.fn()}
@@ -362,6 +377,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={jest.fn()}
         onCreate={jest.fn()}
+        onDeleteAllData={jest.fn().mockResolvedValue(undefined)}
         onExportArchive={jest.fn().mockResolvedValue(undefined)}
         onExportCsv={jest.fn().mockResolvedValue(undefined)}
         onImportImage={jest.fn()}
@@ -393,6 +409,7 @@ describe('manual expense screens', () => {
         importing={false}
         onCapture={jest.fn()}
         onCreate={jest.fn()}
+        onDeleteAllData={jest.fn().mockResolvedValue(undefined)}
         onExportArchive={jest.fn().mockResolvedValue(undefined)}
         onExportCsv={onExportCsv}
         onImportImage={jest.fn()}
@@ -419,6 +436,49 @@ describe('manual expense screens', () => {
     await fireEvent.press(screen.getByLabelText('Export expenses as CSV'));
     await waitFor(() => expect(onExportCsv).toHaveBeenCalledTimes(2));
     expect(await screen.findByText('CSV export is ready.')).toBeTruthy();
+  });
+
+  test('keeps a failed delete-all request explicit and retryable', async () => {
+    const onDeleteAllData = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('synthetic deletion failure'))
+      .mockResolvedValueOnce(undefined);
+    const screen = await render(
+      <ExpenseListScreen
+        categoryRepository={createCategoryRepository()}
+        cleanupIssue={null}
+        importError={null}
+        importing={false}
+        onCapture={jest.fn()}
+        onCreate={jest.fn()}
+        onDeleteAllData={onDeleteAllData}
+        onExportArchive={jest.fn().mockResolvedValue(undefined)}
+        onExportCsv={jest.fn().mockResolvedValue(undefined)}
+        onImportImage={jest.fn()}
+        onImportPdf={jest.fn()}
+        onOpen={jest.fn()}
+        onOpenReports={jest.fn()}
+        onRestoreArchive={jest.fn().mockResolvedValue(false)}
+        onRetryCleanup={jest.fn()}
+        repository={createRepository()}
+        retryingCleanup={false}
+        tagRepository={createTagRepository()}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Corner Market')).toBeTruthy());
+    await fireEvent.press(screen.getByLabelText('Export data'));
+    await fireEvent.press(screen.getByLabelText('Delete all local data'));
+    await fireEvent.press(screen.getByLabelText('Confirm delete all local data'));
+    expect(
+      await screen.findByText(
+        'Local data deletion could not start. Existing local data remains available; try again.',
+      ),
+    ).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Confirm delete all local data'));
+    await waitFor(() => expect(onDeleteAllData).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('All local data was deleted.')).toBeTruthy();
   });
 
   test('keeps invalid entries visible with a recoverable message', async () => {

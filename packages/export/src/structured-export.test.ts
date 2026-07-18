@@ -235,6 +235,14 @@ describe('structured export archive parsing', () => {
     await expect(
       parseStructuredExport({ bytes: archive.bytes, hasher, supportedSchemaVersion: 6 }),
     ).resolves.toMatchObject({ attachments: [], records: emptyRecords });
+    await expect(
+      parseStructuredExport({
+        bytes: archive.bytes,
+        compatibleSchemaVersions: [6],
+        hasher,
+        supportedSchemaVersion: 7,
+      }),
+    ).resolves.toMatchObject({ attachments: [], records: emptyRecords });
   });
 
   it('rejects traversal paths, malformed manifests, and unsupported schema versions', async () => {

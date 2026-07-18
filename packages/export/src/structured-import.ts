@@ -221,16 +221,22 @@ const manifestSchema = z
 
 export async function parseStructuredExport({
   bytes,
+  compatibleSchemaVersions = [],
   hasher,
   limits = defaultStructuredExportParseLimits,
   supportedSchemaVersion,
 }: {
   readonly bytes: Uint8Array;
+  readonly compatibleSchemaVersions?: readonly number[];
   readonly hasher: StructuredExportHasher;
   readonly limits?: StructuredExportParseLimits;
   readonly supportedSchemaVersion: number;
 }): Promise<ParsedStructuredExport> {
   assertParseLimits(limits);
+  const supportedSchemaVersions = validateSupportedSchemaVersions(
+    supportedSchemaVersion,
+    compatibleSchemaVersions,
+  );
 
   if (bytes.byteLength === 0 || bytes.byteLength > limits.maxArchiveByteSize) {
     throw new StructuredExportValidationError('Structured export archive size is invalid.');
@@ -240,7 +246,7 @@ export async function parseStructuredExport({
   assertRequiredArchivePaths(archive);
   const manifest = parseManifest(requiredEntry(archive, 'manifest.json'));
 
-  if (manifest.schemaVersion !== supportedSchemaVersion) {
+  if (!supportedSchemaVersions.has(manifest.schemaVersion)) {
     throw new StructuredExportValidationError(
       'Structured export database schema version is not supported.',
     );
@@ -266,6 +272,22 @@ export async function parseStructuredExport({
   }
 
   return { attachments, manifest, records };
+}
+
+function validateSupportedSchemaVersions(
+  current: number,
+  compatible: readonly number[],
+): ReadonlySet<number> {
+  const versions = [current, ...compatible];
+
+  if (
+    versions.some((version) => !Number.isSafeInteger(version) || version < 1) ||
+    new Set(versions).size !== versions.length
+  ) {
+    throw new TypeError('Supported structured export schema versions are invalid.');
+  }
+
+  return new Set(versions);
 }
 
 function unzipBounded(bytes: Uint8Array, limits: StructuredExportParseLimits): Unzipped {

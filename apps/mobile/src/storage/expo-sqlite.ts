@@ -4,6 +4,7 @@ import {
   SqliteCategoryRepository,
   SqliteFieldEvidenceRepository,
   SqliteExpenseReportRepository,
+  SqliteLocalDataDeletionRepository,
   SqliteProcessingHistoryRepository,
   SqliteReceiptDocumentRepository,
   SqliteReceiptClassificationRepository,
@@ -15,6 +16,7 @@ import {
   type CategoryRepository,
   type FieldEvidenceRepository,
   type ExpenseReportRepository,
+  type LocalDataDeletionRepository,
   type ProcessingHistoryRepository,
   type ReceiptDocumentRepository,
   type ReceiptClassificationRepository,
@@ -33,6 +35,7 @@ const databaseName = 'reimbursd.db';
 
 export interface LocalRepositories {
   readonly categories: CategoryRepository;
+  readonly dataDeletion: LocalDataDeletionRepository;
   readonly documents: ReceiptDocumentRepository;
   readonly evidence: FieldEvidenceRepository;
   readonly processingHistory: ProcessingHistoryRepository;
@@ -66,6 +69,7 @@ async function initializeRepositories(): Promise<LocalRepositories> {
   await migrateDatabase(connection);
   return {
     categories: new SqliteCategoryRepository(connection),
+    dataDeletion: new SqliteLocalDataDeletionRepository(connection),
     documents: new SqliteReceiptDocumentRepository(connection),
     evidence: new SqliteFieldEvidenceRepository(connection),
     processingHistory: new SqliteProcessingHistoryRepository(connection),

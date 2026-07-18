@@ -5,13 +5,20 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 
 interface StatusPanelProps {
+  readonly actionDisabled?: boolean;
   readonly actionLabel?: string;
   readonly message: string;
   readonly onAction?: () => void;
   readonly title: string;
 }
 
-export function StatusPanel({ actionLabel, message, onAction, title }: StatusPanelProps) {
+export function StatusPanel({
+  actionDisabled = false,
+  actionLabel,
+  message,
+  onAction,
+  title,
+}: StatusPanelProps) {
   return (
     <View accessibilityLiveRegion="polite" style={styles.container}>
       <CircleAlert color={colors.danger} size={36} strokeWidth={1.8} />
@@ -21,7 +28,9 @@ export function StatusPanel({ actionLabel, message, onAction, title }: StatusPan
       <Text style={styles.message}>{message}</Text>
       {actionLabel === undefined || onAction === undefined ? null : (
         <Pressable
+          accessibilityState={{ disabled: actionDisabled }}
           accessibilityRole="button"
+          disabled={actionDisabled}
           onPress={onAction}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}
         >

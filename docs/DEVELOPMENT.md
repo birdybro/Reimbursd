@@ -50,4 +50,5 @@ usable; no external fallback is used.
 
 Use synthetic test data only. Mobile data is stored in the platform application sandbox. Web data
 and receipt files are stored for the current browser origin and profile. Removing browser site data
-or uninstalling the application can remove this data; backup and restore are not implemented yet.
+or uninstalling the application can remove this data. Plain complete export, clean-install restore,
+and explicit local delete-all are implemented; authenticated encrypted backup is not.

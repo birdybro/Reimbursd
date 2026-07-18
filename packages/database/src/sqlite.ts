@@ -235,6 +235,30 @@ const migrations: readonly Migration[] = [
     `,
     version: 6,
   },
+  {
+    name: 'durable_local_data_deletion',
+    sql: `
+      CREATE TABLE local_data_deletion (
+        singleton INTEGER PRIMARY KEY NOT NULL CHECK (singleton = 1),
+        requested_at TEXT NOT NULL CHECK (length(requested_at) BETWEEN 20 AND 35)
+      );
+
+      CREATE TRIGGER block_receipt_insert_during_local_data_deletion
+      BEFORE INSERT ON receipts
+      WHEN EXISTS (SELECT 1 FROM local_data_deletion WHERE singleton = 1)
+      BEGIN
+        SELECT RAISE(ABORT, 'local data deletion is pending');
+      END;
+
+      CREATE TRIGGER block_document_insert_during_local_data_deletion
+      BEFORE INSERT ON receipt_documents
+      WHEN EXISTS (SELECT 1 FROM local_data_deletion WHERE singleton = 1)
+      BEGIN
+        SELECT RAISE(ABORT, 'local data deletion is pending');
+      END;
+    `,
+    version: 7,
+  },
 ];
 
 export const schemaVersion = migrations.at(-1)?.version ?? 0;

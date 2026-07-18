@@ -35,6 +35,7 @@ import { StatusPanel } from '../../components/StatusPanel';
 import { colors } from '../../theme';
 import { formatPurchaseDate } from './display';
 import { ExpenseExportModal } from './ExpenseExportModal';
+import { DeleteAllDataModal } from './DeleteAllDataModal';
 import { ExpenseFilterModal } from './ExpenseFilterModal';
 import {
   countActiveExpenseFilters,
@@ -50,6 +51,7 @@ interface ExpenseListScreenProps {
   readonly importing: boolean;
   readonly onCapture: () => void;
   readonly onCreate: () => void;
+  readonly onDeleteAllData: () => Promise<void>;
   readonly onExportArchive: (includeOriginalAttachments: boolean) => Promise<void>;
   readonly onExportCsv: () => Promise<void>;
   readonly onImportImage: () => void;
@@ -70,6 +72,7 @@ export function ExpenseListScreen({
   importing,
   onCapture,
   onCreate,
+  onDeleteAllData,
   onExportArchive,
   onExportCsv,
   onImportImage,
@@ -83,11 +86,14 @@ export function ExpenseListScreen({
   tagRepository,
 }: ExpenseListScreenProps) {
   const [error, setError] = useState(false);
+  const [deleteAllError, setDeleteAllError] = useState<string | null>(null);
+  const [deleteAllStatus, setDeleteAllStatus] = useState<'deleting' | 'error' | 'idle'>('idle');
+  const [deleteAllVisible, setDeleteAllVisible] = useState(false);
   const [exportStatus, setExportStatus] = useState<'error' | 'exporting' | 'idle' | 'success'>(
     'idle',
   );
   const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
-  const [exportKind, setExportKind] = useState<'archive' | 'csv' | 'restore'>('csv');
+  const [exportKind, setExportKind] = useState<'archive' | 'csv' | 'delete' | 'restore'>('csv');
   const [exportVisible, setExportVisible] = useState(false);
   const [filterOptions, setFilterOptions] = useState<ReceiptListOptions>({});
   const [filterVisible, setFilterVisible] = useState(false);
@@ -157,6 +163,32 @@ export function ExpenseListScreen({
           : 'Export could not be created. Check local file access and try again.',
       );
       setExportStatus('error');
+    }
+  };
+
+  const deleteAllData = async (): Promise<void> => {
+    if (deleteAllStatus === 'deleting') {
+      return;
+    }
+
+    setDeleteAllError(null);
+    setDeleteAllStatus('deleting');
+
+    try {
+      await onDeleteAllData();
+      setDeleteAllStatus('idle');
+      setDeleteAllVisible(false);
+      setExportKind('delete');
+      setExportStatus('success');
+      setFilterOptions({});
+      setFilterValues(emptyExpenseFilters);
+      setSearch('');
+      setRefreshKey((value) => value + 1);
+    } catch {
+      setDeleteAllError(
+        'Local data deletion could not start. Existing local data remains available; try again.',
+      );
+      setDeleteAllStatus('error');
     }
   };
 
@@ -265,7 +297,9 @@ export function ExpenseListScreen({
             ? 'Complete export is ready.'
             : exportKind === 'restore'
               ? 'Restore completed.'
-              : 'CSV export is ready.'}
+              : exportKind === 'delete'
+                ? 'All local data was deleted.'
+                : 'CSV export is ready.'}
         </Text>
       ) : exportStatus === 'error' && !exportVisible ? (
         <Text accessibilityLiveRegion="assertive" style={styles.exportError}>
@@ -386,12 +420,26 @@ export function ExpenseListScreen({
         <ExpenseExportModal
           errorMessage={exportErrorMessage}
           onClose={() => setExportVisible(false)}
+          onDeleteAllData={() => {
+            setExportVisible(false);
+            setDeleteAllError(null);
+            setDeleteAllStatus('idle');
+            setDeleteAllVisible(true);
+          }}
           onExportArchive={(includeOriginalAttachments) =>
             void exportData('archive', () => onExportArchive(includeOriginalAttachments))
           }
           onExportCsv={() => void exportData('csv', onExportCsv)}
           onRestoreArchive={() => void exportData('restore', onRestoreArchive)}
           status={exportStatus === 'success' ? 'idle' : exportStatus}
+        />
+      ) : null}
+      {deleteAllVisible ? (
+        <DeleteAllDataModal
+          errorMessage={deleteAllError}
+          onClose={() => setDeleteAllVisible(false)}
+          onConfirm={() => void deleteAllData()}
+          status={deleteAllStatus}
         />
       ) : null}
     </View>

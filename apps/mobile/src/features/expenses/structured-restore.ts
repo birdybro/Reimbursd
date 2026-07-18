@@ -56,12 +56,14 @@ export function getStructuredRestoreErrorMessage(error: unknown): string {
 
 export async function restoreStructuredData({
   bytes,
+  compatibleSchemaVersions = [],
   hasher,
   repository,
   storage,
   supportedSchemaVersion,
 }: {
   readonly bytes: Uint8Array;
+  readonly compatibleSchemaVersions?: readonly number[];
   readonly hasher: StructuredExportHasher;
   readonly repository: StructuredImportRepository;
   readonly storage: StructuredRestoreStorage;
@@ -69,6 +71,7 @@ export async function restoreStructuredData({
 }): Promise<StructuredImportResult> {
   const parsed = await parseStructuredExport({
     bytes,
+    compatibleSchemaVersions,
     hasher,
     supportedSchemaVersion,
   });

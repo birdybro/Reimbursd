@@ -61,6 +61,7 @@ export class SqliteStructuredImportRepository implements StructuredImportReposit
           + (SELECT COUNT(*) FROM categories)
           + (SELECT COUNT(*) FROM tags)
           + (SELECT COUNT(*) FROM receipt_tags)
+          + (SELECT COUNT(*) FROM local_data_deletion)
           AS record_count;
       `);
 

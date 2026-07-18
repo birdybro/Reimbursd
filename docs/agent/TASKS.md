@@ -105,7 +105,7 @@
 - [x] Add account-free CSV export for common active-expense fields.
 - [x] Add complete structured export with attachment checksums.
 - [x] Add clean-install restore and round-trip coverage.
-- [ ] Add complete local data deletion with attachment cleanup.
+- [x] Add complete local data deletion with attachment cleanup.
 - [x] Document the open export format.
 
 ### Acceptance criteria for the restore slice
@@ -119,3 +119,26 @@
   after failure.
 - Complete export, parse, clean-database restore, and reload preserve corrected values, provenance,
   classifications, document metadata, and byte-identical selected originals in round-trip coverage.
+
+### Acceptance criteria for the delete-all slice
+
+- Delete-all requires a distinct destructive confirmation and remains local and account-free.
+- A durable intent is committed before attachment cleanup, and new receipt/document inserts are
+  blocked until the operation completes.
+- Interrupted or failed file cleanup resumes at startup without exposing raw receipt-bearing errors.
+- Structured user data is purged in one SQLite transaction only after every receipt file is reported
+  removed; schema migration history remains intact.
+- Mid-purge failure rolls back all table deletion and preserves retry state.
+- Complete export, delete-all, clean restore, and reload preserve structured records and selected
+  original bytes in round-trip coverage.
+- Documentation distinguishes application-level deletion from unsupported forensic secure erasure.
+
+## Milestone 5: Local security and backup
+
+- [ ] Define the encrypted-backup threat model, key lifecycle, limits, and recovery semantics.
+- [ ] Add a secure platform key-storage port and supported mobile adapters.
+- [ ] Add a versioned authenticated encrypted-backup envelope using mature cryptographic primitives.
+- [ ] Restore encrypted backups through the existing strict structured-archive boundary.
+- [ ] Cover wrong keys, corruption, truncation, nonce uniqueness, limits, cleanup, and round trips.
+- [ ] Audit local logs and durable errors for sensitive receipt data.
+- [ ] Update the security model and user interface without unsupported encryption claims.

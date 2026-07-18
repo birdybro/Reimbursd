@@ -90,6 +90,14 @@ Receipt deletion first commits the SQLite tombstone, then removes each reference
 `storage_deleted_at`. Pending rows are retried on startup and through the UI. File deletion is
 idempotent so an interruption after byte removal but before the metadata update remains recoverable.
 
+Complete local deletion builds on the same mechanism. Migration 7 adds a singleton durable intent
+and SQLite triggers that block new receipt or document inserts until the operation finishes. The
+delete-all repository atomically records that intent and tombstones active receipts. A
+framework-independent coordinator resumes pending document cleanup at startup; only when every
+document has `storage_deleted_at` does one SQLite transaction purge all user-data tables and the
+intent. The schema migration ledger is retained. Post-intent errors return a bounded pending state,
+so the UI never represents partial cross-storage work as complete.
+
 Milestone 3 processing provenance remains framework-independent. Field evidence uses normalized
 page coordinates and explicit source, processor, confidence, acceptance, and correction metadata.
 Processing history stores lifecycle state and bounded failure codes rather than receipt-bearing
@@ -134,4 +142,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0007](architecture/adr/0007-local-category-and-tag-storage.md), and
 [ADR-0008](architecture/adr/0008-local-csv-export-delivery.md), and
 [ADR-0009](architecture/adr/0009-structured-export-archive.md), and
-[ADR-0010](architecture/adr/0010-clean-local-archive-restore.md) for accepted decisions.
+[ADR-0010](architecture/adr/0010-clean-local-archive-restore.md), and
+[ADR-0011](architecture/adr/0011-durable-local-data-deletion.md) for accepted decisions.

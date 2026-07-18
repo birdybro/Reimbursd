@@ -34,6 +34,6 @@ to the validated archive; reject every conflict.
   than represented as a cross-storage transaction.
 - A record-only export containing receipt documents remains useful for inspection but cannot restore
   those receipts. Archives with no document records can restore without attachments.
-- Restore supports the current schema only; future schema changes require explicit migration or
-  format compatibility work.
+- Restore supports only the current schema and explicitly reviewed record-compatible prior schemas;
+  every future schema change requires an intentional compatibility decision.
 - Plain ZIP restore does not add encryption or change the source file's retention behavior.

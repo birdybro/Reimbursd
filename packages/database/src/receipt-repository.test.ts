@@ -57,14 +57,9 @@ describe('SQLite receipt repository', () => {
     const versions = await connection.getAll<{ version: number }>(
       'SELECT version FROM schema_migrations;',
     );
-    expect(versions).toEqual([
-      { version: 1 },
-      { version: 2 },
-      { version: 3 },
-      { version: 4 },
-      { version: 5 },
-      { version: schemaVersion },
-    ]);
+    expect(versions).toEqual(
+      Array.from({ length: schemaVersion }, (_, index) => ({ version: index + 1 })),
+    );
     connection.close();
   });
 

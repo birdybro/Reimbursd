@@ -59,6 +59,11 @@
   byte sizes, and SHA-256 checksums before any local write. Restore never merges into a nonempty
   database or overwrites a conflicting file. Structured inserts are transactional, and files created
   before a failed database commit receive compensating cleanup with byte-identical retry recovery.
+- Delete-all requires a dedicated destructive confirmation, persists intent before cleanup, blocks
+  new receipt and document inserts while pending, and resumes idempotent file removal at startup.
+  Final purge is gated on every document's durable storage-deletion marker and removes all user-data
+  tables in one transaction while retaining only schema migration history. Mid-purge rollback and
+  export-delete-restore behavior are tested.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -74,8 +79,7 @@
 
 ## Planned controls
 
-- Cross-platform PDF page-preview generation when a compatible bounded renderer is available, and
-  complete data deletion.
+- Cross-platform PDF page-preview generation when a compatible bounded renderer is available.
 - An Android-compatible offline OCR adapter.
 - Secure platform key storage and authenticated encrypted backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
@@ -84,7 +88,7 @@
 ## Unsupported claims
 
 Reimbursd does not currently provide encrypted backups, end-to-end encryption, authentication,
-hosted storage, synchronization, complete data deletion, secure deletion guarantees, Android/web
-OCR, or remote AI processing. iOS OCR has not been exercised on Apple hardware in this Linux
-environment. Local receipt storage, plain exports, and clean-install restore are not described as
-encrypted. Product surfaces and documentation must not imply otherwise.
+hosted storage, synchronization, forensic secure deletion, Android/web OCR, or remote AI processing.
+iOS OCR has not been exercised on Apple hardware in this Linux environment. Local receipt storage,
+plain exports, clean-install restore, and application-level delete-all are not described as
+encrypted or securely erased. Product surfaces and documentation must not imply otherwise.
