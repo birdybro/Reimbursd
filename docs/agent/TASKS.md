@@ -161,13 +161,28 @@
 
 ## Milestone 6: Self-hosted backend and web foundation
 
-- [ ] Define service, trust, authorization, data, migration, and provider boundaries in an ADR.
+- [x] Define the initial API trust, authorization, data, and migration boundary in an ADR.
 - [ ] Add a locally runnable API and worker without changing local mobile availability.
 - [ ] Add PostgreSQL migrations and migration integration tests.
-- [ ] Add development authentication and server-side object authorization.
+- [x] Add bounded development authentication and server-side receipt authorization.
 - [ ] Add private S3-compatible attachment storage with signed or authenticated access.
 - [ ] Add cross-user receipt and attachment isolation tests.
-- [ ] Publish a machine-readable API specification.
+- [x] Add cross-user receipt isolation tests with indistinguishable missing-object responses.
+- [x] Publish a machine-readable OpenAPI specification for implemented routes.
 - [ ] Add a web client that authenticates against the local server.
 - [ ] Add containerized PostgreSQL, object storage, local email, and mock provider services.
 - [ ] Update development and self-hosting documentation with a secret-free environment example.
+
+### Acceptance criteria for the current API slice
+
+- Local mobile startup and every account-free workflow retain no server dependency.
+- The service binds to loopback by default, limits request bodies and rates, rejects unknown JSON
+  fields, and returns bounded errors without receipt contents.
+- Tokens require a valid signature, expiration, fixed issuer and audience, and UUID subject.
+- Synthetic identity issuance is opt-in for development, absent by default, and rejected by
+  production configuration.
+- Every repository operation receives owner identity explicitly; cross-owner and absent reads are
+  indistinguishable at the HTTP boundary.
+- Route schemas generate OpenAPI 3.1.1 for exactly the implemented service surface.
+- Process-memory storage is documented as non-durable and is not represented as self-hosting
+  completion.

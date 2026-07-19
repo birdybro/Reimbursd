@@ -80,6 +80,14 @@
   tables in one transaction while retaining only schema migration history. Mid-purge rollback and
   export-delete-restore behavior are tested. Native backup-key deletion occurs before final database
   purge and remains durably retryable after a secure-store failure.
+- The development API enforces a 64 KiB request-body limit, strict schemas that reject unknown
+  fields, fixed-issuer and fixed-audience HS256 bearer tokens with UUID subjects and 15-minute
+  expiration, and a bounded global rate limit. Signing material is required through uncommitted
+  environment configuration.
+- Every hosted receipt repository operation requires an authenticated owner UUID. Cross-owner and
+  missing reads return the same bounded `404`; tests exercise two isolated identities. Request
+  logging and CORS are disabled, and validation, authentication, conflict, rate, not-found, and
+  internal errors do not echo tokens or receipt contents.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -93,19 +101,23 @@
   encrypted-backup sharing have not yet been exercised on physical Android or iOS devices in this
   Linux development environment. SecureStore availability and persistence remain platform behavior,
   not the only recovery mechanism.
+- The API authentication mechanism is for isolated development only. Receipt metadata is held in
+  process memory, tokens cannot be revoked, and no password, session persistence, TLS termination,
+  PostgreSQL, object storage, or web-origin policy exists yet.
 
 ## Planned controls
 
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available.
 - An Android-compatible offline OCR adapter.
-- Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
-- Cross-user isolation, provider-contract, and synchronization-conflict tests.
+- Durable owner-scoped PostgreSQL access, private object storage, production authentication, strict
+  web CORS and CSRF behavior, and secure revocable sessions.
+- Cross-user attachment isolation, provider-contract, and synchronization-conflict tests.
 
 ## Unsupported claims
 
 Reimbursd does not currently provide live local database encryption, end-to-end encryption,
-authentication, hosted storage, synchronization, forensic secure deletion, Android/web OCR, or
-remote AI processing. iOS OCR and native backup key storage/sharing have not been exercised on
+production authentication, durable hosted storage, synchronization, forensic secure deletion,
+Android/web OCR, or remote AI processing. iOS OCR and native backup key storage/sharing have not been exercised on
 physical hardware in this Linux environment. Local receipt storage, plain exports, clean-install
 restore, and application-level delete-all are not described as encrypted or securely erased. The
 implemented encrypted-backup claim applies only to authenticated `.rbd` files. Product surfaces and

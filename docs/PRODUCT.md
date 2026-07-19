@@ -23,8 +23,11 @@ services may add web access, synchronization, storage, and explicitly authorized
 
 ## Current scope
 
-Milestones 0 through 3 provide the repository foundation, local manual expenses, immutable receipt
-ingestion, local OCR boundaries, deterministic extraction, provenance, and review. Milestone 4 is
-active with local categories, tags, filtering, reports, CSV export, and a versioned complete-data
-ZIP export with optional originals. Restore and complete local deletion remain the next local data
-control work. Synchronization, billing, remote AI, and location enrichment remain later milestones.
+Milestones 0 through 5 provide the repository foundation, local manual expenses, immutable receipt
+ingestion, local OCR boundaries, deterministic extraction and review, classifications, reports,
+plain export and clean restore, durable local deletion, and authenticated encrypted backup files.
+Milestone 6 is active. Its first development API slice establishes strict network validation,
+generated OpenAPI, signed synthetic development identities, and server-side receipt ownership using
+non-durable process memory. PostgreSQL, private attachment storage, a worker, production
+authentication, and the web client are not implemented. Synchronization, billing, remote AI, and
+location enrichment remain later milestones.

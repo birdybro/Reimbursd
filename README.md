@@ -8,7 +8,7 @@ AI provider.
 
 ## Current status
 
-Milestones 0 through 4 are complete. The Expo application can create, view, edit, search, filter, and
+Milestones 0 through 5 are complete. The Expo application can create, view, edit, search, filter, and
 delete manual expenses, and it can capture JPEG/PNG receipts or import JPEG, PNG, and multi-page PDF
 originals into private local storage. Import validates content and limits, records SHA-256 and
 provenance, and requires no account or network service. Deleting an expense removes its local
@@ -47,6 +47,12 @@ restore still applies the complete structured-archive validation boundary and re
 local database. This protects the exported backup file, not the live SQLite database or receipt
 store. Losing both platform key storage and the separate recovery key makes the backup
 unrecoverable.
+
+Milestone 6 is active. A first locally runnable Fastify API slice now provides strict request
+validation, rate limiting, generated OpenAPI, short-lived synthetic development tokens, and tested
+server-side owner isolation for manual receipt metadata. Its storage is process memory only; it has
+no production authentication, PostgreSQL, private attachment storage, worker, or web client. The
+local mobile application does not depend on this service.
 
 ## Requirements
 

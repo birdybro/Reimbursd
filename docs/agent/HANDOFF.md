@@ -22,13 +22,20 @@ hardware in this Linux environment.
 
 ## Active direction
 
-Milestone 6 is active. Preserve the local mobile application's complete independence from accounts
-and servers. Start with authorization and cross-user isolation boundaries, a small PostgreSQL-backed
-receipt-metadata API, private object storage, machine-readable API contracts, and deterministic local
-providers. Use a containerized secret-free development stack and do not imply that private sync or
-remote processing is end-to-end encrypted.
+Milestone 6 is active. `apps/api` is the first authorization-first server slice: Fastify 5, strict
+schemas, bounded errors and request rates, generated OpenAPI 3.1.1, fixed-claim signed development
+tokens, and explicit owner-scoped receipt create/read operations. Sixteen targeted tests cover
+configuration, repository isolation, strict input, cross-user access, and error redaction. The
+in-memory adapter is deliberately non-durable and development identity issuance is not production
+authentication.
 
-The complete gate currently passes with 170 Vitest tests, 51 React Native/Jest tests, Expo Doctor
+Next, add PostgreSQL migrations and an adapter that preserves the exact repository ownership
+contract, including transaction and two-user isolation tests. Then add private S3-compatible object
+storage before the worker or web client. Preserve the local mobile application's complete
+independence from accounts and servers, use a containerized secret-free development stack, and do
+not imply that private sync or remote processing is end-to-end encrypted.
+
+The complete gate currently passes with 189 Vitest tests, 51 React Native/Jest tests, Expo Doctor
 20/20, and all builds. Eleven moderate Expo build-tool advisories remain documented; no high or
 critical advisory is present. The Expo web development server runs at `http://localhost:8081`.
 
@@ -36,6 +43,6 @@ critical advisory is present. The Expo web development server runs at `http://lo
 
 1. Read `AGENTS.md`, `docs/agent/STATUS.md`, and `docs/agent/TASKS.md`.
 2. Inspect `git status --short` and preserve uncommitted work.
-3. Commit the complete Milestone 5 slice if it has not yet been committed.
-4. Begin the highest-priority unblocked Milestone 6 task.
+3. Confirm the authorization-first API slice is committed.
+4. Begin the PostgreSQL migration and owner-scoped adapter slice.
 5. Run `npm run verify` before committing a logical slice or marking a milestone complete.

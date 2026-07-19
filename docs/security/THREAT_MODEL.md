@@ -8,7 +8,8 @@ originals, integrity hashes, filenames, provenance, file metadata, encrypted `.r
 backup recovery keys are current assets. The npm registry is a build-time trust boundary; the Expo
 runtime, platform cryptography and secure storage, local device sandbox, file and archive decoders,
 operating-system picker/share destination, and web browser origin/profile are application
-boundaries.
+boundaries. The development API adds untrusted HTTP requests, signed bearer tokens, process-local
+receipt metadata, and the local network interface as current boundaries.
 
 ## Current threats
 
@@ -32,6 +33,9 @@ boundaries.
   partial purge to be represented as complete.
 - Local device, browser-profile, or site-data loss removing unbacked-up expenses.
 - Another process or user with access to an unlocked device or browser profile reading local data.
+- Missing object authorization exposing another API user's receipt; forged, expired, wrong-issuer,
+  or wrong-audience tokens crossing the authenticated boundary; oversized or repeated requests
+  exhausting the server; and exceptions reflecting receipt data into responses or logs.
 - Unsupported privacy or encryption claims creating user risk.
 
 ## Current mitigations
@@ -66,10 +70,14 @@ boundaries.
   redacted processing failure codes.
 - Honest UI and documentation that encrypted backup protects the exported file, while live local
   storage remains unencrypted and loss of both key copies is unrecoverable.
+- Strict API request schemas and body limits, fixed signed-token claims and expiration, explicit
+  owner parameters on every receipt repository operation, indistinguishable cross-owner and missing
+  reads, bounded rate limiting and errors, disabled request logging, and two-identity isolation tests.
 - Documentation that distinguishes implemented and planned controls.
 
 ## Future review triggers
 
-Revisit this model before changing algorithms, rotating keys, adding password-derived keys, or
-adding networking, authentication, synchronization, location, or billing. Receipt images, OCR text,
-and imported archives must always be treated as untrusted data and never as executable instructions.
+Revisit this model before changing algorithms, rotating keys, adding password-derived keys,
+production authentication, PostgreSQL, object storage, a web origin, synchronization, location, or
+billing. Receipt images, OCR text, imported archives, HTTP bodies, and provider responses must always
+be treated as untrusted data and never as executable instructions.

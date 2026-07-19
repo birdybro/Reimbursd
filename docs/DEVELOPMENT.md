@@ -7,9 +7,10 @@
 - Git
 - An Expo-supported Android, iOS, or web environment
 
-No environment variable, external database, container, hosted account, or paid provider is needed.
-The application creates and migrates its local SQLite database when it starts. Local receipt imports
-support JPEG, PNG, and unencrypted PDF content up to the configured resource limits.
+No environment variable, external database, container, hosted account, or paid provider is needed
+for the local mobile application. It creates and migrates its local SQLite database when it starts.
+Local receipt imports support JPEG, PNG, and unencrypted PDF content up to the configured resource
+limits.
 
 ## Setup
 
@@ -33,6 +34,8 @@ usable; no external fallback is used.
 ## Commands
 
 - `npm run dev:mobile`: start the Expo development server.
+- `npm run dev:api`: start the process-local Milestone 6 API after configuring `.env` as documented
+  in `docs/SELF_HOSTING.md`.
 - `npm run android:native --workspace @reimbursd/mobile`: generate and run an Android development
   build; local OCR is not implemented on Android yet.
 - `npm run ios:native --workspace @reimbursd/mobile`: generate and run an iOS development build with
@@ -47,6 +50,12 @@ usable; no external fallback is used.
 - `npm run licenses`: reject missing or incompatible dependency licenses.
 - `npm run audit`: fail on known high-severity npm advisories.
 - `npm run verify`: run the complete practical repository quality gate.
+
+The current API uses strict request schemas, signed development bearer tokens, rate limiting,
+generated OpenAPI, and explicit owner-scoped repository operations. Its records are held only in
+process memory and disappear at restart. It is test infrastructure for the authorization boundary,
+not a production authentication or durable self-hosting implementation. Keep it bound to loopback;
+CORS is intentionally disabled until the web client and credential policy are implemented.
 
 Use synthetic test data only. Mobile data is stored in the platform application sandbox. Web data
 and receipt files are stored for the current browser origin and profile. Removing browser site data

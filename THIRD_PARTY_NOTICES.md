@@ -27,7 +27,11 @@ preserves its notices. `fflate` 0.8.3 is installed under the MIT license to crea
 and strictly extract selected archives without a network service; the installed package preserves
 its license metadata. `zod` 3.25.76 is installed under the MIT license to strictly validate untrusted
 structured-export manifests and record files before restore; the installed package preserves its
-license metadata.
+license metadata. The Milestone 6 API uses Fastify 5 and the official `@fastify/jwt`,
+`@fastify/rate-limit`, and `@fastify/swagger` plugins under the MIT license for HTTP routing,
+development bearer-token verification, request throttling, and generated OpenAPI documentation.
+`tsx` is installed under the MIT license for local TypeScript server execution. The installed
+packages preserve their license and copyright metadata.
 
 ## Development license data
 

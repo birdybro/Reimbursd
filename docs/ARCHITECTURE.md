@@ -5,6 +5,7 @@
 Reimbursd is an npm workspace using strict TypeScript.
 
 ```text
+apps/api          Fastify authorization-first development API
 apps/mobile       Expo and React Native client
 packages/attachments File inspection and attachment-ingestion coordination
 packages/crypto   Authenticated backup framing and portable backup-key lifecycle
@@ -17,6 +18,19 @@ packages/ocr      Validated OCR provider contract and deterministic test provide
 
 The domain package cannot depend on React, React Native, HTTP frameworks, database drivers, cloud
 SDKs, or billing providers. Applications may depend on domain packages, never the reverse.
+
+The first Milestone 6 server slice is an independent Fastify 5 application. It validates bounded
+JSON requests with strict route schemas and Zod, publishes OpenAPI 3.1.1 from the same route
+definitions, applies a global rate limit, and disables request logging and CORS. Protected routes
+accept only an expiring HS256 bearer token with fixed issuer and audience claims plus a UUID subject.
+Synthetic token issuance is registered only in explicit development mode and cannot be enabled by
+production configuration.
+
+The API-owned receipt repository port requires `ownerId` on every operation. The initial in-memory
+adapter stores an owner beside each receipt and returns `null` for both cross-owner and absent reads,
+which the HTTP boundary maps to the same bounded response. This proves the ownership contract but is
+not durable: process restart removes all hosted records. PostgreSQL must implement the same contract
+with ownership in every query. Local mobile code has no import or runtime dependency on the API.
 
 The current mobile application has no network dependency and no account boundary. It opens Expo
 SQLite through an application adapter and passes a small asynchronous SQLite connection port to the
@@ -146,9 +160,9 @@ closes pending parser review history. A failure rolls back every part of the rev
 
 ## Intended growth
 
-Future work may add `apps/web`, `apps/api`, `apps/worker`, and focused packages for schemas,
-database access, cryptography, providers, and synchronization. These are not implemented and are
-not required for local mobile use.
+Future work may add `apps/web`, `apps/worker`, a PostgreSQL API adapter, and focused packages for
+hosted schemas, database access, providers, and synchronization. These are not required for local
+mobile use.
 
 See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0002](architecture/adr/0002-local-sqlite-repository.md), and
@@ -161,4 +175,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0009](architecture/adr/0009-structured-export-archive.md), and
 [ADR-0010](architecture/adr/0010-clean-local-archive-restore.md), and
 [ADR-0011](architecture/adr/0011-durable-local-data-deletion.md), and
-[ADR-0012](architecture/adr/0012-authenticated-encrypted-backup.md) for accepted decisions.
+[ADR-0012](architecture/adr/0012-authenticated-encrypted-backup.md), and
+[ADR-0013](architecture/adr/0013-self-hosted-api-authorization-boundary.md) for accepted decisions.

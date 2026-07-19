@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "npm run build --workspaces --if-present",
+    "dev:api": "npm run dev --workspace @reimbursd/api",
     "dev:mobile": "npm run start --workspace @reimbursd/mobile",
     "doctor": "expo-doctor apps/mobile",
     "format": "prettier --write .",

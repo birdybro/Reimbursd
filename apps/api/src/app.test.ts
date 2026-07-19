@@ -1,0 +1,335 @@
+// SPDX-License-Identifier: GPL-3.0-only
+import type { Receipt } from '@reimbursd/domain';
+import type { FastifyInstance } from 'fastify';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { buildApi } from './app.js';
+import type { ApiConfig } from './config.js';
+import type { HostedReceiptRepository } from './receipt-repository.js';
+import type { ApiError, CreateReceiptBody, SessionResponse } from './schemas.js';
+
+const testConfig: ApiConfig = {
+  developmentAuthEnabled: true,
+  host: '127.0.0.1',
+  jwtSecret: 'test-only-api-secret-that-is-at-least-32-characters',
+  nodeEnvironment: 'test',
+  port: 3000,
+};
+
+const ownerA = '00000000-0000-4000-8000-000000000001';
+const ownerB = '00000000-0000-4000-8000-000000000002';
+const receiptId = '10000000-0000-4000-8000-000000000001';
+
+function createReceipt(overrides: Partial<CreateReceiptBody> = {}): CreateReceiptBody {
+  return {
+    capturedAt: '2026-07-18T12:00:00-06:00',
+    currencyCode: 'USD',
+    discountMinor: 0,
+    id: receiptId,
+    merchantId: '20000000-0000-4000-8000-000000000001',
+    merchantName: 'Synthetic Merchant',
+    notes: 'Synthetic test data only',
+    purchasedAt: '2026-07-18T11:30:00-06:00',
+    subtotalMinor: 1_000,
+    taxMinor: 80,
+    tipMinor: 200,
+    totalMinor: 1_280,
+    ...overrides,
+  };
+}
+
+async function issueToken(app: FastifyInstance, userId: string): Promise<string> {
+  const response = await app.inject({
+    method: 'POST',
+    payload: { userId },
+    url: '/development/session',
+  });
+  const session = response.json<SessionResponse>();
+
+  expect(response.statusCode).toBe(200);
+  expect(session.expiresInSeconds).toBe(900);
+  return session.accessToken;
+}
+
+describe('Reimbursd API', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    app = await buildApi({ config: testConfig });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('reports the explicitly non-durable storage adapter', async () => {
+    const response = await app.inject({ method: 'GET', url: '/health' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ status: 'ok', storage: 'process-memory' });
+  });
+
+  it('generates OpenAPI for implemented authentication and receipt routes', async () => {
+    const response = await app.inject({ method: 'GET', url: '/openapi.json' });
+    const document = response.json<{
+      components?: { securitySchemes?: Record<string, unknown> };
+      openapi?: string;
+      paths?: Record<string, unknown>;
+    }>();
+
+    expect(response.statusCode).toBe(200);
+    expect(document.openapi).toBe('3.1.1');
+    expect(document.paths).toHaveProperty('/v1/receipts');
+    expect(document.paths).toHaveProperty('/v1/receipts/{receiptId}');
+    expect(document.components?.securitySchemes).toHaveProperty('bearerAuth');
+  });
+
+  it('creates and retrieves an owner-scoped manual receipt', async () => {
+    const token = await issueToken(app, ownerA);
+    const createResponse = await app.inject({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'POST',
+      payload: createReceipt(),
+      url: '/v1/receipts',
+    });
+    const getResponse = await app.inject({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'GET',
+      url: `/v1/receipts/${receiptId}`,
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    expect(createResponse.json<Receipt>()).toMatchObject({
+      id: receiptId,
+      sourceType: 'manual',
+      totalMinor: 1_280,
+      version: 1,
+    });
+    expect(getResponse.statusCode).toBe(200);
+    expect(getResponse.json<Receipt>()).toEqual(createResponse.json<Receipt>());
+  });
+
+  it('makes cross-owner and missing receipt responses indistinguishable', async () => {
+    const tokenA = await issueToken(app, ownerA);
+    const tokenB = await issueToken(app, ownerB);
+    await app.inject({
+      headers: { authorization: `Bearer ${tokenA}` },
+      method: 'POST',
+      payload: createReceipt(),
+      url: '/v1/receipts',
+    });
+
+    const crossOwner = await app.inject({
+      headers: { authorization: `Bearer ${tokenB}` },
+      method: 'GET',
+      url: `/v1/receipts/${receiptId}`,
+    });
+    const missing = await app.inject({
+      headers: { authorization: `Bearer ${tokenB}` },
+      method: 'GET',
+      url: '/v1/receipts/10000000-0000-4000-8000-000000000099',
+    });
+
+    expect(crossOwner.statusCode).toBe(404);
+    expect(crossOwner.body).toBe(missing.body);
+    expect(crossOwner.body).not.toContain(receiptId);
+  });
+
+  it('rejects missing and malformed bearer tokens with a bounded response', async () => {
+    const missing = await app.inject({ method: 'GET', url: `/v1/receipts/${receiptId}` });
+    const malformed = await app.inject({
+      headers: { authorization: 'Bearer not-a-valid-token' },
+      method: 'GET',
+      url: `/v1/receipts/${receiptId}`,
+    });
+    const expected: ApiError = {
+      code: 'unauthorized',
+      message: 'A valid bearer token is required.',
+    };
+
+    expect(missing.statusCode).toBe(401);
+    expect(missing.json()).toEqual(expected);
+    expect(malformed.statusCode).toBe(401);
+    expect(malformed.json()).toEqual(expected);
+  });
+
+  it('rejects tokens with the wrong issuer or audience', async () => {
+    const wrongAudience = app.jwt.sign(
+      {},
+      {
+        algorithm: 'HS256',
+        aud: 'another-api',
+        expiresIn: 900,
+        iss: 'reimbursd-self-hosted',
+        sub: ownerA,
+      },
+    );
+    const wrongIssuer = app.jwt.sign(
+      {},
+      {
+        algorithm: 'HS256',
+        aud: 'reimbursd-api',
+        expiresIn: 900,
+        iss: 'another-issuer',
+        sub: ownerA,
+      },
+    );
+
+    for (const token of [wrongAudience, wrongIssuer]) {
+      const response = await app.inject({
+        headers: { authorization: `Bearer ${token}` },
+        method: 'GET',
+        url: `/v1/receipts/${receiptId}`,
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toEqual({
+        code: 'unauthorized',
+        message: 'A valid bearer token is required.',
+      });
+    }
+  });
+
+  it('rejects unknown body fields and inconsistent totals', async () => {
+    const token = await issueToken(app, ownerA);
+    const extraField = await app.inject({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'POST',
+      payload: { ...createReceipt(), ownerId: ownerB },
+      url: '/v1/receipts',
+    });
+    const inconsistentTotal = await app.inject({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'POST',
+      payload: createReceipt({ totalMinor: 1_281 }),
+      url: '/v1/receipts',
+    });
+
+    expect(extraField.statusCode).toBe(400);
+    expect(extraField.json()).toEqual({
+      code: 'invalid_request',
+      message: 'The request is invalid.',
+    });
+    expect(inconsistentTotal.statusCode).toBe(400);
+    expect(inconsistentTotal.body).not.toContain('1281');
+  });
+
+  it('returns a bounded conflict without exposing stored receipt data', async () => {
+    const token = await issueToken(app, ownerA);
+    const request = {
+      headers: { authorization: `Bearer ${token}` },
+      method: 'POST' as const,
+      payload: createReceipt(),
+      url: '/v1/receipts',
+    };
+    await app.inject(request);
+    const duplicate = await app.inject(request);
+
+    expect(duplicate.statusCode).toBe(409);
+    expect(duplicate.body).not.toContain('Synthetic Merchant');
+    expect(duplicate.body).not.toContain(receiptId);
+  });
+
+  it('rejects request bodies over 64 KiB without reflecting their contents', async () => {
+    const token = await issueToken(app, ownerA);
+    const sensitiveMarker = 'SENSITIVE_MARKER';
+    const response = await app.inject({
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+      payload: JSON.stringify({
+        ...createReceipt(),
+        notes: sensitiveMarker.repeat(5_000),
+      }),
+      url: '/v1/receipts',
+    });
+
+    expect(response.statusCode).toBe(413);
+    expect(response.json()).toEqual({
+      code: 'request_too_large',
+      message: 'The request body exceeds the allowed size.',
+    });
+    expect(response.body).not.toContain(sensitiveMarker);
+  });
+});
+
+describe('API boundary configuration', () => {
+  it('applies the bounded development-session rate limit', async () => {
+    const app = await buildApi({ config: testConfig });
+
+    try {
+      let finalBody: unknown;
+      let finalStatus = 0;
+
+      for (let attempt = 0; attempt < 21; attempt += 1) {
+        const response = await app.inject({
+          method: 'POST',
+          payload: { userId: ownerA },
+          url: '/development/session',
+        });
+        finalBody = response.json<unknown>();
+        finalStatus = response.statusCode;
+      }
+
+      expect(finalStatus).toBe(429);
+      expect(finalBody).toEqual({
+        code: 'rate_limit_exceeded',
+        message: 'Too many requests. Try again later.',
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('does not register development identity issuance by default', async () => {
+    const app = await buildApi({
+      config: { ...testConfig, developmentAuthEnabled: false },
+    });
+
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        payload: { userId: ownerA },
+        url: '/development/session',
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.body).not.toContain('/development/session');
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('redacts internal repository exceptions', async () => {
+    const sensitiveErrorRepository: HostedReceiptRepository = {
+      async create() {
+        throw new Error('Synthetic Merchant notes and total 1280 must never leave the server');
+      },
+      async getByIdForOwner() {
+        throw new Error('Private receipt lookup details');
+      },
+    };
+    const app = await buildApi({ config: testConfig, repository: sensitiveErrorRepository });
+
+    try {
+      const token = await issueToken(app, ownerA);
+      const response = await app.inject({
+        headers: { authorization: `Bearer ${token}` },
+        method: 'POST',
+        payload: createReceipt(),
+        url: '/v1/receipts',
+      });
+
+      expect(response.statusCode).toBe(500);
+      expect(response.json()).toEqual({
+        code: 'internal_error',
+        message: 'The request could not be completed.',
+      });
+      expect(response.body).not.toContain('Synthetic Merchant');
+      expect(response.body).not.toContain('1280');
+    } finally {
+      await app.close();
+    }
+  });
+});
