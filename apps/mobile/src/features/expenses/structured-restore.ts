@@ -9,6 +9,10 @@ import {
   StructuredExportValidationError,
   type StructuredExportHasher,
 } from '@reimbursd/export';
+import {
+  EncryptedBackupAuthenticationError,
+  EncryptedBackupValidationError,
+} from '@reimbursd/crypto';
 
 export interface StructuredRestoreStorage {
   delete(storageReference: string): Promise<void>;
@@ -31,6 +35,14 @@ export class StructuredRestoreStorageConflictError extends Error {
 }
 
 export function getStructuredRestoreErrorMessage(error: unknown): string {
+  if (error instanceof EncryptedBackupAuthenticationError) {
+    return 'The recovery key does not match this backup, or the backup was changed.';
+  }
+
+  if (error instanceof EncryptedBackupValidationError) {
+    return 'The recovery key or encrypted backup format is invalid.';
+  }
+
   if (error instanceof StructuredImportTargetNotEmptyError) {
     return 'Restore requires an empty local database. Use a clean installation and try again.';
   }

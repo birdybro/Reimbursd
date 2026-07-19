@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { Archive, FileSpreadsheet, Trash2, Upload, X } from 'lucide-react-native';
+import { Archive, FileKey, FileSpreadsheet, Trash2, Upload, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
@@ -9,6 +9,8 @@ interface ExpenseExportModalProps {
   readonly errorMessage: string | null;
   readonly onClose: () => void;
   readonly onDeleteAllData: () => void;
+  readonly onEncryptedBackup?: () => void;
+  readonly onEncryptedRestore?: () => void;
   readonly onExportArchive: (includeOriginalAttachments: boolean) => void;
   readonly onExportCsv: () => void;
   readonly onRestoreArchive: () => void;
@@ -19,6 +21,8 @@ export function ExpenseExportModal({
   errorMessage,
   onClose,
   onDeleteAllData,
+  onEncryptedBackup,
+  onEncryptedRestore,
   onExportArchive,
   onExportCsv,
   onRestoreArchive,
@@ -83,6 +87,24 @@ export function ExpenseExportModal({
               <Text style={styles.primaryText}>{disabled ? 'Working...' : 'Complete archive'}</Text>
             </Pressable>
 
+            {onEncryptedBackup === undefined ? null : (
+              <Pressable
+                accessibilityLabel="Create encrypted data backup"
+                accessibilityRole="button"
+                accessibilityState={{ disabled }}
+                disabled={disabled}
+                onPress={onEncryptedBackup}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  disabled && styles.disabled,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <FileKey color={colors.green} size={19} strokeWidth={2.2} />
+                <Text style={styles.secondaryText}>Encrypted backup</Text>
+              </Pressable>
+            )}
+
             <Pressable
               accessibilityLabel="Export expenses as CSV"
               accessibilityRole="button"
@@ -116,6 +138,24 @@ export function ExpenseExportModal({
               <Upload color={colors.green} size={19} strokeWidth={2.2} />
               <Text style={styles.secondaryText}>Restore archive</Text>
             </Pressable>
+
+            {onEncryptedRestore === undefined ? null : (
+              <Pressable
+                accessibilityLabel="Restore encrypted data backup"
+                accessibilityRole="button"
+                accessibilityState={{ disabled }}
+                disabled={disabled}
+                onPress={onEncryptedRestore}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  disabled && styles.disabled,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <FileKey color={colors.green} size={19} strokeWidth={2.2} />
+                <Text style={styles.secondaryText}>Restore encrypted backup</Text>
+              </Pressable>
+            )}
 
             <View style={styles.divider} />
 

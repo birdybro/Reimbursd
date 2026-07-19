@@ -4,9 +4,11 @@
 
 The local application accepts merchant names, dates, currency values, amounts, notes, untrusted
 JPEG, PNG, and PDF receipt files, and untrusted structured-export ZIPs. Structured records, receipt
-originals, integrity hashes, filenames, provenance, and file metadata are current assets. The npm
-registry is a build-time trust boundary; the Expo runtime, local device sandbox, file and archive
-decoders, operating-system picker, and web browser origin/profile are application boundaries.
+originals, integrity hashes, filenames, provenance, file metadata, encrypted `.rbd` files, and
+backup recovery keys are current assets. The npm registry is a build-time trust boundary; the Expo
+runtime, platform cryptography and secure storage, local device sandbox, file and archive decoders,
+operating-system picker/share destination, and web browser origin/profile are application
+boundaries.
 
 ## Current threats
 
@@ -18,6 +20,11 @@ decoders, operating-system picker, and web browser origin/profile are applicatio
 - Malformed or oversized images and PDFs exhausting memory or bypassing declared file types.
 - Malformed, oversized, highly expanded, path-traversing, or internally inconsistent restore ZIPs
   exhausting resources, writing outside storage boundaries, or corrupting local data.
+- Malformed, oversized, truncated, or modified encrypted envelopes bypassing validation; wrong-key
+  output reaching restore; or nonce reuse weakening AES-GCM authentication and confidentiality.
+- Device loss, uninstall, browser refresh, platform secure-storage loss, or user loss of the
+  recovery key making an encrypted backup unavailable.
+- Receipt data leaking through visible envelope metadata, temporary backup files, errors, or logs.
 - Malicious OCR-provider output returning oversized text, invalid coordinates, or unexpected shapes.
 - Raw OCR or provider errors leaking receipt contents into logs or durable failure records.
 - Interrupted database/file operations orphaning receipt bytes or forgetting required cleanup.
@@ -40,17 +47,29 @@ decoders, operating-system picker, and web browser origin/profile are applicatio
   parsing, complete manifest/file/checksum validation, and domain validation before restore writes.
 - Clean-database restore, transactional record insertion, immutable attachment writes, conflict
   refusal, compensating cleanup, and byte-identical recovery after interrupted cleanup.
+- AES-256-GCM through Expo's platform primitive with generated 256-bit keys, platform-generated
+  12-byte nonces, full 16-byte tags, and exact bounded headers as additional authenticated data.
+  Strict framing and metadata validation precede decryption; authentication precedes ZIP parsing;
+  strict structured validation still precedes every local write.
+- A portable recovery key is displayed before file creation. Supported native platforms retain the
+  active key in Expo SecureStore for convenience, while web never persists it. Restore retains a
+  recovered native key only after data restore completes, and documentation treats secure storage
+  as non-guaranteed rather than the only recovery path.
+- Visible envelope metadata excludes receipt contents and filenames. Native temporary `.rbd` files
+  are removed after share success or failure, and user-facing errors are bounded. A source audit
+  found no application logger or `console` calls in `apps/` or `packages/`.
 - Immutable original storage, SHA-256 duplicate detection, compensating failed writes, and durable,
   idempotent attachment-deletion retry.
 - Durable delete-all intent, database insert guards, a restart-blocking retry surface, attachment
   cleanup gating, transactional user-table purge, and explicit non-forensic-erasure language.
 - Defensive OCR input copies, schema-validated and bounded provider output, normalized boxes, and
   redacted processing failure codes.
-- Honest UI and documentation that local storage is not an encrypted backup.
+- Honest UI and documentation that encrypted backup protects the exported file, while live local
+  storage remains unencrypted and loss of both key copies is unrecoverable.
 - Documentation that distinguishes implemented and planned controls.
 
 ## Future review triggers
 
-Revisit this model before adding networking, authentication, cryptography, synchronization,
-location, or billing. Receipt images, OCR text, and imported archives must always be treated as
-untrusted data and never as executable instructions.
+Revisit this model before changing algorithms, rotating keys, adding password-derived keys, or
+adding networking, authentication, synchronization, location, or billing. Receipt images, OCR text,
+and imported archives must always be treated as untrusted data and never as executable instructions.

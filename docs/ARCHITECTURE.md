@@ -7,6 +7,7 @@ Reimbursd is an npm workspace using strict TypeScript.
 ```text
 apps/mobile       Expo and React Native client
 packages/attachments File inspection and attachment-ingestion coordination
+packages/crypto   Authenticated backup framing and portable backup-key lifecycle
 packages/domain   Framework-independent business rules
 packages/database SQLite ports, migrations, and local repositories
 packages/export   Validated deterministic structured archive creation and parsing
@@ -71,6 +72,22 @@ the complete graph in one transaction. Database failure removes files created by
 byte-identical leftovers can be reused after interrupted cleanup, while conflicts fail closed.
 Format version 1 deliberately excludes derivative metadata and bytes because those previews are
 regenerable and restoring metadata without bytes would create invalid references.
+
+Encrypted backup composes these existing boundaries rather than defining another data format. The
+framework-independent crypto package validates a bounded versioned envelope and portable 256-bit
+key representation. The mobile coordinator always creates a complete structured ZIP with every
+original, then uses Expo Crypto's platform AES-256-GCM implementation with a generated 12-byte
+nonce, a 16-byte tag, and the exact envelope header as additional authenticated data. Android and
+iOS store the active key record through Expo SecureStore; web generates a new ephemeral key for
+each prepared backup and never persists it in browser storage. The user sees the recovery key before
+file delivery.
+
+Restore authenticates and decrypts the envelope before passing plaintext to the same bounded ZIP
+parser, relationship validation, immutable attachment writes, and clean-database transaction used
+by plain restore. A recovered key is saved to supported native secure storage only after restore
+completes. Native temporary `.rbd` files are removed after sharing succeeds or fails. The encrypted
+file protects backup contents at rest; live SQLite and attachment files still rely on the
+application sandbox and are not application-layer encrypted.
 
 Receipt bytes cross a framework-independent ingestion boundary that validates decoded JPEG, PNG,
 or PDF content, applies configurable resource limits, calculates SHA-256, detects duplicate
@@ -143,4 +160,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0008](architecture/adr/0008-local-csv-export-delivery.md), and
 [ADR-0009](architecture/adr/0009-structured-export-archive.md), and
 [ADR-0010](architecture/adr/0010-clean-local-archive-restore.md), and
-[ADR-0011](architecture/adr/0011-durable-local-data-deletion.md) for accepted decisions.
+[ADR-0011](architecture/adr/0011-durable-local-data-deletion.md), and
+[ADR-0012](architecture/adr/0012-authenticated-encrypted-backup.md) for accepted decisions.

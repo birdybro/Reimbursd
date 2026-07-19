@@ -51,4 +51,7 @@ usable; no external fallback is used.
 Use synthetic test data only. Mobile data is stored in the platform application sandbox. Web data
 and receipt files are stored for the current browser origin and profile. Removing browser site data
 or uninstalling the application can remove this data. Plain complete export, clean-install restore,
-and explicit local delete-all are implemented; authenticated encrypted backup is not.
+explicit local delete-all, and authenticated encrypted backup are implemented. Android and iOS use
+Expo SecureStore for the active backup key; web keys remain in memory only. Always retain the
+displayed recovery key separately because uninstall, device loss, or secure-storage loss can make a
+backup unrecoverable. The encrypted file does not encrypt live local storage.

@@ -17,8 +17,11 @@ No third-party source code or personal receipt fixtures are vendored in the repo
 SQLite, Crypto, FileSystem, ImagePicker, ImageManipulator, DocumentPicker, Jest Expo, and React
 Native Testing Library are installed through the locked npm dependency graph under their published
 permissive licenses. Expo Sharing is installed under the MIT license to hand locally generated CSV
-files to the native operating-system share sheet. `pdf-lib` 1.17.1 is installed under the MIT
-license to decode supported images, validate PDFs, and obtain PDF page counts. Its self-contained
+and backup files to the native operating-system share sheet. Expo SecureStore 57.0.1 is installed
+under the MIT license to retain the small encrypted-backup key record in supported Android and iOS
+platform secure storage. Expo Crypto supplies the platform AES-GCM implementation. `pdf-lib` 1.17.1
+is installed under the MIT license to decode supported images, validate PDFs, and obtain PDF page
+counts. Its self-contained
 ESM distribution includes TypeScript helper code under the Apache-2.0 license; the installed package
 preserves its notices. `fflate` 0.8.3 is installed under the MIT license to create local ZIP archives
 and strictly extract selected archives without a network service; the installed package preserves

@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { StructuredImportTargetNotEmptyError } from '@reimbursd/database';
+import {
+  EncryptedBackupAuthenticationError,
+  EncryptedBackupValidationError,
+} from '@reimbursd/crypto';
 import { parseStructuredExport, StructuredExportValidationError } from '@reimbursd/export';
 import type { StructuredExportRecords } from '@reimbursd/export';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -237,6 +241,12 @@ describe('mobile structured restore coordinator', () => {
   });
 
   it('maps known restore failures to actionable messages without exposing raw errors', () => {
+    expect(getStructuredRestoreErrorMessage(new EncryptedBackupAuthenticationError())).toContain(
+      'does not match',
+    );
+    expect(
+      getStructuredRestoreErrorMessage(new EncryptedBackupValidationError('private detail')),
+    ).toBe('The recovery key or encrypted backup format is invalid.');
     expect(getStructuredRestoreErrorMessage(new StructuredImportTargetNotEmptyError())).toContain(
       'empty local database',
     );

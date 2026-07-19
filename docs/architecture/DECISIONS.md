@@ -13,3 +13,4 @@
 | [0009](adr/0009-structured-export-archive.md)              | Accepted | Validate an atomic snapshot into a versioned plain ZIP with optional originals   |
 | [0010](adr/0010-clean-local-archive-restore.md)            | Accepted | Strictly validate and restore complete archives only into clean local storage    |
 | [0011](adr/0011-durable-local-data-deletion.md)            | Accepted | Persist delete-all intent, finish file cleanup, then atomically purge user data  |
+| [0012](adr/0012-authenticated-encrypted-backup.md)         | Accepted | Wrap complete exports with AES-GCM and a portable random recovery key            |

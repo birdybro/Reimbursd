@@ -154,5 +154,61 @@ operating-system share sheet, then remove the cache file after the share attempt
 network service is required by Reimbursd, although a user-selected share destination may use one.
 
 The ZIP is plain and is not encrypted. Format version 1 supports inspection, data portability, and
-clean-install restore in explicitly compatible application schemas. Encrypted backups are a
-separate Milestone 5 capability requiring tested authenticated encryption.
+clean-install restore in explicitly compatible application schemas.
+
+## Authenticated encrypted backup
+
+Encrypted backup is a separate binary envelope named `reimbursd-backup-YYYY-MM-DD.rbd`. It always
+wraps a complete format-version-1 structured ZIP with every referenced original attachment. It does
+not change the ZIP's manifest or record schemas.
+
+The version-1 envelope layout is:
+
+```text
+ASCII "REIMBURSD-BACKUP\n"
+4-byte unsigned big-endian JSON-header length
+bounded ASCII JSON header
+12-byte AES-GCM nonce
+ciphertext with the same byte length as the ZIP
+16-byte AES-GCM authentication tag
+```
+
+The strict JSON header contains only:
+
+```json
+{
+  "algorithm": "AES-256-GCM",
+  "ciphertextByteSize": 12345,
+  "createdAt": "2026-07-18T15:00:00.000Z",
+  "format": "reimbursd-encrypted-backup",
+  "formatVersion": 1,
+  "keyId": "00000000-0000-4000-8000-000000000000",
+  "keyVersion": 1,
+  "nonceByteSize": 12,
+  "plaintextByteSize": 12345,
+  "tagByteSize": 16
+}
+```
+
+The exact header bytes are authenticated as AES-GCM additional data. Creation uses a generated
+256-bit key, a new platform-generated nonce for every file, and the full 16-byte tag. The recovery
+key is an uppercase `RBK1` value containing the same 32 key bytes as eight groups of eight
+hexadecimal characters. The key is not stored in the `.rbd` file.
+
+Envelope creation and parsing default to a 4 KiB header ceiling, a 1 GiB plaintext ceiling, and a
+1 GiB plus 8 KiB envelope ceiling. Restore rejects invalid framing, unsupported or unknown header
+properties, inconsistent sizes, truncation, wrong key, or any header, ciphertext, or tag change.
+Only after successful authentication does Reimbursd apply all structured-ZIP limits and validation
+described above. These ceilings are defensive parser limits, not a promise that every device can
+process a file near the maximum.
+
+The creation time, algorithm, format version, sizes, and opaque key ID remain visible in the
+unencrypted header. Receipt records, attachment bytes, original filenames, and ZIP checksums are
+inside the authenticated ciphertext. Native temporary files are removed after the share attempt.
+The user-selected destination controls retention of the delivered file.
+
+Android and iOS retain the active key record using platform secure storage for convenience. Web
+does not persist it. The separately retained recovery key is required after device loss, uninstall,
+or any secure-storage loss; losing both copies makes the backup unrecoverable. This format protects
+the exported backup file and is not a claim that live local SQLite or attachment storage is
+encrypted or that any remote path is end-to-end encrypted.

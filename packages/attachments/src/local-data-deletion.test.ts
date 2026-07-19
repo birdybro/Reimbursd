@@ -18,6 +18,7 @@ const deleted: LocalDataDeletionResult = {
 
 describe('local data deletion coordinator', () => {
   const attachments = { cleanupPending: vi.fn() };
+  const secrets = { delete: vi.fn() };
   const repository: LocalDataDeletionRepository = {
     begin: vi.fn(),
     finalize: vi.fn(),
@@ -26,6 +27,7 @@ describe('local data deletion coordinator', () => {
 
   beforeEach(() => {
     attachments.cleanupPending.mockReset().mockResolvedValue([]);
+    secrets.delete.mockReset().mockResolvedValue(undefined);
     vi.mocked(repository.begin).mockReset().mockResolvedValue({ requestedAt });
     vi.mocked(repository.finalize).mockReset().mockResolvedValue(deleted);
     vi.mocked(repository.getPending).mockReset().mockResolvedValue({ requestedAt });
@@ -47,15 +49,16 @@ describe('local data deletion coordinator', () => {
     });
 
     await expect(
-      new LocalDataDeletionCoordinator({ attachments, repository }).deleteAll(requestedAt),
+      new LocalDataDeletionCoordinator({ attachments, repository, secrets }).deleteAll(requestedAt),
     ).resolves.toEqual({ deleted, status: 'completed' });
     expect(calls).toEqual(['begin', 'attachments', 'finalize']);
+    expect(secrets.delete).toHaveBeenCalledTimes(1);
   });
 
   it('leaves structured data pending until failed attachment cleanup succeeds', async () => {
     const failure = { document: {} as never, error: new Error('private failure') };
     attachments.cleanupPending.mockResolvedValueOnce([failure]).mockResolvedValueOnce([]);
-    const coordinator = new LocalDataDeletionCoordinator({ attachments, repository });
+    const coordinator = new LocalDataDeletionCoordinator({ attachments, repository, secrets });
 
     await expect(coordinator.deleteAll(requestedAt)).resolves.toEqual({
       attachmentCleanupFailures: [failure],
@@ -67,7 +70,7 @@ describe('local data deletion coordinator', () => {
   });
 
   it('keeps an unexpected cleanup or finalize failure retryable without returning its details', async () => {
-    const coordinator = new LocalDataDeletionCoordinator({ attachments, repository });
+    const coordinator = new LocalDataDeletionCoordinator({ attachments, repository, secrets });
     attachments.cleanupPending.mockRejectedValueOnce(new Error('private cleanup failure'));
 
     await expect(coordinator.resumePending()).resolves.toEqual({
@@ -81,11 +84,25 @@ describe('local data deletion coordinator', () => {
     });
   });
 
+  it('keeps a secure-key deletion failure pending and retries it before database purge', async () => {
+    secrets.delete
+      .mockRejectedValueOnce(new Error('private key deletion failure'))
+      .mockResolvedValueOnce(undefined);
+    const coordinator = new LocalDataDeletionCoordinator({ attachments, repository, secrets });
+
+    await expect(coordinator.resumePending()).resolves.toEqual({
+      attachmentCleanupFailures: null,
+      status: 'cleanup_pending',
+    });
+    expect(repository.finalize).not.toHaveBeenCalled();
+    await expect(coordinator.resumePending()).resolves.toEqual({ deleted, status: 'completed' });
+  });
+
   it('does nothing when no durable deletion intent exists', async () => {
     vi.mocked(repository.getPending).mockResolvedValue(null);
 
     await expect(
-      new LocalDataDeletionCoordinator({ attachments, repository }).resumePending(),
+      new LocalDataDeletionCoordinator({ attachments, repository, secrets }).resumePending(),
     ).resolves.toBeNull();
     expect(attachments.cleanupPending).not.toHaveBeenCalled();
     expect(repository.finalize).not.toHaveBeenCalled();

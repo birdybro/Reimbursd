@@ -38,9 +38,12 @@ jest.mock('lucide-react-native', () => {
     Crosshair: MockIcon,
     Download: MockIcon,
     FileImage: MockIcon,
+    FileKey: MockIcon,
     FileSpreadsheet: MockIcon,
     FileText: MockIcon,
     Filter: MockIcon,
+    KeyRound: MockIcon,
+    LockKeyhole: MockIcon,
     Pencil: MockIcon,
     Plus: MockIcon,
     RefreshCw: MockIcon,
@@ -202,6 +205,17 @@ describe('manual expense screens', () => {
     const onExportArchive = jest.fn().mockResolvedValue(undefined);
     const onExportCsv = jest.fn().mockResolvedValue(undefined);
     const onRestoreArchive = jest.fn().mockResolvedValue(true);
+    const preparedEncryptedBackup = {
+      keyRecord: {
+        key: new Uint8Array(32),
+        keyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        keyVersion: 1 as const,
+      },
+      recoveryKey: 'RBK1-00000000-00000000-00000000-00000000-00000000-00000000-00000000-00000000',
+    };
+    const onPrepareEncryptedBackup = jest.fn().mockResolvedValue(preparedEncryptedBackup);
+    const onExportEncryptedBackup = jest.fn().mockResolvedValue(undefined);
+    const onRestoreEncryptedBackup = jest.fn().mockResolvedValue({ recoveryKeyStored: null });
     const repository = createRepository();
     const onCapture = jest.fn();
     const onImportImage = jest.fn();
@@ -215,12 +229,15 @@ describe('manual expense screens', () => {
         onCapture={onCapture}
         onCreate={onCreate}
         onDeleteAllData={onDeleteAllData}
+        onExportEncryptedBackup={onExportEncryptedBackup}
         onExportArchive={onExportArchive}
         onExportCsv={onExportCsv}
         onImportImage={onImportImage}
         onImportPdf={onImportPdf}
         onOpen={onOpen}
         onOpenReports={onOpenReports}
+        onPrepareEncryptedBackup={onPrepareEncryptedBackup}
+        onRestoreEncryptedBackup={onRestoreEncryptedBackup}
         onRestoreArchive={onRestoreArchive}
         onRetryCleanup={jest.fn()}
         repository={repository}
@@ -253,9 +270,36 @@ describe('manual expense screens', () => {
     expect(await screen.findByText('Complete export is ready.')).toBeTruthy();
 
     await fireEvent.press(screen.getByLabelText('Export data'));
+    await fireEvent.press(screen.getByLabelText('Create encrypted data backup'));
+    expect(await screen.findByLabelText('Encrypted backup recovery key')).toBeTruthy();
+    expect(screen.getByText(/Losing it after reinstall/)).toBeTruthy();
+    expect(onExportEncryptedBackup).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByLabelText('Create encrypted backup'));
+    await waitFor(() =>
+      expect(onExportEncryptedBackup).toHaveBeenCalledWith(preparedEncryptedBackup),
+    );
+    expect(await screen.findByText('Encrypted backup is ready.')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Export data'));
     await fireEvent.press(screen.getByLabelText('Restore complete data archive'));
     await waitFor(() => expect(onRestoreArchive).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Restore completed.')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Export data'));
+    await fireEvent.press(screen.getByLabelText('Restore encrypted data backup'));
+    await fireEvent.changeText(
+      screen.getByLabelText('Backup recovery key'),
+      preparedEncryptedBackup.recoveryKey,
+    );
+    await fireEvent.press(screen.getByLabelText('Choose encrypted backup to restore'));
+    await waitFor(() =>
+      expect(onRestoreEncryptedBackup).toHaveBeenCalledWith(preparedEncryptedBackup.recoveryKey),
+    );
+    expect(
+      await screen.findByText(
+        'Restore completed. This browser does not retain the recovery key; keep your separate copy.',
+      ),
+    ).toBeTruthy();
 
     await fireEvent.press(screen.getByLabelText('Export data'));
     await fireEvent.press(screen.getByLabelText('Delete all local data'));

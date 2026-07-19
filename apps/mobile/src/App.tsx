@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { randomUUID } from 'expo-crypto';
@@ -13,6 +13,7 @@ import {
   ReceiptDeletionCoordinator,
 } from '@reimbursd/attachments';
 import { schemaVersion } from '@reimbursd/database';
+import { BackupKeyManager } from '@reimbursd/crypto';
 import type { FieldEvidence, Receipt } from '@reimbursd/domain';
 import { DeterministicReceiptParser, type DateOrder } from '@reimbursd/extraction';
 
@@ -24,6 +25,11 @@ import { ExpenseFormScreen } from './features/expenses/ExpenseFormScreen';
 import { ExpenseListScreen } from './features/expenses/ExpenseListScreen';
 import { ExpenseReportScreen } from './features/expenses/ExpenseReportScreen';
 import { exportExpenseCsv } from './features/expenses/expense-csv-export';
+import {
+  LocalEncryptedBackupCoordinator,
+  type PreparedEncryptedBackup,
+} from './features/expenses/encrypted-backup';
+import { selectEncryptedBackup } from './features/expenses/encrypted-backup-picker';
 import { exportStructuredData } from './features/expenses/structured-export';
 import { restoreStructuredData } from './features/expenses/structured-restore';
 import { selectStructuredExport } from './features/expenses/structured-restore-picker';
@@ -50,7 +56,10 @@ import {
   readPickedLocalFile,
 } from './storage/local-attachments';
 import { PlatformCsvExportWriter } from './storage/local-csv-export';
+import { PlatformEncryptedBackupWriter } from './storage/local-encrypted-backup';
 import { PlatformStructuredExportWriter } from './storage/local-structured-export';
+import { ExpoEncryptedBackupCryptoProvider } from './storage/encrypted-backup-crypto';
+import { ExpoSecureBackupKeyStore } from './storage/secure-backup-key-store';
 import { colors } from './theme';
 import appConfig from '../app.json';
 
@@ -70,6 +79,7 @@ type RepositoryState =
   | { readonly status: 'loading' }
   | {
       readonly capture: ReceiptCaptureCoordinator;
+      readonly encryptedBackup: LocalEncryptedBackupCoordinator;
       readonly dataDeletion: LocalDataDeletionCoordinator;
       readonly deletion: ReceiptDeletionCoordinator;
       readonly ocr: LocalReceiptOcrProcessor;
@@ -127,6 +137,29 @@ function AppContent() {
           const dataDeletion = new LocalDataDeletionCoordinator({
             attachments: deletion,
             repository: repositories.dataDeletion,
+            secrets: new ExpoSecureBackupKeyStore(),
+          });
+          const encryptedBackupCrypto = new ExpoEncryptedBackupCryptoProvider();
+          const encryptedBackupKeyManager =
+            Platform.OS === 'web'
+              ? null
+              : new BackupKeyManager({
+                  generator: encryptedBackupCrypto,
+                  idFactory: randomUUID,
+                  store: new ExpoSecureBackupKeyStore(),
+                });
+          const encryptedBackup = new LocalEncryptedBackupCoordinator({
+            applicationVersion: appConfig.expo.version,
+            crypto: encryptedBackupCrypto,
+            generator: encryptedBackupCrypto,
+            hasher,
+            idFactory: randomUUID,
+            keyManager: encryptedBackupKeyManager,
+            restoreRepository: repositories.structuredImports,
+            schemaVersion,
+            snapshotRepository: repositories.structuredExports,
+            storage,
+            writer: new PlatformEncryptedBackupWriter(),
           });
           const ocr = new LocalReceiptOcrProcessor({
             evidence: repositories.evidence,
@@ -150,6 +183,7 @@ function AppContent() {
             capture,
             dataDeletion,
             deletion,
+            encryptedBackup,
             ocr,
             repositories,
             status: 'ready',
@@ -341,6 +375,9 @@ function AppContent() {
               setDeleteAllIssue(getDeleteAllIssue(result));
               setDeleteAllPending(result.status === 'cleanup_pending');
             }}
+            onExportEncryptedBackup={async (prepared: PreparedEncryptedBackup) => {
+              await repositoryState.encryptedBackup.create(prepared);
+            }}
             onExportArchive={async (includeOriginalAttachments) => {
               await exportStructuredData({
                 applicationVersion: appConfig.expo.version,
@@ -362,6 +399,19 @@ function AppContent() {
             onImportPdf={() => importReceipt(selectPdfReceipt)}
             onOpen={(receipt) => setRoute({ name: 'detail', receipt })}
             onOpenReports={() => setRoute({ name: 'reports' })}
+            onPrepareEncryptedBackup={() => repositoryState.encryptedBackup.prepare()}
+            onRestoreEncryptedBackup={async (recoveryKey) => {
+              const selection = await selectEncryptedBackup();
+
+              if (selection === null) {
+                return false;
+              }
+
+              return repositoryState.encryptedBackup.restore(
+                await readPickedLocalFile(selection),
+                recoveryKey,
+              );
+            }}
             onRestoreArchive={async () => {
               const selection = await selectStructuredExport();
 

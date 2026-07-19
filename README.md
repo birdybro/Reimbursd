@@ -15,8 +15,9 @@ provenance, and requires no account or network service. Deleting an expense remo
 receipt bytes with durable retry after interruption. JPEG and PNG imports receive separate bounded
 local previews. Current-schema complete ZIP exports can be restored into a clean local installation.
 An explicitly confirmed delete-all action removes all local structured records and receipt files
-with durable retry after interruption. Cross-platform OCR, PDF page previews, and encrypted backup
-are not complete, and the project does not claim production readiness.
+with durable retry after interruption. Authenticated encrypted backup creation and clean-install
+restore are available without an account. Cross-platform OCR and PDF page previews are not
+complete, and the project does not claim production readiness.
 
 Milestone 3 includes durable field evidence and processing history, a validated OCR
 provider contract, a deterministic test provider, and on-device Apple Vision OCR in iOS development
@@ -38,6 +39,14 @@ structured dataset, per-file SHA-256 checksums, and optional byte-identical rece
 The application strictly validates a complete ZIP and can restore it without an account into an
 empty local database. Delete-all is local, account-free, restart-recoverable, and covered by an
 export-delete-restore round trip.
+
+Milestone 5 adds a versioned `.rbd` backup that wraps a complete archive using AES-256-GCM. The
+application displays a portable recovery key before creating the file. Android and iOS retain the
+active key in platform secure storage for convenience; web keeps it only in memory. Encrypted
+restore still applies the complete structured-archive validation boundary and requires an empty
+local database. This protects the exported backup file, not the live SQLite database or receipt
+store. Losing both platform key storage and the separate recovery key makes the backup
+unrecoverable.
 
 ## Requirements
 

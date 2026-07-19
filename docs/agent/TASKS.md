@@ -135,10 +135,39 @@
 
 ## Milestone 5: Local security and backup
 
-- [ ] Define the encrypted-backup threat model, key lifecycle, limits, and recovery semantics.
-- [ ] Add a secure platform key-storage port and supported mobile adapters.
-- [ ] Add a versioned authenticated encrypted-backup envelope using mature cryptographic primitives.
-- [ ] Restore encrypted backups through the existing strict structured-archive boundary.
-- [ ] Cover wrong keys, corruption, truncation, nonce uniqueness, limits, cleanup, and round trips.
-- [ ] Audit local logs and durable errors for sensitive receipt data.
-- [ ] Update the security model and user interface without unsupported encryption claims.
+- [x] Define the encrypted-backup threat model, key lifecycle, limits, and recovery semantics.
+- [x] Add a secure platform key-storage port and supported mobile adapters.
+- [x] Add a versioned authenticated encrypted-backup envelope using mature cryptographic primitives.
+- [x] Restore encrypted backups through the existing strict structured-archive boundary.
+- [x] Cover wrong keys, corruption, truncation, nonce uniqueness, limits, cleanup, and round trips.
+- [x] Audit local logs and durable errors for sensitive receipt data.
+- [x] Update the security model and user interface without unsupported encryption claims.
+
+### Acceptance criteria for the encrypted-backup slice
+
+- A complete archive and every original are encrypted locally with authenticated metadata before
+  delivery; plain exports remain clearly distinct.
+- Wrong keys, modified headers, ciphertext, tags, truncation, unsupported versions, and configured
+  resource-limit violations fail before structured restore writes.
+- Android and iOS use platform secure storage for the active key; web does not persist keys as though
+  browser storage were equivalent to a keystore.
+- The portable recovery key is shown before backup creation, and the interface states that losing
+  both key copies makes the backup unrecoverable.
+- Authenticated plaintext still crosses the strict structured-ZIP and clean-install restore boundary.
+- Delete-all removes the native key before final database purge and retries secure-store failure from
+  durable deletion intent.
+- Documentation states that encrypted backup protects only `.rbd` files, not live local storage or a
+  remote end-to-end encrypted path.
+
+## Milestone 6: Self-hosted backend and web foundation
+
+- [ ] Define service, trust, authorization, data, migration, and provider boundaries in an ADR.
+- [ ] Add a locally runnable API and worker without changing local mobile availability.
+- [ ] Add PostgreSQL migrations and migration integration tests.
+- [ ] Add development authentication and server-side object authorization.
+- [ ] Add private S3-compatible attachment storage with signed or authenticated access.
+- [ ] Add cross-user receipt and attachment isolation tests.
+- [ ] Publish a machine-readable API specification.
+- [ ] Add a web client that authenticates against the local server.
+- [ ] Add containerized PostgreSQL, object storage, local email, and mock provider services.
+- [ ] Update development and self-hosting documentation with a secret-free environment example.

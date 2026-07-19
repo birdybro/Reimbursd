@@ -35,6 +35,8 @@ import { StatusPanel } from '../../components/StatusPanel';
 import { colors } from '../../theme';
 import { formatPurchaseDate } from './display';
 import { ExpenseExportModal } from './ExpenseExportModal';
+import { EncryptedBackupModal } from './EncryptedBackupModal';
+import { EncryptedRestoreModal } from './EncryptedRestoreModal';
 import { DeleteAllDataModal } from './DeleteAllDataModal';
 import { ExpenseFilterModal } from './ExpenseFilterModal';
 import {
@@ -43,6 +45,11 @@ import {
   type ExpenseFilterValues,
 } from './expense-filter';
 import { getStructuredRestoreErrorMessage } from './structured-restore';
+import type { PreparedEncryptedBackup } from './encrypted-backup';
+
+export interface EncryptedRestoreActionResult {
+  readonly recoveryKeyStored: boolean | null;
+}
 
 interface ExpenseListScreenProps {
   readonly categoryRepository: CategoryRepository;
@@ -52,12 +59,17 @@ interface ExpenseListScreenProps {
   readonly onCapture: () => void;
   readonly onCreate: () => void;
   readonly onDeleteAllData: () => Promise<void>;
+  readonly onExportEncryptedBackup?: (prepared: PreparedEncryptedBackup) => Promise<void>;
   readonly onExportArchive: (includeOriginalAttachments: boolean) => Promise<void>;
   readonly onExportCsv: () => Promise<void>;
   readonly onImportImage: () => void;
   readonly onImportPdf: () => void;
   readonly onOpen: (receipt: Receipt) => void;
   readonly onOpenReports: () => void;
+  readonly onPrepareEncryptedBackup?: () => Promise<PreparedEncryptedBackup>;
+  readonly onRestoreEncryptedBackup?: (
+    recoveryKey: string,
+  ) => Promise<EncryptedRestoreActionResult | false>;
   readonly onRestoreArchive: () => Promise<boolean>;
   readonly onRetryCleanup: () => void;
   readonly repository: ReceiptRepository;
@@ -73,12 +85,15 @@ export function ExpenseListScreen({
   onCapture,
   onCreate,
   onDeleteAllData,
+  onExportEncryptedBackup,
   onExportArchive,
   onExportCsv,
   onImportImage,
   onImportPdf,
   onOpen,
   onOpenReports,
+  onPrepareEncryptedBackup,
+  onRestoreEncryptedBackup,
   onRestoreArchive,
   onRetryCleanup,
   repository,
@@ -89,16 +104,22 @@ export function ExpenseListScreen({
   const [deleteAllError, setDeleteAllError] = useState<string | null>(null);
   const [deleteAllStatus, setDeleteAllStatus] = useState<'deleting' | 'error' | 'idle'>('idle');
   const [deleteAllVisible, setDeleteAllVisible] = useState(false);
+  const [encryptedBackupVisible, setEncryptedBackupVisible] = useState(false);
+  const [encryptedRestoreVisible, setEncryptedRestoreVisible] = useState(false);
   const [exportStatus, setExportStatus] = useState<'error' | 'exporting' | 'idle' | 'success'>(
     'idle',
   );
   const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
-  const [exportKind, setExportKind] = useState<'archive' | 'csv' | 'delete' | 'restore'>('csv');
+  const [exportKind, setExportKind] = useState<'archive' | 'backup' | 'csv' | 'delete' | 'restore'>(
+    'csv',
+  );
   const [exportVisible, setExportVisible] = useState(false);
   const [filterOptions, setFilterOptions] = useState<ReceiptListOptions>({});
   const [filterVisible, setFilterVisible] = useState(false);
   const [filterValues, setFilterValues] = useState<ExpenseFilterValues>(emptyExpenseFilters);
   const [loading, setLoading] = useState(true);
+  const [preparedEncryptedBackup, setPreparedEncryptedBackup] =
+    useState<PreparedEncryptedBackup | null>(null);
   const [receipts, setReceipts] = useState<readonly Receipt[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [search, setSearch] = useState('');
@@ -162,6 +183,87 @@ export function ExpenseListScreen({
           ? getStructuredRestoreErrorMessage(error)
           : 'Export could not be created. Check local file access and try again.',
       );
+      setExportStatus('error');
+    }
+  };
+
+  const prepareEncryptedBackup = async (): Promise<void> => {
+    if (onPrepareEncryptedBackup === undefined || exportStatus === 'exporting') {
+      return;
+    }
+
+    setExportKind('backup');
+    setExportErrorMessage(null);
+    setExportStatus('exporting');
+
+    try {
+      const prepared = await onPrepareEncryptedBackup();
+      setPreparedEncryptedBackup(prepared);
+      setExportStatus('idle');
+      setExportVisible(false);
+      setEncryptedBackupVisible(true);
+    } catch {
+      setExportErrorMessage('A backup key could not be prepared securely. Try again.');
+      setExportStatus('error');
+    }
+  };
+
+  const createEncryptedBackup = async (): Promise<void> => {
+    if (
+      preparedEncryptedBackup === null ||
+      onExportEncryptedBackup === undefined ||
+      exportStatus === 'exporting'
+    ) {
+      return;
+    }
+
+    setExportErrorMessage(null);
+    setExportStatus('exporting');
+
+    try {
+      await onExportEncryptedBackup(preparedEncryptedBackup);
+      preparedEncryptedBackup.keyRecord.key.fill(0);
+      setPreparedEncryptedBackup(null);
+      setEncryptedBackupVisible(false);
+      setExportStatus('success');
+    } catch {
+      setExportErrorMessage(
+        'Encrypted backup could not be created. Check file access and try again.',
+      );
+      setExportStatus('error');
+    }
+  };
+
+  const restoreEncryptedBackup = async (recoveryKey: string): Promise<void> => {
+    if (onRestoreEncryptedBackup === undefined || exportStatus === 'exporting') {
+      return;
+    }
+
+    setExportKind('restore');
+    setExportErrorMessage(null);
+    setExportStatus('exporting');
+
+    try {
+      const result = await onRestoreEncryptedBackup(recoveryKey);
+
+      if (result === false) {
+        setEncryptedRestoreVisible(false);
+        setExportStatus('idle');
+        return;
+      }
+
+      setEncryptedRestoreVisible(false);
+      setExportErrorMessage(
+        result.recoveryKeyStored === false
+          ? 'Restore completed, but this device could not retain the recovery key securely. Keep your separate copy.'
+          : result.recoveryKeyStored === null
+            ? 'Restore completed. This browser does not retain the recovery key; keep your separate copy.'
+            : null,
+      );
+      setExportStatus('success');
+      setRefreshKey((value) => value + 1);
+    } catch (error) {
+      setExportErrorMessage(getStructuredRestoreErrorMessage(error));
       setExportStatus('error');
     }
   };
@@ -295,11 +397,13 @@ export function ExpenseListScreen({
         <Text accessibilityLiveRegion="polite" style={styles.exportSuccess}>
           {exportKind === 'archive'
             ? 'Complete export is ready.'
-            : exportKind === 'restore'
-              ? 'Restore completed.'
-              : exportKind === 'delete'
-                ? 'All local data was deleted.'
-                : 'CSV export is ready.'}
+            : exportKind === 'backup'
+              ? 'Encrypted backup is ready.'
+              : exportKind === 'restore'
+                ? (exportErrorMessage ?? 'Restore completed.')
+                : exportKind === 'delete'
+                  ? 'All local data was deleted.'
+                  : 'CSV export is ready.'}
         </Text>
       ) : exportStatus === 'error' && !exportVisible ? (
         <Text accessibilityLiveRegion="assertive" style={styles.exportError}>
@@ -426,11 +530,49 @@ export function ExpenseListScreen({
             setDeleteAllStatus('idle');
             setDeleteAllVisible(true);
           }}
+          {...(onPrepareEncryptedBackup === undefined || onExportEncryptedBackup === undefined
+            ? {}
+            : { onEncryptedBackup: () => void prepareEncryptedBackup() })}
+          {...(onRestoreEncryptedBackup === undefined
+            ? {}
+            : {
+                onEncryptedRestore: () => {
+                  setExportStatus('idle');
+                  setExportErrorMessage(null);
+                  setExportVisible(false);
+                  setEncryptedRestoreVisible(true);
+                },
+              })}
           onExportArchive={(includeOriginalAttachments) =>
             void exportData('archive', () => onExportArchive(includeOriginalAttachments))
           }
           onExportCsv={() => void exportData('csv', onExportCsv)}
           onRestoreArchive={() => void exportData('restore', onRestoreArchive)}
+          status={exportStatus === 'success' ? 'idle' : exportStatus}
+        />
+      ) : null}
+      {encryptedBackupVisible && preparedEncryptedBackup !== null ? (
+        <EncryptedBackupModal
+          errorMessage={exportErrorMessage}
+          onClose={() => {
+            preparedEncryptedBackup.keyRecord.key.fill(0);
+            setEncryptedBackupVisible(false);
+            setPreparedEncryptedBackup(null);
+            setExportStatus('idle');
+          }}
+          onConfirm={() => void createEncryptedBackup()}
+          recoveryKey={preparedEncryptedBackup.recoveryKey}
+          status={exportStatus === 'success' ? 'idle' : exportStatus}
+        />
+      ) : null}
+      {encryptedRestoreVisible ? (
+        <EncryptedRestoreModal
+          errorMessage={exportErrorMessage}
+          onClose={() => {
+            setEncryptedRestoreVisible(false);
+            setExportStatus('idle');
+          }}
+          onRestore={(recoveryKey) => void restoreEncryptedBackup(recoveryKey)}
           status={exportStatus === 'success' ? 'idle' : exportStatus}
         />
       ) : null}

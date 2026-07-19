@@ -16,13 +16,16 @@ export type LocalDataDeletionCoordinatorResult =
 export class LocalDataDeletionCoordinator {
   readonly #attachments: Pick<ReceiptDeletionCoordinator, 'cleanupPending'>;
   readonly #repository: LocalDataDeletionRepository;
+  readonly #secrets: { delete(): Promise<void> };
 
   constructor(dependencies: {
     readonly attachments: Pick<ReceiptDeletionCoordinator, 'cleanupPending'>;
     readonly repository: LocalDataDeletionRepository;
+    readonly secrets?: { delete(): Promise<void> };
   }) {
     this.#attachments = dependencies.attachments;
     this.#repository = dependencies.repository;
+    this.#secrets = dependencies.secrets ?? { delete: async () => undefined };
   }
 
   async deleteAll(requestedAt: string): Promise<LocalDataDeletionCoordinatorResult> {
@@ -54,6 +57,7 @@ export class LocalDataDeletionCoordinator {
     }
 
     try {
+      await this.#secrets.delete();
       return { deleted: await this.#repository.finalize(), status: 'completed' };
     } catch {
       return { attachmentCleanupFailures: null, status: 'cleanup_pending' };

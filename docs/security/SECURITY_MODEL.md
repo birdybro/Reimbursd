@@ -59,11 +59,27 @@
   byte sizes, and SHA-256 checksums before any local write. Restore never merges into a nonempty
   database or overwrites a conflicting file. Structured inserts are transactional, and files created
   before a failed database commit receive compensating cleanup with byte-identical retry recovery.
+- Authenticated backup always includes the complete validated structured ZIP and wraps it with the
+  platform AES-256-GCM implementation, a generated 256-bit key, a new generated 12-byte nonce, the
+  exact bounded header as additional authenticated data, and a full 16-byte tag. Wrong keys or any
+  header, ciphertext, or tag change fail authentication before ZIP parsing or local writes.
+- Encrypted envelope framing, strict header schema, sizes, algorithms, key versions, and recovery-key
+  syntax are validated in a framework-independent package. Authenticated plaintext still crosses
+  every structured-ZIP resource, schema, checksum, relationship, and clean-restore boundary.
+- Android and iOS store the active backup key through Expo SecureStore with unlocked-device,
+  device-only accessibility on iOS, platform-protected Android storage, and no biometric
+  requirement. Web keys are ephemeral and are not persisted in browser storage. Restore saves a
+  recovered native key only after data restoration.
+- The user must see the portable recovery key before backup delivery. Native temporary backup files
+  are removed after successful or failed sharing. Tests cover nonce variation, wrong keys,
+  corruption, truncation, configured limits, strict encrypted round trip, file cleanup, key-store
+  validation, and key-retention failure.
 - Delete-all requires a dedicated destructive confirmation, persists intent before cleanup, blocks
   new receipt and document inserts while pending, and resumes idempotent file removal at startup.
   Final purge is gated on every document's durable storage-deletion marker and removes all user-data
   tables in one transaction while retaining only schema migration history. Mid-purge rollback and
-  export-delete-restore behavior are tested.
+  export-delete-restore behavior are tested. Native backup-key deletion occurs before final database
+  purge and remains durably retryable after a secure-store failure.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -73,22 +89,24 @@
   present, and npm's proposed remediation includes an incompatible Expo Sharing downgrade. Automated
   secret scanning and a generated SBOM will be added to CI as tooling is selected.
 - Local SQLite and original attachments rely on the mobile application sandbox or the browser's
-  origin/profile isolation. They are not application-layer encrypted, and this milestone has no
-  secure key storage or encrypted backup. Android/iOS storage behavior has not yet been exercised
-  on physical devices in this Linux development environment.
+  origin/profile isolation and are not application-layer encrypted. Platform secure storage and
+  encrypted-backup sharing have not yet been exercised on physical Android or iOS devices in this
+  Linux development environment. SecureStore availability and persistence remain platform behavior,
+  not the only recovery mechanism.
 
 ## Planned controls
 
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available.
 - An Android-compatible offline OCR adapter.
-- Secure platform key storage and authenticated encrypted backups.
 - Server authorization, private object storage, rate limiting, strict CORS, and secure sessions.
-- Cross-user isolation, backup restoration, provider-contract, and synchronization-conflict tests.
+- Cross-user isolation, provider-contract, and synchronization-conflict tests.
 
 ## Unsupported claims
 
-Reimbursd does not currently provide encrypted backups, end-to-end encryption, authentication,
-hosted storage, synchronization, forensic secure deletion, Android/web OCR, or remote AI processing.
-iOS OCR has not been exercised on Apple hardware in this Linux environment. Local receipt storage,
-plain exports, clean-install restore, and application-level delete-all are not described as
-encrypted or securely erased. Product surfaces and documentation must not imply otherwise.
+Reimbursd does not currently provide live local database encryption, end-to-end encryption,
+authentication, hosted storage, synchronization, forensic secure deletion, Android/web OCR, or
+remote AI processing. iOS OCR and native backup key storage/sharing have not been exercised on
+physical hardware in this Linux environment. Local receipt storage, plain exports, clean-install
+restore, and application-level delete-all are not described as encrypted or securely erased. The
+implemented encrypted-backup claim applies only to authenticated `.rbd` files. Product surfaces and
+documentation must not imply otherwise.

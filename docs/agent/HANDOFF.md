@@ -2,50 +2,40 @@
 
 ## Repository state
 
-Milestones 0 through 4 are complete. Receipt ingestion has working camera/image/PDF selection,
-decoded content validation, configurable limits, local SHA-256, global duplicate detection,
-immutable private file storage, versioned document metadata, original-file provenance UI, and
-durable attachment cleanup after receipt deletion. JPEG and PNG imports also receive bounded,
-separately stored local previews. The web runtime loads both the application and Expo SQLite's WASM
-worker successfully. Milestone 3 has durable processing provenance, a bounded Apple Vision OCR
-adapter for supported iOS builds, deterministic local receipt-field parsing, atomic unaccepted
-evidence persistence, and a review surface with confidence, provenance, and image source-region
-highlighting. Review prefills the validated expense form and atomically commits accepted evidence,
-authoritative user corrections, the versioned receipt update, and parser review status.
+Milestones 0 through 5 are complete. The Expo application supports account-free local manual expense
+storage; image, camera, and PDF ingestion; immutable originals and bounded previews; local iOS OCR;
+deterministic extraction and provenance review; categories, tags, filters, reports, CSV, complete
+structured export, strict clean-install restore, and durable delete-all.
+
+Authenticated encrypted backup is implemented as a versioned `.rbd` envelope around the complete
+structured ZIP. `packages/crypto` validates envelope framing, metadata, limits, key records, and the
+portable `RBK1` recovery-key representation. Expo Crypto supplies AES-256-GCM with generated keys and
+nonces. Android and iOS persist the active key through Expo SecureStore; web prepares an ephemeral
+key only. The recovery key is displayed before file delivery. Restore authenticates before strict
+ZIP parsing and retains a recovered native key only after data restore. Delete-all removes the
+native key before the transactional database purge and leaves failures durably retryable.
+
+The encrypted claim applies only to exported `.rbd` files. Live SQLite and receipt attachments are
+not application-layer encrypted. Losing both native secure-storage state and the separate recovery
+key makes a backup unrecoverable. Native key storage and sharing have not been exercised on physical
+hardware in this Linux environment.
 
 ## Active direction
 
-Use npm workspaces, strict TypeScript, Expo SDK 57, and framework-independent domain/database
-packages. Milestone 5 is active. Category/tag domain records, migration 6, and local repositories are
-implemented with UUIDs, normalized unique names, optimistic versions, tombstones, and explicit
-in-use deletion errors. Expense details can create and atomically assign one category plus multiple
-tags; removed relationships are tombstoned and re-addition revives the stable key. The expense list
-now composes validated local merchant, date, currency-specific amount, category, and active-tag
-filters through parameterized queries. A transactional read repository and accessible reports route
-show monthly and category totals while keeping currencies separate and deleted receipts excluded.
-CSV export is implemented through deterministic domain serialization, direct web download, and
-native temporary-file sharing with cleanup. Complete structured export is also implemented: one
-SQLite transaction reads the active record graph, a framework-independent package validates
-relationships and deterministic JSON, record files receive SHA-256 manifest entries, and selected
-originals must match stored byte-size and hash metadata before being copied into the plain ZIP. The
-mobile export menu offers complete ZIP or CSV, with an explicit originals toggle, direct web
-download, native temporary sharing, and failure cleanup. Format version 1 is documented in
-`docs/DATA_EXPORT_FORMAT.md`. Clean-install restore is implemented: the framework-independent parser
-rejects unsafe or unsupported ZIPs and validates an explicitly compatible schema graph and checksums
-before writes; the mobile coordinator requires all original bytes, uses immutable storage with
-conflict detection and compensating cleanup, and inserts exact records through one SQLite
-transaction only when every local application table is empty. Derivative previews are excluded from
-format version 1 and can be regenerated later. Migration 7 and the delete-all coordinator persist a
-durable intent, block new receipt/document inserts, resume attachment cleanup at startup, and purge
-all user tables transactionally only after files are removed. Application-level deletion is covered
-by export-delete-restore and rollback tests without claiming forensic erasure. The next work is
-Milestone 5 authenticated encrypted backup and secure key storage. Keep existing receipts valid and
-local, use mature compatible cryptographic primitives, and do not add hosted processing,
-synchronization, or generative AI.
+Milestone 6 is active. Preserve the local mobile application's complete independence from accounts
+and servers. Start with authorization and cross-user isolation boundaries, a small PostgreSQL-backed
+receipt-metadata API, private object storage, machine-readable API contracts, and deterministic local
+providers. Use a containerized secret-free development stack and do not imply that private sync or
+remote processing is end-to-end encrypted.
+
+The complete gate currently passes with 170 Vitest tests, 51 React Native/Jest tests, Expo Doctor
+20/20, and all builds. Eleven moderate Expo build-tool advisories remain documented; no high or
+critical advisory is present. The Expo web development server runs at `http://localhost:8081`.
 
 ## Resume steps
 
 1. Read `AGENTS.md`, `docs/agent/STATUS.md`, and `docs/agent/TASKS.md`.
 2. Inspect `git status --short` and preserve uncommitted work.
-3. Finish the highest-priority unchecked Milestone 5 task.
-4. Run `npm run verify` before committing a logical slice or marking a milestone complete.
+3. Commit the complete Milestone 5 slice if it has not yet been committed.
+4. Begin the highest-priority unblocked Milestone 6 task.
+5. Run `npm run verify` before committing a logical slice or marking a milestone complete.

@@ -13,7 +13,9 @@ private contact channel without including sensitive details.
 
 ## Current scope
 
-Milestone 2 contains a local-only Expo client, SQLite repositories, validated receipt ingestion,
-and private platform attachment storage. Authentication, remote APIs, encryption, secure deletion,
-and synchronization are not implemented and must not be treated as security controls. See
+The local-only Expo client includes validated receipt ingestion, private platform attachment
+storage, strict clean-install archive restore, and an optional authenticated encrypted-backup file.
+The backup uses a separately disclosed recovery key; it does not encrypt live local storage.
+Authentication, remote APIs, end-to-end encryption, forensic secure deletion, and synchronization
+are not implemented and must not be treated as security controls. See
 [the security model](docs/security/SECURITY_MODEL.md) for an explicit implemented/planned inventory.
