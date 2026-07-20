@@ -1,32 +1,33 @@
 # Agent Status
 
 - Current milestone: Milestone 6 - Self-hosted backend and web foundation
-- Current task: Add PostgreSQL migrations and an owner-scoped adapter without changing the tested
-  API authorization contract or coupling local mobile use to a server.
-- Last completed task: Added the first locally runnable Milestone 6 API slice with strict bounded
-  schemas, generated OpenAPI 3.1.1, rate limiting, opt-in signed development identities, explicit
-  owner-scoped receipt storage, cross-user isolation, and redacted errors.
-- Commands executed: Installed and license-checked Fastify, official JWT, rate-limit, and Swagger
-  plugins plus `tsx`; ran targeted API tests, lint, types, and build; started the API through
-  `npm run dev:api` on `127.0.0.1:3011`; verified `/health` and `/openapi.json`; stopped the temporary
-  API; confirmed the Expo server remains at `http://localhost:8081`; and ran `npm run verify`.
-- Test and build status: `npm run verify` passes. One hundred eighty-nine Vitest tests and fifty-one
-  React Native/Jest interaction, API authorization, coordinator, parser, repository, migration,
-  crypto, and storage-adapter tests pass. Formatting, linting, strict type checking, license
-  validation, the high-severity audit threshold, Expo Doctor 20/20, all workspace builds, and the
-  production Expo web export pass.
-- Current assumptions: The API binds to loopback by default. Its fixed-claim 15-minute HS256 tokens
-  and synthetic identity route are development infrastructure, not production authentication. Every
-  repository operation receives the authenticated owner UUID, and process restart intentionally
-  removes in-memory API receipts. Local mobile storage and workflows remain independent of the API.
+- Current task: Add private S3-compatible attachment storage with authenticated owner-scoped access
+  and cross-user isolation tests.
+- Last completed task: Added optional PostgreSQL 16 receipt persistence with transactional versioned
+  migrations, production fail-closed configuration, owner-scoped parameterized queries, safe money
+  conversion, restart persistence, and a password-required loopback Compose service.
+- Commands executed: Queried and installed license-compatible `pg`, PostgreSQL Testcontainers, and
+  typings; ran targeted types, lint, build, license, audit, and thirty-one API tests; validated Compose;
+  ran a PostgreSQL-backed API create, restart, and retrieve smoke test on ports 3012/55432; removed
+  its synthetic container, network, and volume; confirmed the Expo server remains at
+  `http://localhost:8081`; and ran `npm run verify` with real PostgreSQL integration tests.
+- Test and build status: `npm run verify` passes. Two hundred one Vitest tests and fifty-one React
+  Native/Jest interaction, API authorization, PostgreSQL, coordinator, parser, repository,
+  migration, crypto, and storage-adapter tests pass. Formatting, linting, strict type checking,
+  license validation, the high-severity audit threshold, Expo Doctor 20/20, all workspace builds,
+  and the production Expo web export pass.
+- Current assumptions: The API binds to loopback by default. Development may explicitly use process
+  memory; production requires PostgreSQL. Hosted money is constrained `BIGINT` and validated into
+  safe integers, original timestamp offsets are retained, and every receipt operation includes the
+  authenticated owner UUID. Synthetic development identity remains non-production infrastructure.
 - Known defects: Android/web OCR, PDF page previews, and category/tag rename/delete UI are not
   implemented. Restored derivative previews are not regenerated immediately. Deterministic parsing
   will not cover every receipt layout or language. Image ingestion supports JPEG and PNG, not HEIC
   or WebP. Native Android/iOS launch, native sharing/restore/key storage, and Apple Vision execution
-  were not exercised in this Linux environment. The API has no durable database, attachment store,
-  production authentication, worker, web client, CORS policy, or TLS termination. Expo SDK 57
-  carries eleven moderate build-tool advisories; there are no high or critical advisories, and npm's
-  suggested fix is incompatible with the current Expo stack.
+  were not exercised in this Linux environment. The API has no attachment store, hosted database
+  backup, production authentication, worker, web client, CORS policy, or deployed TLS guidance. Expo
+  SDK 57 carries eleven moderate build-tool advisories; there are no high or critical advisories,
+  and npm's suggested fix is incompatible with the current Expo stack.
 - Current blockers: None.
-- Next task: Add versioned PostgreSQL receipt migrations, an owner-scoped repository adapter, and
-  migration, rollback, conflict, and two-user isolation integration tests.
+- Next task: Define the hosted attachment trust boundary, add local S3-compatible object storage,
+  authenticate attachment access, and prove user B cannot access user A's object.

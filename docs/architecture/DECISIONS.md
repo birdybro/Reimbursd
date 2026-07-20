@@ -15,3 +15,4 @@
 | [0011](adr/0011-durable-local-data-deletion.md)            | Accepted | Persist delete-all intent, finish file cleanup, then atomically purge user data  |
 | [0012](adr/0012-authenticated-encrypted-backup.md)         | Accepted | Wrap complete exports with AES-GCM and a portable random recovery key            |
 | [0013](adr/0013-self-hosted-api-authorization-boundary.md) | Accepted | Require owner-scoped API operations behind validated signed bearer identities    |
+| [0014](adr/0014-owner-scoped-postgresql-persistence.md)    | Accepted | Persist hosted receipts through transactional owner-scoped PostgreSQL operations |

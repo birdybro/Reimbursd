@@ -70,11 +70,14 @@ const rateLimitError: ApiError = {
 
 export interface BuildApiOptions {
   readonly config: ApiConfig;
+  readonly onClose?: () => Promise<void>;
   readonly repository?: HostedReceiptRepository;
+  readonly storage?: 'postgresql' | 'process-memory';
 }
 
 export async function buildApi(options: BuildApiOptions): Promise<FastifyInstance> {
   const repository = options.repository ?? new InMemoryHostedReceiptRepository();
+  const storage = options.storage ?? 'process-memory';
   const app = Fastify({
     ajv: { customOptions: { removeAdditional: false } },
     bodyLimit: 64 * 1_024,
@@ -110,6 +113,10 @@ export async function buildApi(options: BuildApiOptions): Promise<FastifyInstanc
     max: 100,
     timeWindow: '1 minute',
   });
+
+  if (options.onClose) {
+    app.addHook('onClose', options.onClose);
+  }
 
   app.setNotFoundHandler((_request, reply) => reply.code(404).send(notFoundError));
   app.setErrorHandler((error, _request, reply) => {
@@ -149,7 +156,7 @@ export async function buildApi(options: BuildApiOptions): Promise<FastifyInstanc
         tags: ['system'],
       },
     },
-    async () => ({ status: 'ok' as const, storage: 'process-memory' as const }),
+    async () => ({ status: 'ok' as const, storage }),
   );
 
   app.get(

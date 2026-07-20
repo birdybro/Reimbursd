@@ -10,6 +10,8 @@ runtime, platform cryptography and secure storage, local device sandbox, file an
 operating-system picker/share destination, and web browser origin/profile are application
 boundaries. The development API adds untrusted HTTP requests, signed bearer tokens, process-local
 receipt metadata, and the local network interface as current boundaries.
+PostgreSQL adds database credentials, durable hosted receipt rows, migrations, the node-postgres
+driver, a loopback Compose port, and the Docker daemon used by integration tests as boundaries.
 
 ## Current threats
 
@@ -36,6 +38,9 @@ receipt metadata, and the local network interface as current boundaries.
 - Missing object authorization exposing another API user's receipt; forged, expired, wrong-issuer,
   or wrong-audience tokens crossing the authenticated boundary; oversized or repeated requests
   exhausting the server; and exceptions reflecting receipt data into responses or logs.
+- Missing owner predicates in SQL, partial or concurrent migrations, cross-owner foreign-key
+  relationships, database constraint bypass, unsafe `BIGINT` conversion, committed credentials, and
+  a database connection string or driver exception leaking through startup or HTTP errors.
 - Unsupported privacy or encryption claims creating user risk.
 
 ## Current mitigations
@@ -73,11 +78,16 @@ receipt metadata, and the local network interface as current boundaries.
 - Strict API request schemas and body limits, fixed signed-token claims and expiration, explicit
   owner parameters on every receipt repository operation, indistinguishable cross-owner and missing
   reads, bounded rate limiting and errors, disabled request logging, and two-identity isolation tests.
+- Transactional advisory-locked migrations, future-version refusal, owner-scoped parameterized SQL,
+  relational owner constraints, safe-integer parsing, production refusal of memory fallback,
+  loopback-only initial Compose exposure, ignored secret-bearing `.env`, and real PostgreSQL rollback
+  and two-user integration tests.
 - Documentation that distinguishes implemented and planned controls.
 
 ## Future review triggers
 
 Revisit this model before changing algorithms, rotating keys, adding password-derived keys,
-production authentication, PostgreSQL, object storage, a web origin, synchronization, location, or
-billing. Receipt images, OCR text, imported archives, HTTP bodies, and provider responses must always
-be treated as untrusted data and never as executable instructions.
+production authentication, object storage, a web origin, synchronization, location, billing, or a
+deployed database topology. Receipt images, OCR text, imported archives, HTTP bodies, database rows,
+and provider responses must always be treated as untrusted data and never as executable
+instructions.

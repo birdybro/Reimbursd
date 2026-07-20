@@ -31,7 +31,12 @@ license metadata. The Milestone 6 API uses Fastify 5 and the official `@fastify/
 `@fastify/rate-limit`, and `@fastify/swagger` plugins under the MIT license for HTTP routing,
 development bearer-token verification, request throttling, and generated OpenAPI documentation.
 `tsx` is installed under the MIT license for local TypeScript server execution. The installed
-packages preserve their license and copyright metadata.
+packages preserve their license and copyright metadata. `pg` and `@types/pg` are installed under the
+MIT license for PostgreSQL access and typing. The MIT-licensed Testcontainers PostgreSQL module runs
+integration tests against a disposable PostgreSQL 16 container; its locked transitive dependencies
+and notices remain in `package-lock.json` and the installed packages. PostgreSQL container images
+are distributed by the PostgreSQL project under the PostgreSQL License and are not bundled into
+Reimbursd source or application artifacts.
 
 ## Development license data
 

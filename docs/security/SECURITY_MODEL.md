@@ -88,6 +88,14 @@
   missing reads return the same bounded `404`; tests exercise two isolated identities. Request
   logging and CORS are disabled, and validation, authentication, conflict, rate, not-found, and
   internal errors do not echo tokens or receipt contents.
+- PostgreSQL startup migrations run under one transaction and an advisory lock, reject unknown
+  future versions, and record schema changes atomically. Hosted receipt and merchant tables use UUID
+  identifiers, relational ownership constraints, parameterized queries, constrained `BIGINT` minor
+  units, total-consistency checks, and owner-prefixed indexes. Driver `BIGINT` strings must cross a
+  safe-integer validation boundary before entering the domain.
+- Production API configuration requires PostgreSQL. Development may use explicit non-durable memory
+  storage. Integration tests exercise migration rollback, restart persistence, concurrent duplicate
+  writes, transaction cleanup, unsafe stored amounts, and two-owner isolation against PostgreSQL 16.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -101,22 +109,23 @@
   encrypted-backup sharing have not yet been exercised on physical Android or iOS devices in this
   Linux development environment. SecureStore availability and persistence remain platform behavior,
   not the only recovery mechanism.
-- The API authentication mechanism is for isolated development only. Receipt metadata is held in
-  process memory, tokens cannot be revoked, and no password, session persistence, TLS termination,
-  PostgreSQL, object storage, or web-origin policy exists yet.
+- The API authentication mechanism is for isolated development only. Tokens cannot be revoked, and
+  no password, session persistence, TLS termination, object storage, hosted database backup, or
+  web-origin policy exists yet. The initial Compose PostgreSQL port is loopback-only, but database
+  and API transport security for a deployed topology remains an operator responsibility.
 
 ## Planned controls
 
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available.
 - An Android-compatible offline OCR adapter.
-- Durable owner-scoped PostgreSQL access, private object storage, production authentication, strict
-  web CORS and CSRF behavior, and secure revocable sessions.
+- Private object storage, production authentication, strict web CORS and CSRF behavior, secure
+  revocable sessions, PostgreSQL backup/restore, and deployed TLS guidance.
 - Cross-user attachment isolation, provider-contract, and synchronization-conflict tests.
 
 ## Unsupported claims
 
 Reimbursd does not currently provide live local database encryption, end-to-end encryption,
-production authentication, durable hosted storage, synchronization, forensic secure deletion,
+production authentication, hosted attachment storage, synchronization, forensic secure deletion,
 Android/web OCR, or remote AI processing. iOS OCR and native backup key storage/sharing have not been exercised on
 physical hardware in this Linux environment. Local receipt storage, plain exports, clean-install
 restore, and application-level delete-all are not described as encrypted or securely erased. The

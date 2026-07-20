@@ -127,7 +127,7 @@ export const healthResponseJsonSchema = {
   additionalProperties: false,
   properties: {
     status: { enum: ['ok'], type: 'string' },
-    storage: { enum: ['process-memory'], type: 'string' },
+    storage: { enum: ['postgresql', 'process-memory'], type: 'string' },
   },
   required: ['status', 'storage'],
   type: 'object',

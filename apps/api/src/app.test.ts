@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import type { Receipt } from '@reimbursd/domain';
 import type { FastifyInstance } from 'fastify';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildApi } from './app.js';
 import type { ApiConfig } from './config.js';
 import type { HostedReceiptRepository } from './receipt-repository.js';
 import type { ApiError, CreateReceiptBody, SessionResponse } from './schemas.js';
 
 const testConfig: ApiConfig = {
+  databaseUrl: null,
   developmentAuthEnabled: true,
   host: '127.0.0.1',
   jwtSecret: 'test-only-api-secret-that-is-at-least-32-characters',
@@ -255,6 +256,21 @@ describe('Reimbursd API', () => {
 });
 
 describe('API boundary configuration', () => {
+  it('reports PostgreSQL and runs configured cleanup on close', async () => {
+    const onClose = vi.fn(async () => undefined);
+    const app = await buildApi({
+      config: testConfig,
+      onClose,
+      storage: 'postgresql',
+    });
+
+    const response = await app.inject({ method: 'GET', url: '/health' });
+    expect(response.json()).toEqual({ status: 'ok', storage: 'postgresql' });
+
+    await app.close();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it('applies the bounded development-session rate limit', async () => {
     const app = await buildApi({ config: testConfig });
 

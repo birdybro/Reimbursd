@@ -27,7 +27,9 @@ Milestones 0 through 5 provide the repository foundation, local manual expenses,
 ingestion, local OCR boundaries, deterministic extraction and review, classifications, reports,
 plain export and clean restore, durable local deletion, and authenticated encrypted backup files.
 Milestone 6 is active. Its first development API slice establishes strict network validation,
-generated OpenAPI, signed synthetic development identities, and server-side receipt ownership using
-non-durable process memory. PostgreSQL, private attachment storage, a worker, production
-authentication, and the web client are not implemented. Synchronization, billing, remote AI, and
-location enrichment remain later milestones.
+generated OpenAPI, signed synthetic development identities, and server-side receipt ownership.
+Optional PostgreSQL 16 persistence now applies transactional versioned migrations and owner-scoped
+queries tested against a real disposable database; development can still use explicitly non-durable
+process memory. Private attachment storage, a worker, production authentication, and the web client
+are not implemented. Synchronization, billing, remote AI, and location enrichment remain later
+milestones.

@@ -163,7 +163,7 @@
 
 - [x] Define the initial API trust, authorization, data, and migration boundary in an ADR.
 - [ ] Add a locally runnable API and worker without changing local mobile availability.
-- [ ] Add PostgreSQL migrations and migration integration tests.
+- [x] Add PostgreSQL migrations and migration integration tests.
 - [x] Add bounded development authentication and server-side receipt authorization.
 - [ ] Add private S3-compatible attachment storage with signed or authenticated access.
 - [ ] Add cross-user receipt and attachment isolation tests.
@@ -171,7 +171,9 @@
 - [x] Publish a machine-readable OpenAPI specification for implemented routes.
 - [ ] Add a web client that authenticates against the local server.
 - [ ] Add containerized PostgreSQL, object storage, local email, and mock provider services.
-- [ ] Update development and self-hosting documentation with a secret-free environment example.
+- [x] Add a password-required, loopback-only PostgreSQL Compose service.
+- [x] Update current API and PostgreSQL development documentation with a secret-free environment
+      example.
 
 ### Acceptance criteria for the current API slice
 
@@ -186,3 +188,20 @@
 - Route schemas generate OpenAPI 3.1.1 for exactly the implemented service surface.
 - Process-memory storage is documented as non-durable and is not represented as self-hosting
   completion.
+
+### Acceptance criteria for the PostgreSQL slice
+
+- Production configuration requires PostgreSQL; development can omit it without affecting local
+  mobile behavior.
+- Migrations are ordered, versioned, advisory-locked, idempotent, transactional, and reject future
+  schema versions.
+- UUID receipt and merchant IDs remain globally unique, while owner identity is present in every
+  hosted query, mutation, index, and relational link.
+- Money uses constrained PostgreSQL `BIGINT` minor units and must parse back into JavaScript safe
+  integers; original receipt timezone offsets remain intact.
+- Duplicate and concurrent creates fail without partial merchant rows, and cross-owner reads return
+  no record.
+- Integration tests run against PostgreSQL 16 and cover migration rollback, connection replacement,
+  transaction cleanup, unsafe stored values, conflicts, and two-user isolation.
+- Compose binds PostgreSQL only to loopback, requires an uncommitted password, and does not represent
+  the incomplete worker, object-storage, email, provider, or web stack as available.

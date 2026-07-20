@@ -50,15 +50,18 @@ unrecoverable.
 
 Milestone 6 is active. A first locally runnable Fastify API slice now provides strict request
 validation, rate limiting, generated OpenAPI, short-lived synthetic development tokens, and tested
-server-side owner isolation for manual receipt metadata. Its storage is process memory only; it has
-no production authentication, PostgreSQL, private attachment storage, worker, or web client. The
-local mobile application does not depend on this service.
+server-side owner isolation for manual receipt metadata. Optional PostgreSQL 16 persistence now uses
+transactional migrations and owner predicates tested against a disposable real database. Without a
+database URL, development storage remains process memory. The API still has no production
+authentication, private attachment storage, worker, or web client. The local mobile application
+does not depend on this service.
 
 ## Requirements
 
 - Node.js 22 or newer
 - npm 10 or newer
 - An Expo-supported Android, iOS, or web development environment
+- Docker when running the full gate or PostgreSQL-backed API development
 
 ## Start locally
 
@@ -77,8 +80,8 @@ account, environment variable, hosted service, or paid provider is required.
 npm run verify
 ```
 
-This checks formatting, linting, strict TypeScript, domain and SQLite tests, React Native UI
-interactions, dependency licenses, known high-severity dependency vulnerabilities, Expo
+This checks formatting, linting, strict TypeScript, domain, SQLite, and real PostgreSQL tests, React
+Native UI interactions, dependency licenses, known high-severity dependency vulnerabilities, Expo
 configuration, and production builds.
 
 See [development documentation](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md), and

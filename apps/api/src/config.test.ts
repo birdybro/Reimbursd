@@ -12,6 +12,7 @@ describe('readApiConfig', () => {
         REIMBURSD_API_JWT_SECRET: testSecret,
       }),
     ).toEqual({
+      databaseUrl: null,
       developmentAuthEnabled: false,
       host: '127.0.0.1',
       jwtSecret: testSecret,
@@ -35,6 +36,33 @@ describe('readApiConfig', () => {
         REIMBURSD_DEV_AUTH_ENABLED: 'true',
       }),
     ).toThrow('Development authentication cannot be enabled in production.');
+  });
+
+  it('requires PostgreSQL in production', () => {
+    expect(() =>
+      readApiConfig({
+        NODE_ENV: 'production',
+        REIMBURSD_API_JWT_SECRET: testSecret,
+      }),
+    ).toThrow('Production API configuration requires PostgreSQL.');
+
+    expect(
+      readApiConfig({
+        NODE_ENV: 'production',
+        REIMBURSD_API_JWT_SECRET: testSecret,
+        REIMBURSD_DATABASE_URL: 'postgresql://reimbursd.invalid/reimbursd',
+      }).databaseUrl,
+    ).toBe('postgresql://reimbursd.invalid/reimbursd');
+  });
+
+  it('rejects non-PostgreSQL database URLs', () => {
+    expect(() =>
+      readApiConfig({
+        NODE_ENV: 'test',
+        REIMBURSD_API_JWT_SECRET: testSecret,
+        REIMBURSD_DATABASE_URL: 'https://database.invalid/reimbursd',
+      }),
+    ).toThrow();
   });
 
   it('rejects invalid ports', () => {

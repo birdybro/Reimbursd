@@ -26,11 +26,19 @@ accept only an expiring HS256 bearer token with fixed issuer and audience claims
 Synthetic token issuance is registered only in explicit development mode and cannot be enabled by
 production configuration.
 
-The API-owned receipt repository port requires `ownerId` on every operation. The initial in-memory
-adapter stores an owner beside each receipt and returns `null` for both cross-owner and absent reads,
-which the HTTP boundary maps to the same bounded response. This proves the ownership contract but is
-not durable: process restart removes all hosted records. PostgreSQL must implement the same contract
-with ownership in every query. Local mobile code has no import or runtime dependency on the API.
+The API-owned receipt repository port requires `ownerId` on every operation. The development
+in-memory adapter stores an owner beside each receipt and returns `null` for both cross-owner and
+absent reads, which the HTTP boundary maps to the same bounded response. A PostgreSQL 16 adapter now
+implements the same contract with owner predicates in every query and mutation. UUID identifiers
+remain globally unique, `BIGINT` money crosses an explicit safe-integer parser, and ISO 8601 receipt
+timestamps remain bounded text so their source offset survives. Local mobile code has no import or
+runtime dependency on the API.
+
+Hosted migrations are immutable TypeScript data applied under a transaction-scoped advisory lock.
+The runner rejects future versions and commits schema plus migration records atomically. PostgreSQL
+is optional in development and required by production API configuration. Real-container tests cover
+idempotence, rollback, restart persistence, concurrent conflict, safe numeric reads, and two-owner
+isolation.
 
 The current mobile application has no network dependency and no account boundary. It opens Expo
 SQLite through an application adapter and passes a small asynchronous SQLite connection port to the
@@ -160,9 +168,8 @@ closes pending parser review history. A failure rolls back every part of the rev
 
 ## Intended growth
 
-Future work may add `apps/web`, `apps/worker`, a PostgreSQL API adapter, and focused packages for
-hosted schemas, database access, providers, and synchronization. These are not required for local
-mobile use.
+Future work may add `apps/web`, `apps/worker`, private object storage, and focused packages for hosted
+schemas, providers, and synchronization. These are not required for local mobile use.
 
 See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0002](architecture/adr/0002-local-sqlite-repository.md), and
@@ -176,4 +183,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0010](architecture/adr/0010-clean-local-archive-restore.md), and
 [ADR-0011](architecture/adr/0011-durable-local-data-deletion.md), and
 [ADR-0012](architecture/adr/0012-authenticated-encrypted-backup.md), and
-[ADR-0013](architecture/adr/0013-self-hosted-api-authorization-boundary.md) for accepted decisions.
+[ADR-0013](architecture/adr/0013-self-hosted-api-authorization-boundary.md), and
+[ADR-0014](architecture/adr/0014-owner-scoped-postgresql-persistence.md) for accepted decisions.

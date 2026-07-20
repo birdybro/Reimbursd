@@ -20,9 +20,12 @@
     "@fastify/swagger": "^9.8.1",
     "@reimbursd/domain": "*",
     "fastify": "^5.10.0",
+    "pg": "^8.22.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^12.0.4",
+    "@types/pg": "^8.20.0",
     "tsx": "^4.20.6"
   }
 }
