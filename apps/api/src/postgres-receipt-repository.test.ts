@@ -1,8 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { createManualReceipt, ReceiptValidationError, type Receipt } from '@reimbursd/domain';
+import {
+  createManualReceipt,
+  ReceiptDocumentValidationError,
+  ReceiptValidationError,
+  type Receipt,
+  type ReceiptDocument,
+} from '@reimbursd/domain';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  HostedReceiptDocumentDuplicateError,
+  HostedReceiptDocumentReceiptNotFoundError,
+  PostgresHostedReceiptDocumentRepository,
+} from './hosted-receipt-document-repository.js';
 import {
   hostedMigrations,
   hostedSchemaVersion,
@@ -14,6 +25,7 @@ import { HostedReceiptAlreadyExistsError } from './receipt-repository.js';
 
 const ownerA = '00000000-0000-4000-8000-000000000001';
 const ownerB = '00000000-0000-4000-8000-000000000002';
+const receiptId = '10000000-0000-4000-8000-000000000001';
 let container: StartedPostgreSqlContainer | null = null;
 let pool: Pool | null = null;
 
@@ -21,7 +33,7 @@ function makeReceipt(overrides: Partial<Receipt> = {}): Receipt {
   return createManualReceipt({
     capturedAt: '2026-07-18T12:00:00-06:00',
     currencyCode: 'USD',
-    id: '10000000-0000-4000-8000-000000000001',
+    id: receiptId,
     merchantId: '20000000-0000-4000-8000-000000000001',
     merchantName: 'Synthetic Merchant',
     notes: 'Synthetic test data only',
@@ -32,6 +44,29 @@ function makeReceipt(overrides: Partial<Receipt> = {}): Receipt {
     totalMinor: 1_280,
     ...overrides,
   });
+}
+
+function makeDocument(overrides: Partial<ReceiptDocument> = {}): ReceiptDocument {
+  return {
+    byteSize: 68,
+    createdAt: '2026-07-18T18:00:00.000Z',
+    heightPixels: 1,
+    id: '30000000-0000-4000-8000-000000000001',
+    isOriginal: true,
+    mimeType: 'image/png',
+    originalFilename: 'synthetic.png',
+    pageCount: 1,
+    parentDocumentId: null,
+    receiptId,
+    sha256: '34f087890962fcd105c2a78f15971bcb50aa0094256f0a242cc2d305d0234608',
+    sourceType: 'image_import',
+    storageDeletedAt: null,
+    storageReference:
+      `owners/${ownerA}/receipts/${receiptId}/originals/` +
+      '30000000-0000-4000-8000-000000000001.png',
+    widthPixels: 1,
+    ...overrides,
+  };
 }
 
 function requirePool(): Pool {
@@ -68,6 +103,7 @@ describe.sequential('PostgreSQL hosted receipt persistence', () => {
     const database = requirePool();
     await database.query(`
       DROP TABLE IF EXISTS hosted_receipts CASCADE;
+      DROP TABLE IF EXISTS hosted_receipt_documents CASCADE;
       DROP TABLE IF EXISTS hosted_merchants CASCADE;
       DROP TABLE IF EXISTS hosted_schema_migrations CASCADE;
     `);
@@ -82,7 +118,7 @@ describe.sequential('PostgreSQL hosted receipt persistence', () => {
     );
 
     expect(result.rows).toEqual(hostedMigrations.map(({ name, version }) => ({ name, version })));
-    expect(hostedSchemaVersion).toBe(1);
+    expect(hostedSchemaVersion).toBe(2);
   });
 
   it('rolls back schema and metadata when a migration fails', async () => {
@@ -93,7 +129,7 @@ describe.sequential('PostgreSQL hosted receipt persistence', () => {
         CREATE TABLE hosted_rollback_probe (id INTEGER PRIMARY KEY);
         SELECT 1 / 0;
       `,
-      version: 2,
+      version: 3,
     };
 
     await expect(
@@ -107,7 +143,7 @@ describe.sequential('PostgreSQL hosted receipt persistence', () => {
       'SELECT version FROM hosted_schema_migrations ORDER BY version;',
     );
     expect(probe.rows[0]?.relation).toBeNull();
-    expect(versions.rows).toEqual([{ version: 1 }]);
+    expect(versions.rows).toEqual([{ version: 1 }, { version: 2 }]);
   });
 
   it('rejects databases created by a newer application schema', async () => {
@@ -121,7 +157,7 @@ describe.sequential('PostgreSQL hosted receipt persistence', () => {
     );
 
     await expect(migrateHostedDatabase(database)).rejects.toThrow(
-      'Hosted database schema version 999 is newer than supported version 1.',
+      'Hosted database schema version 999 is newer than supported version 2.',
     );
   });
 
@@ -225,6 +261,92 @@ describe.sequential('PostgreSQL hosted receipt persistence', () => {
 
     await expect(repository.getByIdForOwner(ownerA, receipt.id)).rejects.toBeInstanceOf(
       ReceiptValidationError,
+    );
+  });
+
+  it('persists original document metadata behind receipt and owner boundaries', async () => {
+    const database = requirePool();
+    const receipts = new PostgresHostedReceiptRepository(database);
+    const documents = new PostgresHostedReceiptDocumentRepository(database);
+    const receipt = makeReceipt();
+    const document = makeDocument();
+    await receipts.create(ownerA, receipt);
+
+    await expect(documents.createForOwner(ownerA, document)).resolves.toEqual(document);
+    await expect(documents.getByIdForOwner(ownerA, receipt.id, document.id)).resolves.toEqual(
+      document,
+    );
+    await expect(documents.getByIdForOwner(ownerB, receipt.id, document.id)).resolves.toBeNull();
+    await expect(documents.findOriginalByHashForOwner(ownerB, document.sha256)).resolves.toBeNull();
+  });
+
+  it('scopes duplicate hashes to an owner and rejects missing owner receipts', async () => {
+    const database = requirePool();
+    const receipts = new PostgresHostedReceiptRepository(database);
+    const documents = new PostgresHostedReceiptDocumentRepository(database);
+    const receiptA = makeReceipt();
+    const receiptB = makeReceipt({
+      id: '10000000-0000-4000-8000-000000000002',
+      merchantId: '20000000-0000-4000-8000-000000000002',
+    });
+    const documentA = makeDocument();
+    await receipts.create(ownerA, receiptA);
+    await receipts.create(ownerB, receiptB);
+    await documents.createForOwner(ownerA, documentA);
+
+    await expect(
+      documents.createForOwner(
+        ownerB,
+        makeDocument({
+          id: '30000000-0000-4000-8000-000000000002',
+          receiptId: receiptB.id,
+          storageReference:
+            `owners/${ownerB}/receipts/${receiptB.id}/originals/` +
+            '30000000-0000-4000-8000-000000000002.png',
+        }),
+      ),
+    ).resolves.toMatchObject({ receiptId: receiptB.id, sha256: documentA.sha256 });
+    await expect(
+      documents.createForOwner(
+        ownerA,
+        makeDocument({
+          id: '30000000-0000-4000-8000-000000000003',
+          storageReference:
+            `owners/${ownerA}/receipts/${receiptA.id}/originals/` +
+            '30000000-0000-4000-8000-000000000003.png',
+        }),
+      ),
+    ).rejects.toBeInstanceOf(HostedReceiptDocumentDuplicateError);
+    await expect(
+      documents.createForOwner(
+        ownerA,
+        makeDocument({
+          id: '30000000-0000-4000-8000-000000000004',
+          receiptId: '10000000-0000-4000-8000-000000000099',
+          sha256: '44f087890962fcd105c2a78f15971bcb50aa0094256f0a242cc2d305d0234608',
+          storageReference:
+            `owners/${ownerA}/receipts/10000000-0000-4000-8000-000000000099/originals/` +
+            '30000000-0000-4000-8000-000000000004.png',
+        }),
+      ),
+    ).rejects.toBeInstanceOf(HostedReceiptDocumentReceiptNotFoundError);
+  });
+
+  it('fails closed when stored document byte size exceeds JavaScript safe integers', async () => {
+    const database = requirePool();
+    const receipts = new PostgresHostedReceiptRepository(database);
+    const documents = new PostgresHostedReceiptDocumentRepository(database);
+    const receipt = makeReceipt();
+    const document = makeDocument();
+    await receipts.create(ownerA, receipt);
+    await documents.createForOwner(ownerA, document);
+    await database.query(
+      'UPDATE hosted_receipt_documents SET byte_size = $1 WHERE owner_id = $2 AND id = $3;',
+      ['9007199254740992', ownerA, document.id],
+    );
+
+    await expect(documents.getByIdForOwner(ownerA, receipt.id, document.id)).rejects.toBeInstanceOf(
+      ReceiptDocumentValidationError,
     );
   });
 });

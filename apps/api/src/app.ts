@@ -2,11 +2,25 @@
 import fastifyJwt from '@fastify/jwt';
 import fastifyRateLimit from '@fastify/rate-limit';
 import fastifySwagger from '@fastify/swagger';
-import { createManualReceipt, ReceiptValidationError } from '@reimbursd/domain';
+import { AttachmentInspectionError, AttachmentLimitError } from '@reimbursd/attachments';
+import {
+  createManualReceipt,
+  ReceiptDocumentValidationError,
+  ReceiptValidationError,
+  type ReceiptDocument,
+} from '@reimbursd/domain';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { apiJwtAudience, apiJwtIssuer, apiTokenLifetimeSeconds, type ApiConfig } from './config.js';
 import { InMemoryHostedReceiptRepository } from './in-memory-receipt-repository.js';
+import {
+  HostedAttachmentIntegrityError,
+  type HostedAttachmentOperations,
+} from './hosted-attachment-service.js';
+import {
+  HostedReceiptDocumentDuplicateError,
+  HostedReceiptDocumentReceiptNotFoundError,
+} from './hosted-receipt-document-repository.js';
 import {
   HostedReceiptAlreadyExistsError,
   type HostedReceiptRepository,
@@ -18,11 +32,20 @@ import {
   developmentSessionBodyJsonSchema,
   developmentSessionBodySchema,
   healthResponseJsonSchema,
+  hostedAttachmentRequestBodyLimit,
+  receiptDocumentParamsJsonSchema,
+  receiptDocumentParamsSchema,
+  receiptDocumentResponseJsonSchema,
   receiptIdParamsJsonSchema,
   receiptIdParamsSchema,
+  receiptIdOnlyParamsJsonSchema,
+  receiptIdOnlyParamsSchema,
   receiptJsonSchema,
   sessionResponseJsonSchema,
+  uploadAttachmentBodyJsonSchema,
+  uploadAttachmentBodySchema,
   type ApiError,
+  type ReceiptDocumentResponse,
 } from './schemas.js';
 
 const authClaimsSchema = z
@@ -69,6 +92,7 @@ const rateLimitError: ApiError = {
 };
 
 export interface BuildApiOptions {
+  readonly attachments?: HostedAttachmentOperations;
   readonly config: ApiConfig;
   readonly onClose?: () => Promise<void>;
   readonly repository?: HostedReceiptRepository;
@@ -131,9 +155,32 @@ export async function buildApi(options: BuildApiOptions): Promise<FastifyInstanc
     if (
       isFastifyValidationError(error) ||
       error instanceof z.ZodError ||
-      error instanceof ReceiptValidationError
+      error instanceof ReceiptValidationError ||
+      error instanceof ReceiptDocumentValidationError
     ) {
       return reply.code(400).send(invalidRequestError);
+    }
+
+    if (error instanceof AttachmentInspectionError || error instanceof AttachmentLimitError) {
+      return reply.code(400).send({
+        code: 'invalid_attachment',
+        message: 'The receipt file is invalid or exceeds a processing limit.',
+      });
+    }
+
+    if (error instanceof HostedReceiptDocumentDuplicateError) {
+      return reply.code(409).send({
+        code: 'attachment_conflict',
+        message: 'The receipt file is already stored or its identifier is in use.',
+      });
+    }
+
+    if (error instanceof HostedReceiptDocumentReceiptNotFoundError) {
+      return reply.code(404).send(notFoundError);
+    }
+
+    if (error instanceof HostedAttachmentIntegrityError) {
+      return reply.code(500).send(internalError);
     }
 
     if (error instanceof HostedReceiptAlreadyExistsError) {
@@ -281,6 +328,10 @@ export async function buildApi(options: BuildApiOptions): Promise<FastifyInstanc
     },
   );
 
+  if (options.attachments) {
+    registerAttachmentRoutes(app, options.attachments);
+  }
+
   await app.ready();
   return app;
 }
@@ -309,4 +360,115 @@ function hasStatusCode(error: unknown, statusCode: number): boolean {
     'statusCode' in error &&
     error.statusCode === statusCode
   );
+}
+
+function registerAttachmentRoutes(
+  app: FastifyInstance,
+  attachments: HostedAttachmentOperations,
+): void {
+  app.post(
+    '/v1/receipts/:receiptId/documents',
+    {
+      bodyLimit: hostedAttachmentRequestBodyLimit,
+      onRequest: requireOwner,
+      schema: {
+        body: uploadAttachmentBodyJsonSchema,
+        description: 'Validates and stores an immutable original in private object storage.',
+        operationId: 'uploadReceiptDocument',
+        params: receiptIdOnlyParamsJsonSchema,
+        response: {
+          201: receiptDocumentResponseJsonSchema,
+          400: apiErrorJsonSchema,
+          401: apiErrorJsonSchema,
+          404: apiErrorJsonSchema,
+          409: apiErrorJsonSchema,
+          413: apiErrorJsonSchema,
+          429: apiErrorJsonSchema,
+          500: apiErrorJsonSchema,
+        },
+        security: [{ bearerAuth: [] }],
+        tags: ['attachments'],
+      },
+    },
+    async (request, reply) => {
+      const { receiptId } = receiptIdOnlyParamsSchema.parse(request.params);
+      const input = uploadAttachmentBodySchema.parse(request.body);
+      const document = await attachments.upload({
+        bytes: Buffer.from(input.bytesBase64, 'base64'),
+        documentId: input.documentId,
+        originalFilename: input.originalFilename,
+        ownerId: getOwnerId(request),
+        receiptId,
+        sourceType: input.sourceType,
+      });
+      return reply.code(201).send(toReceiptDocumentResponse(document));
+    },
+  );
+
+  app.get(
+    '/v1/receipts/:receiptId/documents/:documentId/content',
+    {
+      onRequest: requireOwner,
+      schema: {
+        description: 'Returns original bytes only after an owner-scoped metadata lookup.',
+        operationId: 'downloadReceiptDocument',
+        params: receiptDocumentParamsJsonSchema,
+        response: {
+          400: apiErrorJsonSchema,
+          401: apiErrorJsonSchema,
+          404: apiErrorJsonSchema,
+          429: apiErrorJsonSchema,
+          500: apiErrorJsonSchema,
+        },
+        security: [{ bearerAuth: [] }],
+        tags: ['attachments'],
+      },
+    },
+    async (request, reply) => {
+      const { documentId, receiptId } = receiptDocumentParamsSchema.parse(request.params);
+      const attachment = await attachments.download(getOwnerId(request), receiptId, documentId);
+
+      if (!attachment) {
+        return reply.code(404).send(notFoundError);
+      }
+
+      reply.header(
+        'content-disposition',
+        createContentDisposition(attachment.document.originalFilename),
+      );
+      reply.header('content-length', attachment.bytes.byteLength);
+      reply.type(attachment.document.mimeType);
+      return reply.send(Buffer.from(attachment.bytes));
+    },
+  );
+}
+
+function toReceiptDocumentResponse(document: ReceiptDocument): ReceiptDocumentResponse {
+  if (document.sourceType === 'derivative') {
+    throw new ReceiptDocumentValidationError([
+      { field: 'sourceType', message: 'Hosted upload returned a derivative document.' },
+    ]);
+  }
+
+  return {
+    byteSize: document.byteSize,
+    createdAt: document.createdAt,
+    documentId: document.id,
+    heightPixels: document.heightPixels,
+    mimeType: document.mimeType,
+    originalFilename: document.originalFilename,
+    pageCount: document.pageCount,
+    receiptId: document.receiptId,
+    sha256: document.sha256,
+    sourceType: document.sourceType,
+    widthPixels: document.widthPixels,
+  };
+}
+
+function createContentDisposition(originalFilename: string): string {
+  const encodedFilename = encodeURIComponent(originalFilename).replace(
+    /['()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `attachment; filename="receipt"; filename*=UTF-8''${encodedFilename}`;
 }

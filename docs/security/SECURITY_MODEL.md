@@ -4,7 +4,7 @@
 
 - Strict TypeScript and automated formatting, linting, testing, build, license, and audit gates.
 - Locked npm dependency graph.
-- No production credentials, analytics, external AI, location access, or hosted data path.
+- No production credentials, analytics, external AI, or location access.
 - Integer minor-unit money rules in the framework-free domain package.
 - Versioned, transactional SQLite migrations exercised against real SQLite.
 - Schema constraints, domain validation at repository boundaries, and parameterized SQL.
@@ -96,6 +96,17 @@
 - Production API configuration requires PostgreSQL. Development may use explicit non-durable memory
   storage. Integration tests exercise migration rollback, restart persistence, concurrent duplicate
   writes, transaction cleanup, unsafe stored amounts, and two-owner isolation against PostgreSQL 16.
+- Hosted attachment routes are registered only when PostgreSQL and all S3-compatible settings are
+  present. Uploads use strict bounded base64 JSON, content inspection, processing limits, SHA-256,
+  UUID-derived keys, immutable conditional object creation, owner-linked relational metadata, and
+  compensating object cleanup when metadata persistence fails.
+- Hosted downloads resolve owner/receipt/document metadata before any object read, stream within the
+  configured bound, and revalidate size plus SHA-256 before proxying bytes. Responses expose neither
+  object keys nor public/presigned URLs. Cross-owner and missing attachment reads share a bounded
+  `404`, and tests verify an unauthorized owner does not invoke object storage.
+- The local Compose MinIO endpoint is loopback-only, publishes no administration console, requires
+  uncommitted credentials, and creates a bucket with anonymous access disabled. Real MinIO tests
+  cover private policy/ACL state, write-once conflicts, bounded reads, and byte-identical round trips.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -110,22 +121,25 @@
   Linux development environment. SecureStore availability and persistence remain platform behavior,
   not the only recovery mechanism.
 - The API authentication mechanism is for isolated development only. Tokens cannot be revoked, and
-  no password, session persistence, TLS termination, object storage, hosted database backup, or
-  web-origin policy exists yet. The initial Compose PostgreSQL port is loopback-only, but database
-  and API transport security for a deployed topology remains an operator responsibility.
+  no password, session persistence, TLS termination, hosted attachment deletion/reconciliation,
+  hosted backup, or web-origin policy exists yet. The Compose PostgreSQL and MinIO ports are
+  loopback-only, but database, object, and API transport security for a deployed topology remains an
+  operator responsibility. The local stack uses MinIO root credentials for the API and is not a
+  least-privilege production credential model.
 
 ## Planned controls
 
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available.
 - An Android-compatible offline OCR adapter.
-- Private object storage, production authentication, strict web CORS and CSRF behavior, secure
-  revocable sessions, PostgreSQL backup/restore, and deployed TLS guidance.
-- Cross-user attachment isolation, provider-contract, and synchronization-conflict tests.
+- Production authentication, strict web CORS and CSRF behavior, secure revocable sessions, hosted
+  attachment lifecycle/reconciliation, PostgreSQL/object backup and restore, and deployed TLS
+  guidance.
+- Provider-contract and synchronization-conflict tests.
 
 ## Unsupported claims
 
 Reimbursd does not currently provide live local database encryption, end-to-end encryption,
-production authentication, hosted attachment storage, synchronization, forensic secure deletion,
+production authentication, hosted synchronization, forensic secure deletion,
 Android/web OCR, or remote AI processing. iOS OCR and native backup key storage/sharing have not been exercised on
 physical hardware in this Linux environment. Local receipt storage, plain exports, clean-install
 restore, and application-level delete-all are not described as encrypted or securely erased. The

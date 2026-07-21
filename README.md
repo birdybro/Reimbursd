@@ -51,17 +51,20 @@ unrecoverable.
 Milestone 6 is active. A first locally runnable Fastify API slice now provides strict request
 validation, rate limiting, generated OpenAPI, short-lived synthetic development tokens, and tested
 server-side owner isolation for manual receipt metadata. Optional PostgreSQL 16 persistence now uses
-transactional migrations and owner predicates tested against a disposable real database. Without a
-database URL, development storage remains process memory. The API still has no production
-authentication, private attachment storage, worker, or web client. The local mobile application
-does not depend on this service.
+transactional migrations and owner predicates tested against a disposable real database. A private
+S3-compatible adapter validates JPEG, PNG, and PDF originals, writes them immutably, stores
+owner-linked metadata, and proxies authenticated downloads without exposing object keys. The local
+Compose stack provides a loopback-only private MinIO bucket. Without a database URL, development
+receipt storage remains process memory and attachment routes are unavailable. The API still has no
+production authentication, hosted attachment deletion, worker, or web client. The local mobile
+application does not depend on this service.
 
 ## Requirements
 
 - Node.js 22 or newer
 - npm 10 or newer
 - An Expo-supported Android, iOS, or web development environment
-- Docker when running the full gate or PostgreSQL-backed API development
+- Docker when running the full gate or PostgreSQL/MinIO-backed API development
 
 ## Start locally
 
@@ -80,9 +83,9 @@ account, environment variable, hosted service, or paid provider is required.
 npm run verify
 ```
 
-This checks formatting, linting, strict TypeScript, domain, SQLite, and real PostgreSQL tests, React
-Native UI interactions, dependency licenses, known high-severity dependency vulnerabilities, Expo
-configuration, and production builds.
+This checks formatting, linting, strict TypeScript, domain, SQLite, real PostgreSQL, and real MinIO
+tests, React Native UI interactions, dependency licenses, known high-severity dependency
+vulnerabilities, Expo configuration, and production builds.
 
 See [development documentation](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md), and
 [privacy commitments](PRIVACY.md) for current details.

@@ -3,6 +3,10 @@ import { supportedCurrencyCodes, type Receipt } from '@reimbursd/domain';
 import { z } from 'zod';
 
 const maximumSafeInteger = Number.MAX_SAFE_INTEGER;
+export const hostedAttachmentMaximumByteSize = 25 * 1_024 * 1_024;
+export const hostedAttachmentMaximumBase64Length =
+  Math.ceil(hostedAttachmentMaximumByteSize / 3) * 4;
+export const hostedAttachmentRequestBodyLimit = hostedAttachmentMaximumBase64Length + 8_192;
 const uuidJsonSchema = { format: 'uuid', type: 'string' } as const;
 const offsetDateTimeJsonSchema = { format: 'date-time', maxLength: 35, type: 'string' } as const;
 const amountJsonSchema = {
@@ -113,6 +117,72 @@ export const developmentSessionBodyJsonSchema = {
   type: 'object',
 } as const;
 
+export const receiptIdOnlyParamsJsonSchema = {
+  additionalProperties: false,
+  properties: { receiptId: uuidJsonSchema },
+  required: ['receiptId'],
+  type: 'object',
+} as const;
+
+export const receiptDocumentParamsJsonSchema = {
+  additionalProperties: false,
+  properties: { documentId: uuidJsonSchema, receiptId: uuidJsonSchema },
+  required: ['receiptId', 'documentId'],
+  type: 'object',
+} as const;
+
+export const uploadAttachmentBodyJsonSchema = {
+  additionalProperties: false,
+  properties: {
+    bytesBase64: {
+      maxLength: hostedAttachmentMaximumBase64Length,
+      minLength: 4,
+      pattern: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$',
+      type: 'string',
+    },
+    documentId: uuidJsonSchema,
+    originalFilename: { maxLength: 255, minLength: 1, type: 'string' },
+    sourceType: { enum: ['camera', 'image_import', 'pdf_import'], type: 'string' },
+  },
+  required: ['bytesBase64', 'documentId', 'originalFilename', 'sourceType'],
+  type: 'object',
+} as const;
+
+export const receiptDocumentResponseJsonSchema = {
+  additionalProperties: false,
+  properties: {
+    byteSize: { maximum: maximumSafeInteger, minimum: 1, type: 'integer' },
+    createdAt: offsetDateTimeJsonSchema,
+    documentId: uuidJsonSchema,
+    heightPixels: {
+      anyOf: [{ maximum: maximumSafeInteger, minimum: 1, type: 'integer' }, { type: 'null' }],
+    },
+    mimeType: { enum: ['application/pdf', 'image/jpeg', 'image/png'], type: 'string' },
+    originalFilename: { maxLength: 255, minLength: 1, type: 'string' },
+    pageCount: { maximum: maximumSafeInteger, minimum: 1, type: 'integer' },
+    receiptId: uuidJsonSchema,
+    sha256: { pattern: '^[0-9a-f]{64}$', type: 'string' },
+    sourceType: { enum: ['camera', 'image_import', 'pdf_import'], type: 'string' },
+    widthPixels: {
+      anyOf: [{ maximum: maximumSafeInteger, minimum: 1, type: 'integer' }, { type: 'null' }],
+    },
+  },
+  required: [
+    'byteSize',
+    'createdAt',
+    'documentId',
+    'heightPixels',
+    'mimeType',
+    'originalFilename',
+    'pageCount',
+    'receiptId',
+    'sha256',
+    'sourceType',
+    'widthPixels',
+  ],
+  type: 'object',
+} as const;
+
 export const sessionResponseJsonSchema = {
   additionalProperties: false,
   properties: {
@@ -151,7 +221,23 @@ export const createReceiptBodySchema = z
   .strict();
 
 export const receiptIdParamsSchema = z.object({ receiptId: z.string().uuid() }).strict();
+export const receiptIdOnlyParamsSchema = z.object({ receiptId: z.string().uuid() }).strict();
+export const receiptDocumentParamsSchema = z
+  .object({ documentId: z.string().uuid(), receiptId: z.string().uuid() })
+  .strict();
 export const developmentSessionBodySchema = z.object({ userId: z.string().uuid() }).strict();
+export const uploadAttachmentBodySchema = z
+  .object({
+    bytesBase64: z
+      .string()
+      .min(4)
+      .max(hostedAttachmentMaximumBase64Length)
+      .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/),
+    documentId: z.string().uuid(),
+    originalFilename: z.string().min(1).max(255),
+    sourceType: z.enum(['camera', 'image_import', 'pdf_import']),
+  })
+  .strict();
 
 export type CreateReceiptBody = z.infer<typeof createReceiptBodySchema>;
 
@@ -163,6 +249,20 @@ export interface ApiError {
 export interface SessionResponse {
   readonly accessToken: string;
   readonly expiresInSeconds: number;
+}
+
+export interface ReceiptDocumentResponse {
+  readonly byteSize: number;
+  readonly createdAt: string;
+  readonly documentId: string;
+  readonly heightPixels: number | null;
+  readonly mimeType: 'application/pdf' | 'image/jpeg' | 'image/png';
+  readonly originalFilename: string;
+  readonly pageCount: number;
+  readonly receiptId: string;
+  readonly sha256: string;
+  readonly sourceType: 'camera' | 'image_import' | 'pdf_import';
+  readonly widthPixels: number | null;
 }
 
 export type ReceiptResponse = Receipt;

@@ -16,3 +16,4 @@
 | [0012](adr/0012-authenticated-encrypted-backup.md)         | Accepted | Wrap complete exports with AES-GCM and a portable random recovery key            |
 | [0013](adr/0013-self-hosted-api-authorization-boundary.md) | Accepted | Require owner-scoped API operations behind validated signed bearer identities    |
 | [0014](adr/0014-owner-scoped-postgresql-persistence.md)    | Accepted | Persist hosted receipts through transactional owner-scoped PostgreSQL operations |
+| [0015](adr/0015-private-hosted-attachment-storage.md)      | Accepted | Proxy owner-authorized receipt originals through private S3-compatible storage   |

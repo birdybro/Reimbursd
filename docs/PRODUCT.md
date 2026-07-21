@@ -30,6 +30,8 @@ Milestone 6 is active. Its first development API slice establishes strict networ
 generated OpenAPI, signed synthetic development identities, and server-side receipt ownership.
 Optional PostgreSQL 16 persistence now applies transactional versioned migrations and owner-scoped
 queries tested against a real disposable database; development can still use explicitly non-durable
-process memory. Private attachment storage, a worker, production authentication, and the web client
-are not implemented. Synchronization, billing, remote AI, and location enrichment remain later
-milestones.
+process memory. Optional private S3-compatible original storage uses owner-linked PostgreSQL
+metadata, immutable content-validated objects, and authenticated proxy downloads tested against a
+real disposable MinIO service. Hosted attachment deletion, a worker, production authentication, and
+the web client are not implemented. Synchronization, billing, remote AI, and location enrichment
+remain later milestones.

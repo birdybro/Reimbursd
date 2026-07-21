@@ -6,7 +6,7 @@
 - npm 10 or newer
 - Git
 - An Expo-supported Android, iOS, or web environment
-- Docker for PostgreSQL integration tests and hosted-service development
+- Docker for PostgreSQL and MinIO integration tests and hosted-service development
 
 No environment variable, external database, container, hosted account, or paid provider is needed
 for the local mobile application. It creates and migrates its local SQLite database when it starts.
@@ -56,13 +56,16 @@ The current API uses strict request schemas, signed development bearer tokens, r
 generated OpenAPI, and explicit owner-scoped repository operations. Without
 `REIMBURSD_DATABASE_URL`, its records are held only in process memory and disappear at restart. With
 a PostgreSQL URL, startup applies transactional, advisory-locked migrations and uses durable
-owner-scoped receipt storage. Production configuration requires PostgreSQL. Development identity
-issuance is still not production authentication. Keep the API bound to loopback; CORS is
-intentionally disabled until the web client and credential policy are implemented.
+owner-scoped receipt storage. Configuring every `REIMBURSD_OBJECT_*` value enables bounded original
+attachment upload and authenticated proxy download through private S3-compatible storage. Object
+storage is rejected without PostgreSQL metadata. Production configuration requires PostgreSQL.
+Development identity issuance is still not production authentication. Keep the API and object store
+bound to loopback; CORS is intentionally disabled until the web client and credential policy are
+implemented.
 
-The root test and verification commands start a disposable `postgres:16-alpine` container through
-Testcontainers. Docker must be running. Tests use synthetic credentials and stop their container
-after the suite.
+The root test and verification commands start disposable `postgres:16-alpine` and pinned MinIO
+containers through Testcontainers. Docker must be running. Tests use synthetic credentials and stop
+their containers after the suite.
 
 Use synthetic test data only. Mobile data is stored in the platform application sandbox. Web data
 and receipt files are stored for the current browser origin and profile. Removing browser site data

@@ -36,7 +36,11 @@ MIT license for PostgreSQL access and typing. The MIT-licensed Testcontainers Po
 integration tests against a disposable PostgreSQL 16 container; its locked transitive dependencies
 and notices remain in `package-lock.json` and the installed packages. PostgreSQL container images
 are distributed by the PostgreSQL project under the PostgreSQL License and are not bundled into
-Reimbursd source or application artifacts.
+Reimbursd source or application artifacts. `@aws-sdk/client-s3` is installed under Apache-2.0 behind
+the hosted object-storage port. The MIT-licensed Testcontainers MinIO module runs adapter contract
+tests against a disposable pinned MinIO container. The development Compose stack references pinned
+MinIO server and client images under the GNU AGPLv3; those images are fetched separately and are not
+bundled into Reimbursd source or application artifacts.
 
 ## Development license data
 

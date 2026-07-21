@@ -58,6 +58,51 @@ export const hostedMigrations: readonly HostedMigration[] = [
     `,
     version: 1,
   },
+  {
+    name: 'private_receipt_documents',
+    sql: `
+      CREATE TABLE hosted_receipt_documents (
+        id UUID PRIMARY KEY,
+        owner_id UUID NOT NULL,
+        receipt_id UUID NOT NULL,
+        parent_document_id UUID,
+        storage_reference VARCHAR(1024) NOT NULL UNIQUE
+          CHECK (length(storage_reference) BETWEEN 1 AND 1024),
+        original_filename VARCHAR(255) NOT NULL
+          CHECK (length(original_filename) BETWEEN 1 AND 255),
+        mime_type VARCHAR(32) NOT NULL
+          CHECK (mime_type IN ('application/pdf', 'image/jpeg', 'image/png')),
+        byte_size BIGINT NOT NULL CHECK (byte_size > 0),
+        sha256 CHAR(64) NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+        source_type VARCHAR(32) NOT NULL
+          CHECK (source_type IN ('camera', 'image_import', 'pdf_import')),
+        page_count INTEGER NOT NULL CHECK (page_count > 0),
+        width_pixels INTEGER CHECK (width_pixels > 0),
+        height_pixels INTEGER CHECK (height_pixels > 0),
+        is_original BOOLEAN NOT NULL CHECK (is_original),
+        created_at VARCHAR(35) NOT NULL CHECK (length(created_at) BETWEEN 20 AND 35),
+        storage_deleted_at VARCHAR(35)
+          CHECK (storage_deleted_at IS NULL OR length(storage_deleted_at) BETWEEN 20 AND 35),
+        UNIQUE (owner_id, id),
+        UNIQUE (owner_id, sha256),
+        FOREIGN KEY (owner_id, receipt_id)
+          REFERENCES hosted_receipts(owner_id, id),
+        CHECK (parent_document_id IS NULL),
+        CHECK (
+          (mime_type = 'application/pdf' AND width_pixels IS NULL AND height_pixels IS NULL)
+          OR
+          (mime_type != 'application/pdf' AND page_count = 1
+            AND width_pixels IS NOT NULL AND height_pixels IS NOT NULL)
+        )
+      );
+
+      CREATE INDEX hosted_receipt_documents_owner_receipt_idx
+        ON hosted_receipt_documents(owner_id, receipt_id, created_at, id);
+      CREATE INDEX hosted_receipt_documents_owner_hash_idx
+        ON hosted_receipt_documents(owner_id, sha256);
+    `,
+    version: 2,
+  },
 ];
 
 export const hostedSchemaVersion = hostedMigrations.at(-1)?.version ?? 0;

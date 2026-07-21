@@ -40,6 +40,16 @@ is optional in development and required by production API configuration. Real-co
 idempotence, rollback, restart persistence, concurrent conflict, safe numeric reads, and two-owner
 isolation.
 
+Hosted original attachments use a separate application-owned storage port backed by the official S3
+client. Upload validates bounded base64 JSON, inspects the decoded JPEG, PNG, or PDF, derives the
+object key only from owner/receipt/document UUIDs, hashes the bytes, and performs an immutable
+conditional write before inserting owner-linked metadata. Metadata failure triggers object cleanup.
+Download first resolves document metadata through owner and receipt predicates, then reads a bounded
+stream and revalidates byte size plus SHA-256 before proxying bytes. Public and presigned object URLs
+are not exposed. Configuration is all-or-nothing and requires PostgreSQL; real MinIO and PostgreSQL
+tests cover private bucket policy, write-once behavior, resource limits, metadata ownership, and
+cross-owner denial.
+
 The current mobile application has no network dependency and no account boundary. It opens Expo
 SQLite through an application adapter and passes a small asynchronous SQLite connection port to the
 shared database package. The database package owns migrations and repository behavior; its tests
@@ -168,8 +178,9 @@ closes pending parser review history. A failure rolls back every part of the rev
 
 ## Intended growth
 
-Future work may add `apps/web`, `apps/worker`, private object storage, and focused packages for hosted
-schemas, providers, and synchronization. These are not required for local mobile use.
+Future work may add `apps/web`, `apps/worker`, hosted attachment deletion/reconciliation, and focused
+packages for hosted schemas, providers, and synchronization. These are not required for local mobile
+use.
 
 See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0002](architecture/adr/0002-local-sqlite-repository.md), and
@@ -184,4 +195,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0011](architecture/adr/0011-durable-local-data-deletion.md), and
 [ADR-0012](architecture/adr/0012-authenticated-encrypted-backup.md), and
 [ADR-0013](architecture/adr/0013-self-hosted-api-authorization-boundary.md), and
-[ADR-0014](architecture/adr/0014-owner-scoped-postgresql-persistence.md) for accepted decisions.
+[ADR-0014](architecture/adr/0014-owner-scoped-postgresql-persistence.md), and
+[ADR-0015](architecture/adr/0015-private-hosted-attachment-storage.md) for accepted decisions.

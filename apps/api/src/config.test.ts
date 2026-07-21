@@ -17,6 +17,7 @@ describe('readApiConfig', () => {
       host: '127.0.0.1',
       jwtSecret: testSecret,
       nodeEnvironment: 'test',
+      objectStorage: null,
       port: 3000,
     });
   });
@@ -63,6 +64,50 @@ describe('readApiConfig', () => {
         REIMBURSD_DATABASE_URL: 'https://database.invalid/reimbursd',
       }),
     ).toThrow();
+  });
+
+  it('requires complete object-storage configuration and PostgreSQL metadata', () => {
+    expect(() =>
+      readApiConfig({
+        NODE_ENV: 'test',
+        REIMBURSD_API_JWT_SECRET: testSecret,
+        REIMBURSD_OBJECT_ENDPOINT: 'http://127.0.0.1:9000',
+      }),
+    ).toThrow();
+
+    expect(() =>
+      readApiConfig({
+        NODE_ENV: 'test',
+        REIMBURSD_API_JWT_SECRET: testSecret,
+        REIMBURSD_OBJECT_ACCESS_KEY_ID: 'test-access',
+        REIMBURSD_OBJECT_BUCKET: 'reimbursd-receipts',
+        REIMBURSD_OBJECT_ENDPOINT: 'http://127.0.0.1:9000',
+        REIMBURSD_OBJECT_REGION: 'us-east-1',
+        REIMBURSD_OBJECT_SECRET_ACCESS_KEY: 'synthetic-test-secret',
+      }),
+    ).toThrow('Object storage requires PostgreSQL metadata storage.');
+  });
+
+  it('parses a complete S3-compatible configuration without exposing defaults', () => {
+    expect(
+      readApiConfig({
+        NODE_ENV: 'test',
+        REIMBURSD_API_JWT_SECRET: testSecret,
+        REIMBURSD_DATABASE_URL: 'postgresql://reimbursd.invalid/reimbursd',
+        REIMBURSD_OBJECT_ACCESS_KEY_ID: 'test-access',
+        REIMBURSD_OBJECT_BUCKET: 'reimbursd-receipts',
+        REIMBURSD_OBJECT_ENDPOINT: 'http://127.0.0.1:9000',
+        REIMBURSD_OBJECT_REGION: 'us-east-1',
+        REIMBURSD_OBJECT_SECRET_ACCESS_KEY: 'synthetic-test-secret',
+      }).objectStorage,
+    ).toEqual({
+      accessKeyId: 'test-access',
+      bucket: 'reimbursd-receipts',
+      endpoint: 'http://127.0.0.1:9000',
+      forcePathStyle: true,
+      region: 'us-east-1',
+      secretAccessKey: 'synthetic-test-secret',
+    });
   });
 
   it('rejects invalid ports', () => {

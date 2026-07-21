@@ -165,13 +165,14 @@
 - [ ] Add a locally runnable API and worker without changing local mobile availability.
 - [x] Add PostgreSQL migrations and migration integration tests.
 - [x] Add bounded development authentication and server-side receipt authorization.
-- [ ] Add private S3-compatible attachment storage with signed or authenticated access.
-- [ ] Add cross-user receipt and attachment isolation tests.
+- [x] Add private S3-compatible attachment storage with signed or authenticated access.
+- [x] Add cross-user receipt and attachment isolation tests.
 - [x] Add cross-user receipt isolation tests with indistinguishable missing-object responses.
 - [x] Publish a machine-readable OpenAPI specification for implemented routes.
 - [ ] Add a web client that authenticates against the local server.
 - [ ] Add containerized PostgreSQL, object storage, local email, and mock provider services.
 - [x] Add a password-required, loopback-only PostgreSQL Compose service.
+- [x] Add a credential-required, loopback-only private MinIO Compose service and bucket initializer.
 - [x] Update current API and PostgreSQL development documentation with a secret-free environment
       example.
 
@@ -204,4 +205,23 @@
 - Integration tests run against PostgreSQL 16 and cover migration rollback, connection replacement,
   transaction cleanup, unsafe stored values, conflicts, and two-user isolation.
 - Compose binds PostgreSQL only to loopback, requires an uncommitted password, and does not represent
-  the incomplete worker, object-storage, email, provider, or web stack as available.
+  the incomplete worker, email, provider, or web stack as available.
+
+### Acceptance criteria for the hosted attachment slice
+
+- S3-compatible configuration is all-or-nothing, never logged, and rejected without durable
+  PostgreSQL metadata.
+- Original JPEG, PNG, and PDF uploads are content-inspected, resource-bounded, hashed, and written
+  once under UUID-derived keys that exclude original filenames.
+- PostgreSQL document metadata includes relational owner/receipt constraints; duplicate original
+  hashes are rejected per owner and unsafe stored byte sizes fail closed.
+- Object writes happen before metadata insertion, and metadata failure triggers compensating object
+  deletion without presenting the upload as complete.
+- Downloads perform owner-scoped metadata lookup before object access, stream within a byte bound,
+  and revalidate byte size plus SHA-256 before returning content.
+- Public or presigned object URLs and storage references are never returned. Cross-owner and missing
+  document requests share the same bounded `404` response.
+- Real PostgreSQL and MinIO tests cover owner isolation, private bucket state, immutable conditional
+  writes, bounded reads, metadata constraints, and byte-identical round trips.
+- The Compose S3 endpoint is loopback-only, publishes no administration console, uses pinned images,
+  requires uncommitted credentials, and initializes a bucket with anonymous access disabled.

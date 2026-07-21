@@ -12,6 +12,9 @@ boundaries. The development API adds untrusted HTTP requests, signed bearer toke
 receipt metadata, and the local network interface as current boundaries.
 PostgreSQL adds database credentials, durable hosted receipt rows, migrations, the node-postgres
 driver, a loopback Compose port, and the Docker daemon used by integration tests as boundaries.
+Private hosted attachments add untrusted base64 HTTP bodies, original filenames, object keys,
+owner-linked document metadata, S3 credentials and responses, a loopback MinIO endpoint, and
+cross-datastore write/cleanup behavior as current boundaries.
 
 ## Current threats
 
@@ -41,6 +44,9 @@ driver, a loopback Compose port, and the Docker daemon used by integration tests
 - Missing owner predicates in SQL, partial or concurrent migrations, cross-owner foreign-key
   relationships, database constraint bypass, unsafe `BIGINT` conversion, committed credentials, and
   a database connection string or driver exception leaking through startup or HTTP errors.
+- Public bucket configuration, exposed object keys, filename-derived traversal, overwrite races,
+  oversized or corrupt object responses, cross-owner attachment lookup, orphaned objects after
+  metadata failure, or S3 credentials/provider errors leaking through responses and logs.
 - Unsupported privacy or encryption claims creating user risk.
 
 ## Current mitigations
@@ -82,12 +88,16 @@ driver, a loopback Compose port, and the Docker daemon used by integration tests
   relational owner constraints, safe-integer parsing, production refusal of memory fallback,
   loopback-only initial Compose exposure, ignored secret-bearing `.env`, and real PostgreSQL rollback
   and two-user integration tests.
+- All-or-nothing S3 configuration tied to PostgreSQL; private loopback MinIO with no published
+  console or anonymous policy; content-derived MIME metadata; UUID-only keys; bounded streaming;
+  immutable conditional writes; size/hash validation; metadata-first authorization on reads;
+  compensating cleanup; bounded errors; and real MinIO plus cross-owner tests.
 - Documentation that distinguishes implemented and planned controls.
 
 ## Future review triggers
 
 Revisit this model before changing algorithms, rotating keys, adding password-derived keys,
-production authentication, object storage, a web origin, synchronization, location, billing, or a
-deployed database topology. Receipt images, OCR text, imported archives, HTTP bodies, database rows,
-and provider responses must always be treated as untrusted data and never as executable
-instructions.
+production authentication, hosted attachment deletion/direct transfer, a web origin,
+synchronization, location, billing, or a deployed database/object topology. Receipt images, OCR
+text, imported archives, HTTP bodies, database rows, object responses, and provider responses must
+always be treated as untrusted data and never as executable instructions.

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import type { Receipt } from '@reimbursd/domain';
+import type { Receipt, ReceiptDocument } from '@reimbursd/domain';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildApi } from './app.js';
 import type { ApiConfig } from './config.js';
+import type { HostedAttachmentOperations } from './hosted-attachment-service.js';
 import type { HostedReceiptRepository } from './receipt-repository.js';
 import type { ApiError, CreateReceiptBody, SessionResponse } from './schemas.js';
 
@@ -13,6 +14,7 @@ const testConfig: ApiConfig = {
   host: '127.0.0.1',
   jwtSecret: 'test-only-api-secret-that-is-at-least-32-characters',
   nodeEnvironment: 'test',
+  objectStorage: null,
   port: 3000,
 };
 
@@ -256,6 +258,82 @@ describe('Reimbursd API', () => {
 });
 
 describe('API boundary configuration', () => {
+  it('proxies attachment bytes only for the authenticated metadata owner', async () => {
+    const attachmentBytes = Uint8Array.from([1, 2, 3, 4]);
+    const document: ReceiptDocument = {
+      byteSize: attachmentBytes.byteLength,
+      createdAt: '2026-07-18T18:00:00.000Z',
+      heightPixels: 1,
+      id: '30000000-0000-4000-8000-000000000001',
+      isOriginal: true,
+      mimeType: 'image/png',
+      originalFilename: "synthetic (owner's).png",
+      pageCount: 1,
+      parentDocumentId: null,
+      receiptId,
+      sha256: '9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a',
+      sourceType: 'image_import',
+      storageDeletedAt: null,
+      storageReference: 'private-key-not-for-api-response',
+      widthPixels: 1,
+    };
+    const attachments: HostedAttachmentOperations = {
+      async download(ownerId) {
+        return ownerId === ownerA ? { bytes: attachmentBytes, document } : null;
+      },
+      async upload(input) {
+        expect(input.ownerId).toBe(ownerA);
+        expect([...input.bytes]).toEqual([...attachmentBytes]);
+        return document;
+      },
+    };
+    const app = await buildApi({ attachments, config: testConfig });
+
+    try {
+      const tokenA = await issueToken(app, ownerA);
+      const tokenB = await issueToken(app, ownerB);
+      const uploadResponse = await app.inject({
+        headers: { authorization: `Bearer ${tokenA}` },
+        method: 'POST',
+        payload: {
+          bytesBase64: Buffer.from(attachmentBytes).toString('base64'),
+          documentId: document.id,
+          originalFilename: document.originalFilename,
+          sourceType: document.sourceType,
+        },
+        url: `/v1/receipts/${receiptId}/documents`,
+      });
+      const crossOwner = await app.inject({
+        headers: { authorization: `Bearer ${tokenB}` },
+        method: 'GET',
+        url: `/v1/receipts/${receiptId}/documents/${document.id}/content`,
+      });
+      const ownerDownload = await app.inject({
+        headers: { authorization: `Bearer ${tokenA}` },
+        method: 'GET',
+        url: `/v1/receipts/${receiptId}/documents/${document.id}/content`,
+      });
+      const openApiResponse = await app.inject({ method: 'GET', url: '/openapi.json' });
+      const openApi = openApiResponse.json<{ paths?: Record<string, unknown> }>();
+
+      expect(uploadResponse.statusCode).toBe(201);
+      expect(uploadResponse.body).not.toContain('private-key-not-for-api-response');
+      expect(crossOwner.statusCode).toBe(404);
+      expect(ownerDownload.statusCode).toBe(200);
+      expect(ownerDownload.rawPayload).toEqual(Buffer.from(attachmentBytes));
+      expect(ownerDownload.headers['content-type']).toBe('image/png');
+      expect(ownerDownload.headers['content-disposition']).toBe(
+        'attachment; filename="receipt"; filename*=UTF-8\'\'synthetic%20%28owner%27s%29.png',
+      );
+      expect(openApi.paths).toHaveProperty('/v1/receipts/{receiptId}/documents');
+      expect(openApi.paths).toHaveProperty(
+        '/v1/receipts/{receiptId}/documents/{documentId}/content',
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
   it('reports PostgreSQL and runs configured cleanup on close', async () => {
     const onClose = vi.fn(async () => undefined);
     const app = await buildApi({
