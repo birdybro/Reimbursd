@@ -169,7 +169,7 @@
 - [x] Add cross-user receipt and attachment isolation tests.
 - [x] Add cross-user receipt isolation tests with indistinguishable missing-object responses.
 - [x] Publish a machine-readable OpenAPI specification for implemented routes.
-- [ ] Add a web client that authenticates against the local server.
+- [x] Add a web client that authenticates against the local server.
 - [ ] Add containerized PostgreSQL, object storage, local email, and mock provider services.
 - [x] Add a password-required, loopback-only PostgreSQL Compose service.
 - [x] Add a credential-required, loopback-only private MinIO Compose service and bucket initializer.
@@ -242,3 +242,23 @@
   restart without external or paid services.
 - Documentation clearly states that the readiness job is infrastructure verification and that no
   receipt OCR, AI, email, geocoding, billing, cleanup, or synchronization handler exists yet.
+
+### Acceptance criteria for the hosted web slice
+
+- The hosted web client is a separate strict React workspace and does not change the account-free
+  local mobile runtime or storage path.
+- Development browser requests use a relative same-origin `/api` path and a loopback-only Vite
+  proxy. Fastify CORS remains disabled, and absolute API locations fail closed.
+- Synthetic bearer tokens remain only in React memory, are sent with browser credentials omitted,
+  and disappear on refresh or sign-out. The UI labels this as development authentication.
+- `GET /v1/receipts` derives ownership only from the authenticated subject, excludes tombstones,
+  returns no more than 100 deterministic records, and has memory/PostgreSQL two-owner coverage.
+- Session, list, and create responses are byte-bounded and strictly validated; receipt results also
+  cross shared domain invariants before entering UI state.
+- The responsive web UI supports development sign-in, loading/error/empty states, owner receipt
+  listing, merchant/note search, and integer-minor-unit manual entry with accessible controls.
+- Unit and interaction tests cover request policy, validation, monetary conversion, sign-in, retry,
+  search, creation, and sign-out. A real Firefox run covers sign-in, creation, search, desktop and
+  mobile rendering, and horizontal-overflow checks.
+- Production authentication, revocable sessions, deployment reverse proxy/TLS, hosted edit/delete,
+  and pagination remain explicitly incomplete.

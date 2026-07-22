@@ -47,6 +47,12 @@ queue schema management, bounded concurrency, retry/retention mechanics, and `LI
 wakeup with polling fallback. Its locked permissively licensed dependencies and notices remain in
 `package-lock.json` and their installed packages.
 
+The Milestone 6 web client uses React and React DOM under the MIT license, Vite and its React plugin
+under the MIT license for development and production bundling, and Lucide React under the ISC
+license for interface icons. Testing Library, `user-event`, and jsdom are development-only
+dependencies under the MIT license. The installed packages preserve their license and copyright
+metadata, and the web artifact loads no third-party runtime asset origin.
+
 ## Development license data
 
 The development dependency graph includes permissive packages under the Blue Oak Model License

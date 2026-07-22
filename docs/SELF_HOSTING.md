@@ -2,11 +2,12 @@
 
 Milestone 6 is in progress. The repository contains a locally runnable Fastify API with strict JSON
 validation, generated OpenAPI 3.1.1 documentation, rate limiting, short-lived signed bearer tokens
-for development, server-side receipt ownership checks, optional PostgreSQL persistence, and private
-S3-compatible original attachment storage.
+for development, server-side receipt ownership checks, optional PostgreSQL persistence, private
+S3-compatible original attachment storage, a durable synthetic-readiness worker, and a separate
+same-origin development web client.
 
-The current API is not a production-ready self-hosted system. It has no production authentication,
-token revocation, hosted attachment deletion or reconciliation, worker, web client, CORS policy, TLS
+The current stack is not a production-ready self-hosted system. It has no production authentication,
+token revocation, hosted attachment deletion or reconciliation, deployment reverse proxy, TLS
 termination, email delivery, database/object backup workflow, or provider services. Do not expose it
 to an untrusted network or represent development identity issuance as account authentication.
 
@@ -31,15 +32,26 @@ cp .env.example .env
 docker compose up -d postgres minio minio-init
 ```
 
-Start the API and worker in separate terminals:
+Start the API, hosted-web client, and worker in separate terminals:
 
 ```sh
 npm run dev:api
 ```
 
 ```sh
+npm run dev:web
+```
+
+```sh
 npm run dev:worker
 ```
+
+Open `http://127.0.0.1:4173`. Vite proxies same-origin `/api` requests to the loopback API and strips
+that prefix. `REIMBURSD_WEB_API_PROXY_TARGET` may override the target only with an explicit loopback
+HTTP URL. The browser client rejects absolute API base URLs, holds the development token only in
+memory, and discards it on refresh or sign-out. Production artifacts still require an operator
+reverse proxy that serves web and API paths from one trusted origin; that deployment configuration
+is not implemented.
 
 PostgreSQL and the MinIO S3 endpoint bind only to loopback. The MinIO administration console is not
 published. The short-lived initializer creates the configured bucket and explicitly removes
@@ -71,6 +83,7 @@ testing. The route is absent when the setting is false, and production configura
 Bearer authentication is required for:
 
 - `POST /v1/receipts`
+- `GET /v1/receipts`
 - `GET /v1/receipts/{receiptId}`
 - `POST /v1/receipts/{receiptId}/documents`
 - `GET /v1/receipts/{receiptId}/documents/{documentId}/content`

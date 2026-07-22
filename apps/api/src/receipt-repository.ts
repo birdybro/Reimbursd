@@ -4,6 +4,7 @@ import type { Receipt } from '@reimbursd/domain';
 export interface HostedReceiptRepository {
   create(ownerId: string, receipt: Receipt): Promise<Receipt>;
   getByIdForOwner(ownerId: string, receiptId: string): Promise<Receipt | null>;
+  listForOwner(ownerId: string, maximum: number): Promise<readonly Receipt[]>;
 }
 
 export class HostedReceiptAlreadyExistsError extends Error {

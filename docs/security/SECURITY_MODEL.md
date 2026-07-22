@@ -112,6 +112,15 @@
   `LISTEN`/`NOTIFY` plus polling fallback. Unknown job data crosses a strict versioned Zod boundary;
   malformed jobs fail with a stable code rather than serialized payload content. Integration tests
   cover completion, invalid-job failure output, idempotent graceful stop, and restart.
+- The development web client uses only a relative same-origin API path. Vite proxies that path to an
+  explicitly loopback HTTP target, while API CORS remains disabled. The synthetic bearer token is
+  held only in React memory, sent with browser credentials omitted, and discarded on refresh or
+  sign-out. Absolute and protocol-relative API locations are rejected.
+- Hosted receipt lists are authenticated and owner-scoped, exclude tombstones, return at most 100
+  deterministic records, and are tested against both memory and PostgreSQL adapters. Browser API
+  responses are size-bounded, strictly schema-validated, and rechecked against shared receipt-domain
+  invariants before reaching UI state. The web artifact loads no third-party runtime origin and uses
+  a restrictive CSP; only the Vite development server adds its required inline-style allowance.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -126,8 +135,10 @@
   Linux development environment. SecureStore availability and persistence remain platform behavior,
   not the only recovery mechanism.
 - The API authentication mechanism is for isolated development only. Tokens cannot be revoked, and
-  no password, session persistence, TLS termination, hosted attachment deletion/reconciliation,
-  hosted backup, or web-origin policy exists yet. The Compose PostgreSQL and MinIO ports are
+  no password, durable session, TLS termination, hosted attachment deletion/reconciliation, hosted
+  backup, or production web reverse-proxy policy exists yet. The current web client deliberately
+  supports only same-origin development access and its CSP is delivered as HTML metadata rather
+  than an operator-controlled response header. The Compose PostgreSQL and MinIO ports are
   loopback-only, but database, object, and API transport security for a deployed topology remains an
   operator responsibility. The local stack uses MinIO root credentials for the API and is not a
   least-privilege production credential model.
@@ -139,9 +150,9 @@
 
 - Cross-platform PDF page-preview generation when a compatible bounded renderer is available.
 - An Android-compatible offline OCR adapter.
-- Production authentication, strict web CORS and CSRF behavior, secure revocable sessions, hosted
-  attachment lifecycle/reconciliation, PostgreSQL/object backup and restore, and deployed TLS
-  guidance.
+- Production authentication, deployed same-origin routing, explicit CORS and CSRF behavior, secure
+  revocable sessions, response security headers, hosted attachment lifecycle/reconciliation,
+  PostgreSQL/object backup and restore, and deployed TLS guidance.
 - Provider-contract and synchronization-conflict tests.
 
 ## Unsupported claims

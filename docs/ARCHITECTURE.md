@@ -7,6 +7,7 @@ Reimbursd is an npm workspace using strict TypeScript.
 ```text
 apps/api          Fastify authorization-first development API
 apps/mobile       Expo and React Native client
+apps/web          React hosted-service development client
 apps/worker       PostgreSQL-backed durable job worker
 packages/attachments File inspection and attachment-ingestion coordination
 packages/crypto   Authenticated backup framing and portable backup-key lifecycle
@@ -59,6 +60,17 @@ Job and provider errors are reduced to stable codes at process boundaries. The i
 no user or receipt data and is infrastructure verification rather than hosted receipt processing.
 Real PostgreSQL tests cover completion, invalid-job failure redaction, graceful idempotent shutdown,
 and restart against an existing queue schema.
+
+The hosted web application is a separate Vite/React workspace and does not import local mobile
+storage. Development requests use a relative `/api` base path proxied to the loopback API, while
+Fastify keeps CORS disabled. The short-lived synthetic bearer token exists only in React memory and
+is attached explicitly with browser credentials omitted. Session, receipt-list, and receipt-create
+responses cross strict Zod and shared receipt-domain validation before reaching UI state. The API
+list operation accepts authenticated owner identity only, excludes tombstones, applies a hard limit
+of 100, and orders deterministically in both storage adapters. Development serves CSS with the
+inline-style allowance required by Vite injection; production output retains the stricter
+self-hosted style policy. Production authentication, a deployment reverse proxy, revocable sessions,
+and response-header CSP remain outside this slice.
 
 The current mobile application has no network dependency and no account boundary. It opens Expo
 SQLite through an application adapter and passes a small asynchronous SQLite connection port to the
@@ -188,9 +200,9 @@ closes pending parser review history. A failure rolls back every part of the rev
 
 ## Intended growth
 
-Future work may add `apps/web`, receipt-processing worker queues, hosted attachment
-deletion/reconciliation, and focused packages for hosted schemas, providers, and synchronization.
-These are not required for local mobile use.
+Future work may add receipt-processing worker queues, hosted attachment deletion/reconciliation,
+and focused packages for hosted schemas, providers, and synchronization. These are not required for
+local mobile use.
 
 See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0002](architecture/adr/0002-local-sqlite-repository.md), and
@@ -207,4 +219,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0013](architecture/adr/0013-self-hosted-api-authorization-boundary.md), and
 [ADR-0014](architecture/adr/0014-owner-scoped-postgresql-persistence.md), and
 [ADR-0015](architecture/adr/0015-private-hosted-attachment-storage.md), and
-[ADR-0016](architecture/adr/0016-postgresql-worker-queue.md) for accepted decisions.
+[ADR-0016](architecture/adr/0016-postgresql-worker-queue.md), and
+[ADR-0017](architecture/adr/0017-same-origin-development-web-client.md) for accepted decisions.

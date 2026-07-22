@@ -26,6 +26,32 @@ describe('InMemoryHostedReceiptRepository', () => {
 
     await expect(repository.getByIdForOwner(ownerA, receipt.id)).resolves.toEqual(receipt);
     await expect(repository.getByIdForOwner(ownerB, receipt.id)).resolves.toBeNull();
+    await expect(repository.listForOwner(ownerA, 100)).resolves.toEqual([receipt]);
+    await expect(repository.listForOwner(ownerB, 100)).resolves.toEqual([]);
+  });
+
+  it('orders and bounds owner lists without returning mutable records', async () => {
+    const repository = new InMemoryHostedReceiptRepository();
+    const newer = createManualReceipt({
+      capturedAt: '2026-07-19T12:00:00-06:00',
+      currencyCode: 'USD',
+      id: '10000000-0000-4000-8000-000000000002',
+      merchantId: '20000000-0000-4000-8000-000000000002',
+      merchantName: 'Newer Synthetic Merchant',
+      purchasedAt: '2026-07-19T11:30:00-06:00',
+      subtotalMinor: 500,
+      taxMinor: 40,
+      tipMinor: 0,
+      totalMinor: 540,
+    });
+    await repository.create(ownerA, receipt);
+    await repository.create(ownerA, newer);
+    const listed = await repository.listForOwner(ownerA, 1);
+
+    expect(listed).toEqual([newer]);
+    await expect(repository.listForOwner(ownerA, 101)).rejects.toThrow(
+      'Hosted receipt list maximum must be between 1 and 100.',
+    );
   });
 
   it('rejects globally duplicate receipt IDs', async () => {

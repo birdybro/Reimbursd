@@ -18,6 +18,8 @@ cross-datastore write/cleanup behavior as current boundaries.
 The worker adds a separately connected process, a `pg-boss` schema, durable job payload and output
 rows, queue migrations, notifications, handler concurrency, and shutdown behavior as current
 boundaries. The only current job payload is a synthetic schema version and UUID.
+The hosted web slice adds the browser DOM, a Vite development origin and proxy, a memory-held bearer
+token, strict API response parsing, and user-entered search and manual-expense fields as boundaries.
 
 ## Current threats
 
@@ -53,6 +55,9 @@ boundaries. The only current job payload is a synthetic schema version and UUID.
 - Unvalidated or oversized jobs reaching handlers, queue errors serializing sensitive payloads,
   unbounded concurrency, duplicate process startup, interrupted shutdown, incompatible queue schema
   changes, or worker availability becoming a dependency of local mobile use.
+- Cross-origin API exposure, automatic browser credential attachment, XSS or external assets
+  exfiltrating a development token, malformed API responses entering UI state, unbounded owner
+  listings, or responsive controls becoming inaccessible or overlapping.
 - Unsupported privacy or encryption claims creating user risk.
 
 ## Current mitigations
@@ -102,12 +107,16 @@ boundaries. The only current job payload is a synthetic schema version and UUID.
   single local handler concurrency, a data-free synthetic readiness contract, stable failure and
   process messages, graceful idempotent stop, no mobile dependency, and real PostgreSQL delivery and
   restart tests.
+- A relative-only same-origin API path, loopback-only Vite proxy targets, disabled API CORS,
+  credential-omitting fetches, memory-only short-lived tokens, no external runtime assets, bounded
+  response parsing, Zod plus domain validation, a 100-record owner-scoped list limit, accessible UI
+  tests, and desktop/mobile Firefox workflow and overflow checks.
 - Documentation that distinguishes implemented and planned controls.
 
 ## Future review triggers
 
 Revisit this model before changing algorithms, rotating keys, adding password-derived keys,
-production authentication, hosted attachment deletion/direct transfer, a web origin,
+production authentication, hosted attachment deletion/direct transfer, a deployed web origin,
 synchronization, receipt-bearing worker jobs, location, billing, or a deployed database/object
 topology. Receipt images, OCR text, imported archives, HTTP bodies, database rows, queued jobs,
 object responses, and provider responses must always be treated as untrusted data and never as

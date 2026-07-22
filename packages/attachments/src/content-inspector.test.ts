@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { PDFDocument } from 'pdf-lib/dist/pdf-lib.esm.js';
+import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 
 import { AttachmentInspectionError, PdfLibAttachmentInspector } from './content-inspector.js';

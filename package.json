@@ -19,6 +19,7 @@
     "build": "npm run build --workspaces --if-present",
     "dev:api": "npm run dev --workspace @reimbursd/api",
     "dev:mobile": "npm run start --workspace @reimbursd/mobile",
+    "dev:web": "npm run dev --workspace @reimbursd/web",
     "dev:worker": "npm run dev --workspace @reimbursd/worker",
     "doctor": "expo-doctor apps/mobile",
     "format": "prettier --write .",
@@ -30,7 +31,7 @@
     "test:watch": "vitest",
     "audit": "npm audit --audit-level=high",
     "licenses": "license-checker-rseidelsohn --excludePrivatePackages --summary --onlyAllow \"0BSD;Apache-2.0;BlueOak-1.0.0;BSD-2-Clause;BSD-3-Clause;CC-BY-3.0;CC-BY-4.0;CC0-1.0;ISC;MIT;MIT-0;MPL-2.0;Python-2.0;Unlicense;Unicode-3.0\"",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run test:ui && npm run licenses && npm run audit && npm run doctor && npm run build"
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run test:ui && npm run test:runtime --workspace @reimbursd/api && npm run licenses && npm run audit && npm run doctor && npm run build"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

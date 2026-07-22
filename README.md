@@ -56,10 +56,12 @@ S3-compatible adapter validates JPEG, PNG, and PDF originals, writes them immuta
 owner-linked metadata, and proxies authenticated downloads without exposing object keys. The local
 Compose stack provides a loopback-only private MinIO bucket. A separate PostgreSQL-backed worker now
 proves durable validated job delivery through a synthetic readiness queue; it does not process
-receipt data yet. Without a database URL, development receipt storage remains process memory and
-attachment routes are unavailable. The hosted system still has no production authentication,
-hosted attachment deletion, receipt-processing jobs, or web client. The local mobile application
-does not depend on these services.
+receipt data yet. A separate Vite/React web client uses a same-origin development proxy, keeps its
+short-lived synthetic bearer token only in memory, and supports owner-scoped receipt listing,
+search, and manual entry. Without a database URL, development receipt storage remains process
+memory and attachment routes are unavailable. The hosted system still has no production
+authentication, hosted attachment deletion, receipt-processing jobs, or deployment reverse proxy.
+The local mobile application does not depend on these services.
 
 ## Requirements
 
@@ -79,15 +81,26 @@ Use the Expo terminal interface to open an Android emulator, iOS simulator, or b
 expenses and supported receipt originals persist in the platform's local application storage. No
 account, environment variable, hosted service, or paid provider is required.
 
+The development hosted-web slice runs separately after configuring the local API as documented in
+[`docs/SELF_HOSTING.md`](docs/SELF_HOSTING.md):
+
+```sh
+npm run dev:api
+npm run dev:web
+```
+
+Open `http://127.0.0.1:4173`. This synthetic development identity flow is not production
+authentication and is independent of account-free mobile storage.
+
 ## Quality gate
 
 ```sh
 npm run verify
 ```
 
-This checks formatting, linting, strict TypeScript, domain, SQLite, real PostgreSQL, and real MinIO
-tests, React Native UI interactions, dependency licenses, known high-severity dependency
-vulnerabilities, Expo configuration, and production builds.
+This checks formatting, linting, strict TypeScript, domain, web, SQLite, real PostgreSQL, and real
+MinIO tests, the API's direct Node runtime import, React Native UI interactions, dependency licenses,
+known high-severity dependency vulnerabilities, Expo configuration, and production builds.
 
 See [development documentation](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md), and
 [privacy commitments](PRIVACY.md) for current details.

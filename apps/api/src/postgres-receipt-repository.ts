@@ -166,6 +166,19 @@ export class PostgresHostedReceiptRepository implements HostedReceiptRepository 
     const row = result.rows[0];
     return row ? mapReceiptRow(row) : null;
   }
+
+  async listForOwner(ownerId: string, maximum: number): Promise<readonly Receipt[]> {
+    assertUuid(ownerId, 'Owner ID');
+    assertMaximum(maximum);
+    const result = await this.#pool.query<HostedReceiptRow>(
+      `${selectReceipt}
+       WHERE r.owner_id = $1 AND r.deleted_at IS NULL
+       ORDER BY r.purchased_at DESC, r.created_at DESC, r.id DESC
+       LIMIT $2;`,
+      [ownerId, maximum],
+    );
+    return result.rows.map(mapReceiptRow);
+  }
 }
 
 function mapReceiptRow(row: HostedReceiptRow): Receipt {
@@ -239,6 +252,12 @@ function isConstraintConflict(error: unknown): boolean {
 function assertUuid(value: string, label: string): void {
   if (!isUuid(value)) {
     throw new TypeError(`${label} must be a UUID.`);
+  }
+}
+
+function assertMaximum(maximum: number): void {
+  if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > 100) {
+    throw new RangeError('Hosted receipt list maximum must be between 1 and 100.');
   }
 }
 

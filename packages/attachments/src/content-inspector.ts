@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-/// <reference path="./pdf-lib-esm.d.ts" />
-import { PDFDocument } from 'pdf-lib/dist/pdf-lib.esm.js';
+import { PDFDocument } from 'pdf-lib';
 
 import type { ReceiptDocumentMimeType } from '@reimbursd/domain';
 

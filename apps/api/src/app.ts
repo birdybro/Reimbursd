@@ -41,6 +41,7 @@ import {
   receiptIdOnlyParamsJsonSchema,
   receiptIdOnlyParamsSchema,
   receiptJsonSchema,
+  receiptListJsonSchema,
   sessionResponseJsonSchema,
   uploadAttachmentBodyJsonSchema,
   uploadAttachmentBodySchema,
@@ -294,6 +295,26 @@ export async function buildApi(options: BuildApiOptions): Promise<FastifyInstanc
       const savedReceipt = await repository.create(getOwnerId(request), receipt);
       return reply.code(201).send(savedReceipt);
     },
+  );
+
+  app.get(
+    '/v1/receipts',
+    {
+      onRequest: requireOwner,
+      schema: {
+        description: 'Returns up to 100 active manual receipts for the authenticated owner.',
+        operationId: 'listReceipts',
+        response: {
+          200: receiptListJsonSchema,
+          401: apiErrorJsonSchema,
+          429: apiErrorJsonSchema,
+          500: apiErrorJsonSchema,
+        },
+        security: [{ bearerAuth: [] }],
+        tags: ['receipts'],
+      },
+    },
+    async (request) => repository.listForOwner(getOwnerId(request), 100),
   );
 
   app.get(

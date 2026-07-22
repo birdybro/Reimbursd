@@ -103,6 +103,12 @@ export const receiptJsonSchema = {
   type: 'object',
 } as const;
 
+export const receiptListJsonSchema = {
+  items: receiptJsonSchema,
+  maxItems: 100,
+  type: 'array',
+} as const;
+
 export const receiptIdParamsJsonSchema = {
   additionalProperties: false,
   properties: { receiptId: uuidJsonSchema },

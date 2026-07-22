@@ -1,37 +1,37 @@
 # Agent Status
 
 - Current milestone: Milestone 6 - Self-hosted backend and web foundation
-- Current task: Add a web client that authenticates against the local API without changing mobile
-  local availability.
-- Last completed task: Added a separately runnable strict TypeScript worker using a namespaced
-  PostgreSQL `pg-boss` queue, versioned synthetic readiness jobs, strict unknown-data validation,
-  bounded concurrency/errors, graceful shutdown, restart coverage, and local launch documentation.
-- Commands executed: Reviewed current `pg-boss` and Graphile Worker package metadata; selected and
-  installed the MIT-licensed `pg-boss` dependency; ran worker unit, type, lint, build, license, and
-  real PostgreSQL integration tests; started the built worker against a temporary Compose PostgreSQL
-  service, observed durable readiness, stopped it with `SIGINT`, and removed its container, network,
-  and volume. The first full gate attempt passed 224 Vitest and 51 UI tests but Expo Doctor changed
-  its compatibility data and required four newer SDK 57 patches. Installed the four MIT-licensed
-  Doctor-prescribed patch versions, confirmed Doctor 20/20, and reran `npm run verify` successfully.
-- Test and build status: `npm run verify` passes. Two hundred twenty-four Vitest tests and fifty-one
-  React Native/Jest interaction tests pass. Formatting, linting, strict type checking, license
-  validation, the high-severity audit threshold, Expo Doctor 20/20, all workspace builds, and the
-  production Expo web export pass. The worker package has four passing tests, including real
-  PostgreSQL delivery, invalid-job failure redaction, shutdown, and restart coverage.
-- Current assumptions: The API and worker bind/connect only through operator configuration; local
-  mobile functionality remains independent. The worker requires PostgreSQL, uses a separate queue
-  schema, and currently handles only a versioned synthetic UUID readiness job with no user or receipt
-  content. Synthetic development identity and the local MinIO root credential model remain
-  non-production infrastructure.
+- Current task: Add containerized local email capture and deterministic mock provider services.
+- Last completed task: Added a separate responsive Vite/React hosted-web client with same-origin
+  development authentication, owner-scoped receipt listing/search/manual entry, strict response and
+  money validation, accessible interaction coverage, and desktop/mobile Firefox validation.
+- Commands executed: Installed and license-reviewed the web workspace dependencies; ran focused web
+  tests and the 51-test API suite against real PostgreSQL and MinIO. Repaired an Expo partial-install
+  development bundle without restarting its server. Browser smoke testing exposed and fixed Vite
+  development CSP styling, native `fetch` receiver binding, and a Node ESM `pdf-lib` import failure;
+  added a direct API runtime import check. Started loopback API/web servers, completed real Firefox
+  sign-in/create/search at 1440x900 and 390x844 with no horizontal control overflow, reviewed both
+  screenshots, and ran `npm run verify` successfully.
+- Test and build status: `npm run verify` passes. Two hundred thirty-five Vitest tests and fifty-one
+  React Native/Jest interaction tests pass. The direct Node API import probe, formatting, linting,
+  strict type checking, license validation, the high-severity audit threshold, Expo Doctor 20/20,
+  all workspace builds, and both Expo and Vite production web builds pass. Real Firefox exercised
+  hosted development sign-in, owner listing, manual creation, search, and responsive layouts.
+- Current assumptions: The API, web, and worker bind/connect only through operator configuration;
+  local mobile functionality remains independent. The hosted web slice is development-only, uses a
+  same-origin Vite proxy, and keeps the synthetic token only in memory. The worker requires
+  PostgreSQL and still handles only a versioned synthetic readiness job. Process-memory API storage,
+  synthetic identity, and local MinIO root credentials remain non-production infrastructure.
 - Known defects: Android/web OCR, PDF page previews, and category/tag rename/delete UI are not
   implemented. Restored derivative previews are not regenerated immediately. Deterministic parsing
   will not cover every receipt layout or language. Image ingestion supports JPEG and PNG, not HEIC
   or WebP. Native Android/iOS launch, native sharing/restore/key storage, and Apple Vision execution
   were not exercised in this Linux environment. The hosted system has no receipt-processing worker
   jobs, hosted attachment deletion or orphan reconciliation, hosted backup, production
-  authentication, web client, CORS policy, or deployed TLS guidance. Expo SDK 57 carries eleven
-  moderate build-tool advisories; there are no high or critical advisories, and npm's suggested fix
-  is incompatible with the current Expo stack.
+  authentication, revocable sessions, deployment reverse proxy/TLS guidance, paginated lists, or
+  hosted receipt edit/delete UI. Expo SDK 57 carries eleven moderate build-tool advisories; there are
+  no high or critical advisories, and npm's suggested fix is incompatible with the current Expo
+  stack.
 - Current blockers: None.
-- Next task: Establish the web/API browser trust boundary, then implement local development sign-in
-  and owner-scoped receipt create/read through the generated API contract.
+- Next task: Define provider health/data boundaries, then add local email capture plus deterministic
+  mock AI, geocoding, and billing services to Compose without creating receipt-processing claims.

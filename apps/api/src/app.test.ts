@@ -99,6 +99,11 @@ describe('Reimbursd API', () => {
       method: 'GET',
       url: `/v1/receipts/${receiptId}`,
     });
+    const listResponse = await app.inject({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'GET',
+      url: '/v1/receipts',
+    });
 
     expect(createResponse.statusCode).toBe(201);
     expect(createResponse.json<Receipt>()).toMatchObject({
@@ -109,6 +114,8 @@ describe('Reimbursd API', () => {
     });
     expect(getResponse.statusCode).toBe(200);
     expect(getResponse.json<Receipt>()).toEqual(createResponse.json<Receipt>());
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json<Receipt[]>()).toEqual([createResponse.json<Receipt>()]);
   });
 
   it('makes cross-owner and missing receipt responses indistinguishable', async () => {
@@ -126,6 +133,11 @@ describe('Reimbursd API', () => {
       method: 'GET',
       url: `/v1/receipts/${receiptId}`,
     });
+    const crossOwnerList = await app.inject({
+      headers: { authorization: `Bearer ${tokenB}` },
+      method: 'GET',
+      url: '/v1/receipts',
+    });
     const missing = await app.inject({
       headers: { authorization: `Bearer ${tokenB}` },
       method: 'GET',
@@ -135,6 +147,8 @@ describe('Reimbursd API', () => {
     expect(crossOwner.statusCode).toBe(404);
     expect(crossOwner.body).toBe(missing.body);
     expect(crossOwner.body).not.toContain(receiptId);
+    expect(crossOwnerList.statusCode).toBe(200);
+    expect(crossOwnerList.json()).toEqual([]);
   });
 
   it('rejects missing and malformed bearer tokens with a bounded response', async () => {
@@ -402,6 +416,9 @@ describe('API boundary configuration', () => {
       },
       async getByIdForOwner() {
         throw new Error('Private receipt lookup details');
+      },
+      async listForOwner() {
+        throw new Error('Private receipt list details');
       },
     };
     const app = await buildApi({ config: testConfig, repository: sensitiveErrorRepository });

@@ -37,6 +37,8 @@ usable; no external fallback is used.
 - `npm run dev:mobile`: start the Expo development server.
 - `npm run dev:api`: start the process-local Milestone 6 API after configuring `.env` as documented
   in `docs/SELF_HOSTING.md`.
+- `npm run dev:web`: start the loopback Vite hosted-web client on `http://127.0.0.1:4173`; its
+  same-origin `/api` proxy expects the development API on `http://127.0.0.1:3000` by default.
 - `npm run dev:worker`: start the PostgreSQL-backed Milestone 6 worker after configuring `.env` as
   documented in `docs/SELF_HOSTING.md`.
 - `npm run android:native --workspace @reimbursd/mobile`: generate and run an Android development
@@ -62,8 +64,11 @@ owner-scoped receipt storage. Configuring every `REIMBURSD_OBJECT_*` value enabl
 attachment upload and authenticated proxy download through private S3-compatible storage. Object
 storage is rejected without PostgreSQL metadata. Production configuration requires PostgreSQL.
 Development identity issuance is still not production authentication. Keep the API and object store
-bound to loopback; CORS is intentionally disabled until the web client and credential policy are
-implemented.
+bound to loopback. The web client keeps its 15-minute bearer token only in React memory and reaches
+the API through Vite's same-origin `/api` proxy, so API CORS remains disabled. Vite development CSS
+requires an inline-style CSP allowance while the development server is running; the production
+artifact retains `style-src 'self'`. A production reverse proxy, authentication system, session
+policy, and response-header CSP are not implemented.
 
 The root test and verification commands start disposable `postgres:16-alpine` and pinned MinIO
 containers through Testcontainers. Docker must be running. Tests use synthetic credentials and stop

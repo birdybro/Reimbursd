@@ -200,6 +200,11 @@ describe.sequential('PostgreSQL hosted receipt persistence', () => {
 
     await expect(repository.getByIdForOwner(ownerB, receipt.id)).resolves.toBeNull();
     await expect(repository.getByIdForOwner(ownerA, receipt.id)).resolves.toEqual(receipt);
+    await expect(repository.listForOwner(ownerA, 100)).resolves.toEqual([receipt]);
+    await expect(repository.listForOwner(ownerB, 100)).resolves.toEqual([]);
+    await expect(repository.listForOwner(ownerA, 101)).rejects.toThrow(
+      'Hosted receipt list maximum must be between 1 and 100.',
+    );
     await expect(repository.getByIdForOwner('not-a-uuid', receipt.id)).rejects.toThrow(
       'Owner ID must be a UUID.',
     );

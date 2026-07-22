@@ -29,20 +29,30 @@ boundaries emit stable messages without job payloads or database URLs. Real Post
 completion, malformed-job failure output, idempotent graceful stop, and restart. A built-process
 smoke test passed against fresh Compose PostgreSQL and all temporary resources were removed.
 
+`apps/web` is a separate Vite/React hosted-service client. It uses a relative same-origin `/api`
+path proxied to the loopback API, while API CORS remains disabled. Its short-lived synthetic token
+is held only in React memory. It supports owner-scoped active receipt listing, merchant/note search,
+and manual hosted receipt creation with strict response/domain and integer-money validation. A real
+Firefox workflow passed sign-in, create, and search at desktop and mobile viewports with no visible
+control overflow. This remains development access, not production authentication.
+
 The worker readiness job contains no user or receipt data and is not presented as receipt
 processing. OCR, AI, email, geocoding, billing, cleanup, synchronization jobs, job-specific consent,
 provenance, retention, cancellation, and dead-letter administration remain future work. Local mobile
 startup and every account-free workflow remain independent of API, worker, PostgreSQL, and MinIO.
 
-The complete gate passes with 224 Vitest tests, 51 React Native/Jest tests, Expo Doctor 20/20, and
-all builds. Four Expo SDK 57 packages were aligned to the patch versions required by current Doctor
-compatibility data. Eleven moderate Expo build-tool advisories remain documented; no high or
-critical advisory is present. The Expo web development server remains at `http://localhost:8081`.
+The complete gate passes with 235 Vitest tests, 51 React Native/Jest tests, the direct Node API
+runtime import probe, Expo Doctor 20/20, and all builds. Eleven moderate Expo build-tool advisories
+remain documented; no high or critical advisory is present. The Expo development server remains at
+`http://localhost:8081`; the hosted web client and its API are running on loopback ports 4173 and
+3000 for continued local review.
 
 ## Resume steps
 
 1. Read `AGENTS.md`, `docs/agent/STATUS.md`, and `docs/agent/TASKS.md`.
 2. Inspect `git status --short` and preserve uncommitted work.
-3. Confirm the PostgreSQL worker foundation is committed.
-4. Define the browser credential/CORS/CSRF boundary before implementing the self-hosted web client.
-5. Keep the web client separate from the local mobile app and run `npm run verify` before committing.
+3. Confirm the hosted web slice is committed and the working tree contains no unrelated changes.
+4. Define health, data, and failure boundaries for local email capture and deterministic mock AI,
+   geocoding, and billing providers.
+5. Keep mock services free of receipt data until explicit provider ports and processing jobs exist,
+   and run `npm run verify` before the next logical commit.

@@ -18,3 +18,4 @@
 | [0014](adr/0014-owner-scoped-postgresql-persistence.md)    | Accepted | Persist hosted receipts through transactional owner-scoped PostgreSQL operations |
 | [0015](adr/0015-private-hosted-attachment-storage.md)      | Accepted | Proxy owner-authorized receipt originals through private S3-compatible storage   |
 | [0016](adr/0016-postgresql-worker-queue.md)                | Accepted | Run validated durable worker jobs through the existing PostgreSQL service        |
+| [0017](adr/0017-same-origin-development-web-client.md)     | Accepted | Keep development web authentication memory-only behind a same-origin API proxy   |

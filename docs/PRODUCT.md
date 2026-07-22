@@ -33,6 +33,9 @@ queries tested against a real disposable database; development can still use exp
 process memory. Optional private S3-compatible original storage uses owner-linked PostgreSQL
 metadata, immutable content-validated objects, and authenticated proxy downloads tested against a
 real disposable MinIO service. A PostgreSQL-backed worker foundation executes a versioned synthetic
-readiness job but no receipt content or provider processing. Hosted attachment deletion, production
-authentication, receipt-processing jobs, and the web client are not implemented. Synchronization,
-billing, remote AI, and location enrichment remain later milestones.
+readiness job but no receipt content or provider processing. A development-only hosted web client
+authenticates through the synthetic local identity route, lists and searches owner-scoped receipts,
+and creates manual receipt metadata through a same-origin proxy. Its bearer token is memory-only;
+production authentication, session management, and reverse-proxy deployment are not implemented.
+Hosted attachment deletion and receipt-processing jobs remain incomplete. Synchronization, billing,
+remote AI, and location enrichment remain later milestones.
