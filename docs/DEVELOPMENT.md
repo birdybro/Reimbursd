@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 22 or newer
+- Node.js 22.12 or newer
 - npm 10 or newer
 - Git
 - An Expo-supported Android, iOS, or web environment
@@ -37,6 +37,8 @@ usable; no external fallback is used.
 - `npm run dev:mobile`: start the Expo development server.
 - `npm run dev:api`: start the process-local Milestone 6 API after configuring `.env` as documented
   in `docs/SELF_HOSTING.md`.
+- `npm run dev:worker`: start the PostgreSQL-backed Milestone 6 worker after configuring `.env` as
+  documented in `docs/SELF_HOSTING.md`.
 - `npm run android:native --workspace @reimbursd/mobile`: generate and run an Android development
   build; local OCR is not implemented on Android yet.
 - `npm run ios:native --workspace @reimbursd/mobile`: generate and run an iOS development build with
@@ -66,6 +68,12 @@ implemented.
 The root test and verification commands start disposable `postgres:16-alpine` and pinned MinIO
 containers through Testcontainers. Docker must be running. Tests use synthetic credentials and stop
 their containers after the suite.
+
+The worker requires `REIMBURSD_DATABASE_URL`. It owns a namespaced `pg-boss` schema, uses
+`LISTEN`/`NOTIFY` with polling fallback, and proves startup by completing one strictly validated
+synthetic readiness job. The initial job contains only a schema version and generated UUID. It is a
+durable worker foundation, not receipt processing; no hosted OCR, AI, email, geocoding, billing, or
+cleanup handler is registered.
 
 Use synthetic test data only. Mobile data is stored in the platform application sandbox. Web data
 and receipt files are stored for the current browser origin and profile. Removing browser site data

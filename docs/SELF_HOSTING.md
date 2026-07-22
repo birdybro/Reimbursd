@@ -29,7 +29,16 @@ uncommitted.
 npm install
 cp .env.example .env
 docker compose up -d postgres minio minio-init
+```
+
+Start the API and worker in separate terminals:
+
+```sh
 npm run dev:api
+```
+
+```sh
+npm run dev:worker
 ```
 
 PostgreSQL and the MinIO S3 endpoint bind only to loopback. The MinIO administration console is not
@@ -69,6 +78,18 @@ Bearer authentication is required for:
 The authenticated token subject, never a request body field, determines ownership. Cross-owner and
 missing receipt/document reads return the same bounded `404`; unauthorized document requests do not
 read object storage.
+
+## Development worker
+
+`npm run dev:worker` connects to the same PostgreSQL database and maintains a separate
+`reimbursd_jobs` schema through `pg-boss`. Startup registers a single-concurrency system readiness
+queue, sends a versioned synthetic UUID job, validates it at the handler boundary, and reports ready
+only after handler delivery. PostgreSQL notifications provide low-latency wakeup with bounded polling
+as the correctness fallback. `SIGINT` and `SIGTERM` stop job fetching and close queue connections.
+
+This readiness job contains no receipt or user content. No receipt OCR, AI, email, geocoding,
+billing, attachment cleanup, or synchronization job is implemented. The worker is not required by
+the local mobile application.
 
 Without `REIMBURSD_DATABASE_URL`, development receipt metadata remains process memory and disappears
 at restart. Attachment configuration is unavailable in that mode. The local mobile application

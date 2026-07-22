@@ -162,7 +162,7 @@
 ## Milestone 6: Self-hosted backend and web foundation
 
 - [x] Define the initial API trust, authorization, data, and migration boundary in an ADR.
-- [ ] Add a locally runnable API and worker without changing local mobile availability.
+- [x] Add a locally runnable API and worker without changing local mobile availability.
 - [x] Add PostgreSQL migrations and migration integration tests.
 - [x] Add bounded development authentication and server-side receipt authorization.
 - [x] Add private S3-compatible attachment storage with signed or authenticated access.
@@ -225,3 +225,20 @@
   writes, bounded reads, metadata constraints, and byte-identical round trips.
 - The Compose S3 endpoint is loopback-only, publishes no administration console, uses pinned images,
   requires uncommitted credentials, and initializes a bucket with anonymous access disabled.
+
+### Acceptance criteria for the worker foundation slice
+
+- The worker is a separate strict TypeScript workspace that requires PostgreSQL and remains optional
+  for every local mobile workflow.
+- A maintained MIT-licensed PostgreSQL queue library owns durable delivery, locking, notification,
+  retry/retention primitives, and queue schema lifecycle instead of ad hoc timers or a custom queue.
+- Startup registers a single-concurrency readiness handler, publishes a versioned synthetic UUID job,
+  and reports ready only after validated handler delivery.
+- Unknown job data is strictly validated. Malformed jobs fail with a bounded stable code that does
+  not include submitted fields, database URLs, provider errors, or receipt content.
+- Shutdown is graceful and idempotent; restart works against the existing queue schema without
+  losing durable behavior.
+- Real PostgreSQL integration tests cover completion, malformed-job failure output, shutdown, and
+  restart without external or paid services.
+- Documentation clearly states that the readiness job is infrastructure verification and that no
+  receipt OCR, AI, email, geocoding, billing, cleanup, or synchronization handler exists yet.

@@ -54,14 +54,16 @@ server-side owner isolation for manual receipt metadata. Optional PostgreSQL 16 
 transactional migrations and owner predicates tested against a disposable real database. A private
 S3-compatible adapter validates JPEG, PNG, and PDF originals, writes them immutably, stores
 owner-linked metadata, and proxies authenticated downloads without exposing object keys. The local
-Compose stack provides a loopback-only private MinIO bucket. Without a database URL, development
-receipt storage remains process memory and attachment routes are unavailable. The API still has no
-production authentication, hosted attachment deletion, worker, or web client. The local mobile
-application does not depend on this service.
+Compose stack provides a loopback-only private MinIO bucket. A separate PostgreSQL-backed worker now
+proves durable validated job delivery through a synthetic readiness queue; it does not process
+receipt data yet. Without a database URL, development receipt storage remains process memory and
+attachment routes are unavailable. The hosted system still has no production authentication,
+hosted attachment deletion, receipt-processing jobs, or web client. The local mobile application
+does not depend on these services.
 
 ## Requirements
 
-- Node.js 22 or newer
+- Node.js 22.12 or newer
 - npm 10 or newer
 - An Expo-supported Android, iOS, or web development environment
 - Docker when running the full gate or PostgreSQL/MinIO-backed API development

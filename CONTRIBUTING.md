@@ -5,7 +5,7 @@ agree that it may be distributed under that license.
 
 ## Development workflow
 
-1. Use Node.js 22 or newer and npm 10 or newer.
+1. Use Node.js 22.12 or newer and npm 10 or newer.
 2. Run `npm install` from the repository root.
 3. Run `npm run dev:mobile` to start the Expo application.
 4. Add focused tests for behavior changes.

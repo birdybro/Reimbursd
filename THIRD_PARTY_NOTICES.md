@@ -42,6 +42,11 @@ tests against a disposable pinned MinIO container. The development Compose stack
 MinIO server and client images under the GNU AGPLv3; those images are fetched separately and are not
 bundled into Reimbursd source or application artifacts.
 
+The Milestone 6 worker uses `pg-boss` under the MIT license for durable PostgreSQL job delivery,
+queue schema management, bounded concurrency, retry/retention mechanics, and `LISTEN`/`NOTIFY`
+wakeup with polling fallback. Its locked permissively licensed dependencies and notices remain in
+`package-lock.json` and their installed packages.
+
 ## Development license data
 
 The development dependency graph includes permissive packages under the Blue Oak Model License

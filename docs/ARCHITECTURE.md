@@ -7,6 +7,7 @@ Reimbursd is an npm workspace using strict TypeScript.
 ```text
 apps/api          Fastify authorization-first development API
 apps/mobile       Expo and React Native client
+apps/worker       PostgreSQL-backed durable job worker
 packages/attachments File inspection and attachment-ingestion coordination
 packages/crypto   Authenticated backup framing and portable backup-key lifecycle
 packages/domain   Framework-independent business rules
@@ -49,6 +50,15 @@ stream and revalidates byte size plus SHA-256 before proxying bytes. Public and 
 are not exposed. Configuration is all-or-nothing and requires PostgreSQL; real MinIO and PostgreSQL
 tests cover private bucket policy, write-once behavior, resource limits, metadata ownership, and
 cross-owner denial.
+
+The worker is a separate optional Node.js process backed by `pg-boss` in a namespaced PostgreSQL
+schema. It enables `LISTEN`/`NOTIFY` with polling fallback and bounds the initial readiness queue to
+one locally concurrent job. Startup writes a versioned synthetic UUID job, validates unknown job data
+through Zod at the handler boundary, and reaches readiness only when the handler receives that job.
+Job and provider errors are reduced to stable codes at process boundaries. The initial queue contains
+no user or receipt data and is infrastructure verification rather than hosted receipt processing.
+Real PostgreSQL tests cover completion, invalid-job failure redaction, graceful idempotent shutdown,
+and restart against an existing queue schema.
 
 The current mobile application has no network dependency and no account boundary. It opens Expo
 SQLite through an application adapter and passes a small asynchronous SQLite connection port to the
@@ -178,9 +188,9 @@ closes pending parser review history. A failure rolls back every part of the rev
 
 ## Intended growth
 
-Future work may add `apps/web`, `apps/worker`, hosted attachment deletion/reconciliation, and focused
-packages for hosted schemas, providers, and synchronization. These are not required for local mobile
-use.
+Future work may add `apps/web`, receipt-processing worker queues, hosted attachment
+deletion/reconciliation, and focused packages for hosted schemas, providers, and synchronization.
+These are not required for local mobile use.
 
 See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0002](architecture/adr/0002-local-sqlite-repository.md), and
@@ -196,4 +206,5 @@ See [ADR-0001](architecture/adr/0001-workspace-and-mobile-foundation.md) and
 [ADR-0012](architecture/adr/0012-authenticated-encrypted-backup.md), and
 [ADR-0013](architecture/adr/0013-self-hosted-api-authorization-boundary.md), and
 [ADR-0014](architecture/adr/0014-owner-scoped-postgresql-persistence.md), and
-[ADR-0015](architecture/adr/0015-private-hosted-attachment-storage.md) for accepted decisions.
+[ADR-0015](architecture/adr/0015-private-hosted-attachment-storage.md), and
+[ADR-0016](architecture/adr/0016-postgresql-worker-queue.md) for accepted decisions.

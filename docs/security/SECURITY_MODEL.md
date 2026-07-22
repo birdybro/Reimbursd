@@ -107,6 +107,11 @@
 - The local Compose MinIO endpoint is loopback-only, publishes no administration console, requires
   uncommitted credentials, and creates a bucket with anonymous access disabled. Real MinIO tests
   cover private policy/ACL state, write-once conflicts, bounded reads, and byte-identical round trips.
+- The optional worker requires PostgreSQL, isolates queue tables in a dedicated schema, limits the
+  readiness handler to one local job, and uses durable `pg-boss` delivery with PostgreSQL
+  `LISTEN`/`NOTIFY` plus polling fallback. Unknown job data crosses a strict versioned Zod boundary;
+  malformed jobs fail with a stable code rather than serialized payload content. Integration tests
+  cover completion, invalid-job failure output, idempotent graceful stop, and restart.
 - Public GPLv3 license and explicit current-capability documentation.
 
 ## Partially implemented controls
@@ -126,6 +131,9 @@
   loopback-only, but database, object, and API transport security for a deployed topology remains an
   operator responsibility. The local stack uses MinIO root credentials for the API and is not a
   least-privilege production credential model.
+- The worker currently proves only synthetic queue readiness. Receipt jobs, per-job consent and
+  provenance, dead-letter operations, cancellation, administrator tooling, and job-specific
+  retention/retry policies are not implemented.
 
 ## Planned controls
 

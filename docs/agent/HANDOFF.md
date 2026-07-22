@@ -16,37 +16,33 @@ hardware in this Linux environment.
 ## Active direction
 
 Milestone 6 is active. `apps/api` provides Fastify 5, strict schemas, bounded errors and request
-rates, generated OpenAPI 3.1.1, fixed-claim signed development tokens, and explicit owner-scoped
-receipt create/read operations. Optional PostgreSQL 16 persistence uses ordered transactional
-migrations under an advisory lock, constrained `BIGINT` minor units, original-offset timestamp text,
-and owner predicates in every repository operation. Development can still use an explicitly
-non-durable memory adapter; production configuration refuses that fallback. Development identity
-issuance is not production authentication.
+rates, generated OpenAPI 3.1.1, fixed-claim signed development tokens, owner-scoped receipt
+create/read, PostgreSQL 16 persistence, and authenticated private S3-compatible original upload and
+download. The local Compose stack provides password-required loopback PostgreSQL plus pinned private
+MinIO with no published console. Development identity issuance and MinIO root credentials are not
+production authentication or a least-privilege deployment model.
 
-Private hosted original storage is implemented behind an S3-compatible port. Upload validates a
-strict bounded base64 request, content-inspects JPEG/PNG/PDF bytes, hashes them, creates an immutable
-UUID-derived object, and persists owner/receipt-linked PostgreSQL metadata. Metadata failure triggers
-object cleanup. Download authorizes against metadata before object access, streams within the file
-limit, and verifies size plus SHA-256 before proxying bytes. API responses expose no storage keys or
-public/presigned URLs; cross-owner and missing objects share a bounded `404`.
+`apps/worker` is separately runnable and uses `pg-boss` in a `reimbursd_jobs` PostgreSQL schema. It
+enables `LISTEN`/`NOTIFY` with polling fallback, registers one locally concurrent readiness handler,
+sends a versioned synthetic UUID job, and reports ready only after strict handler validation. Error
+boundaries emit stable messages without job payloads or database URLs. Real PostgreSQL tests cover
+completion, malformed-job failure output, idempotent graceful stop, and restart. A built-process
+smoke test passed against fresh Compose PostgreSQL and all temporary resources were removed.
 
-The development Compose stack includes password-required loopback PostgreSQL and a pinned,
-credential-required loopback MinIO endpoint with no published console. A short-lived pinned MinIO
-client creates the configured bucket and disables anonymous access. A smoke test confirmed the
-service health and private bucket, then removed all temporary resources. Real-container tests cover
-PostgreSQL migration/ownership behavior and MinIO policy, immutable writes, bounded reads, and round
-trips. Hosted deletion/reconciliation, backups, production credentials/authentication, TLS, the
-worker, and the web client remain incomplete.
+The worker readiness job contains no user or receipt data and is not presented as receipt
+processing. OCR, AI, email, geocoding, billing, cleanup, synchronization jobs, job-specific consent,
+provenance, retention, cancellation, and dead-letter administration remain future work. Local mobile
+startup and every account-free workflow remain independent of API, worker, PostgreSQL, and MinIO.
 
-The complete gate passes with 220 Vitest tests, 51 React Native/Jest tests, Expo Doctor 20/20, and
-all builds. Eleven moderate Expo build-tool advisories remain documented; no high or critical
-advisory is present. The Expo web development server runs at `http://localhost:8081`.
+The complete gate passes with 224 Vitest tests, 51 React Native/Jest tests, Expo Doctor 20/20, and
+all builds. Four Expo SDK 57 packages were aligned to the patch versions required by current Doctor
+compatibility data. Eleven moderate Expo build-tool advisories remain documented; no high or
+critical advisory is present. The Expo web development server remains at `http://localhost:8081`.
 
 ## Resume steps
 
 1. Read `AGENTS.md`, `docs/agent/STATUS.md`, and `docs/agent/TASKS.md`.
 2. Inspect `git status --short` and preserve uncommitted work.
-3. Confirm the private hosted attachment slice is committed.
-4. Add a locally runnable worker and deterministic local/mock provider boundary before the web
-   client.
-5. Run `npm run verify` before committing a logical slice or marking a milestone complete.
+3. Confirm the PostgreSQL worker foundation is committed.
+4. Define the browser credential/CORS/CSRF boundary before implementing the self-hosted web client.
+5. Keep the web client separate from the local mobile app and run `npm run verify` before committing.

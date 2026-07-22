@@ -15,6 +15,9 @@ driver, a loopback Compose port, and the Docker daemon used by integration tests
 Private hosted attachments add untrusted base64 HTTP bodies, original filenames, object keys,
 owner-linked document metadata, S3 credentials and responses, a loopback MinIO endpoint, and
 cross-datastore write/cleanup behavior as current boundaries.
+The worker adds a separately connected process, a `pg-boss` schema, durable job payload and output
+rows, queue migrations, notifications, handler concurrency, and shutdown behavior as current
+boundaries. The only current job payload is a synthetic schema version and UUID.
 
 ## Current threats
 
@@ -47,6 +50,9 @@ cross-datastore write/cleanup behavior as current boundaries.
 - Public bucket configuration, exposed object keys, filename-derived traversal, overwrite races,
   oversized or corrupt object responses, cross-owner attachment lookup, orphaned objects after
   metadata failure, or S3 credentials/provider errors leaking through responses and logs.
+- Unvalidated or oversized jobs reaching handlers, queue errors serializing sensitive payloads,
+  unbounded concurrency, duplicate process startup, interrupted shutdown, incompatible queue schema
+  changes, or worker availability becoming a dependency of local mobile use.
 - Unsupported privacy or encryption claims creating user risk.
 
 ## Current mitigations
@@ -92,12 +98,17 @@ cross-datastore write/cleanup behavior as current boundaries.
   console or anonymous policy; content-derived MIME metadata; UUID-only keys; bounded streaming;
   immutable conditional writes; size/hash validation; metadata-first authorization on reads;
   compensating cleanup; bounded errors; and real MinIO plus cross-owner tests.
+- A maintained PostgreSQL queue engine in its own schema, strict versioned unknown-data validation,
+  single local handler concurrency, a data-free synthetic readiness contract, stable failure and
+  process messages, graceful idempotent stop, no mobile dependency, and real PostgreSQL delivery and
+  restart tests.
 - Documentation that distinguishes implemented and planned controls.
 
 ## Future review triggers
 
 Revisit this model before changing algorithms, rotating keys, adding password-derived keys,
 production authentication, hosted attachment deletion/direct transfer, a web origin,
-synchronization, location, billing, or a deployed database/object topology. Receipt images, OCR
-text, imported archives, HTTP bodies, database rows, object responses, and provider responses must
-always be treated as untrusted data and never as executable instructions.
+synchronization, receipt-bearing worker jobs, location, billing, or a deployed database/object
+topology. Receipt images, OCR text, imported archives, HTTP bodies, database rows, queued jobs,
+object responses, and provider responses must always be treated as untrusted data and never as
+executable instructions.

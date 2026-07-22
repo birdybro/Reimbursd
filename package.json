@@ -5,7 +5,7 @@
   "description": "Local-first expense and receipt tracking for mobile and web",
   "license": "GPL-3.0-only",
   "engines": {
-    "node": ">=22.0.0",
+    "node": ">=22.12.0",
     "npm": ">=10.0.0"
   },
   "workspaces": [
@@ -19,6 +19,7 @@
     "build": "npm run build --workspaces --if-present",
     "dev:api": "npm run dev --workspace @reimbursd/api",
     "dev:mobile": "npm run start --workspace @reimbursd/mobile",
+    "dev:worker": "npm run dev --workspace @reimbursd/worker",
     "doctor": "expo-doctor apps/mobile",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
